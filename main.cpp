@@ -2,10 +2,11 @@
 #include "HttpResponse.hpp"
 
 int main() {
-    std::string url = "riera.png";
-    std::pair<int, std::string> file = locateAndReadFile(url);
+    std::string url = "hel.he.lo.txt.txt";
+    std::string mime = ".html";
+    std::pair<int, std::string> file = locateAndReadFile(url, mime);
     //std::cout << "content is " << file.second << std::endl;
-    HttpResponse response(file.first, file.second);
+    HttpResponse response(file.first, mime);
     response.setHeader("Server", "Webserv/1.0");
     response.setBody(file.second);
     std::cout << response.generate();

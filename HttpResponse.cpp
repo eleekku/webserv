@@ -95,11 +95,25 @@ std::string HttpResponse::generate() const {
 	return response.str();
 }
 
-std::pair<int, std::string> locateAndReadFile(std::string& url) {
+std::string getExtension(const std::string& url) {
+	size_t pos = url.find_last_of('.');
+	if (pos == std::string::npos)
+		return ".html";
+	return url.substr(pos);
+}
+
+std::pair<int, std::string> locateAndReadFile(std::string& url, std::string& mime) {
 	std::string fullPath = "www/" + url;
 	struct stat fileStat;
+	mime = getExtension(url);
 	if (stat(fullPath.c_str(), &fileStat) == -1)
-		return {404, "Not Found"};
+	{
+		std::ifstream file("www/404.html", std::ios::binary);
+		std::ostringstream buffer;
+		buffer << file.rdbuf();
+		mime = ".html";
+		return {404, buffer.str()};
+	}
 	if (S_ISDIR(fileStat.st_mode))
 		return {403, "Forbidden"};
 
