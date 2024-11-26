@@ -160,14 +160,13 @@ public:
 class ConfigFile 
 {
 private:
-    int port;
+    std::string port;
     std::string _fileName;
     std::string ip_server;
     std::string server_name;
-    std::ifstream _file;
-    int max_body;
+    std::string max_body;
     std::string errorPage;
-     std::vector<std::string> locations;
+    std::vector<std::string> locations;
 
 public:
     ConfigFile(std::string file);
@@ -193,15 +192,7 @@ void ConfigFile::printParam()
 
 }
 
-bool isNum(const std::string& str) {
-    if (str.empty()) return false; // Un string vacío no es un número
-    for (char c : str) {
-        if (!std::isdigit(c)) return false; // Si algún carácter no es dígito, no es un número
-    }
-    return true;
-}
-
-ConfigFile::ConfigFile(std::string file) : _fileName(file), port(0), ip_server(""), server_name(""), max_body(0), errorPage(""), _file(""){}
+ConfigFile::ConfigFile(std::string file) : _fileName(file), port(""), ip_server(""), server_name(""), max_body(""), errorPage(""){}
 
 ConfigFile::~ConfigFile() {}
 
@@ -220,133 +211,175 @@ std::string ConfigFile::trim(const std::string &str)
     return str.substr(start, end - start + 1);
 }
 
+bool isValIp(const std::string& ip) 
+{
+    
+    std::regex ipv4Regex(    R"(^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}$)"    );
+    return std::regex_match(ip, ipv4Regex);
+}
+bool isValPort(const std::string& port)
+{
+    std::regex serverPort( "^(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$");
+    return std::regex_match(port, serverPort);
+}
+bool isValBZ(const std::string& bodySize)
+{
+    std::regex maxBodySize ("^(10|[1-9](?:[.,][0-9])?)M$");
+    return std::regex_match(bodySize, maxBodySize);
+}
+
 bool ConfigFile::parseServerParams()
 {
     std::string line;
     std::string currentLocation;
-    bool insideServerBlock;
+    bool insideServerBlock = true;
+    bool flagListen = true;
+    bool flagServerName = true;
+    bool flagCMBZ = true;
+    bool flagErrorP = true;
+    bool isBlockC = false;
 
     std::ifstream file(_fileName);
     if (!file.is_open()) {
         std::cerr << "Cannot open file: " << _fileName << std::endl;
         return false;
     }
-    if (std::getline(file, line)) {
+
+    while(std::getline(file, line)) 
+    {
         line = trim(line);
-        if (line != "server {") {
-            std::cerr << "Error: Configuration file must start with 'server {'." << std::endl;
-            return false;
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        if (line.find ("server") == 0)
+        {
+            size_t spacePos = line.find(' ');
+            if (spacePos == std::string::npos)
+            {
+                while (std::getline(file, line))
+                {
+                    line = trim(line);
+                    if (line.empty() || line[0] == '#') {
+                    continue;
+                    }
+                    if (line.find("{") == 0)
+                        break;
+                }
+            }
+            else
+            {
+                if (line.find("{") != std::string::npos)
+                {
+                    break;
+                }
+            }
         }
     }
-    while (std::getline(file, line)) {
+    while (std::getline(file, line)) 
+    {
+        
         line = trim(line);
-
         // Skip empty lines or comment lines
         if (line.empty() || line[0] == '#') {
             continue;
         }
-        if (line.find("listen") == 0) {
+        if (line.find("listen") == 0 && flagListen) 
+        {
+            flagListen = false;
             size_t spacePos = line.find(' ');
             if (spacePos != std::string::npos) {
                 std::string listenValue = trim(line.substr(spacePos + 1));
                 size_t colonPos = listenValue.find(':');
-                if (colonPos != std::string::npos) {
+                if (colonPos != std::string::npos) 
+                {
                     ip_server = listenValue.substr(0, colonPos);
-                    port = std::stoi(listenValue.substr(colonPos + 1));
-                } else {
+                    if (!isValIp(ip_server))
+                        return false;
+                    size_t semiCo = listenValue.find(';');
+                    if (semiCo != std::string::npos)
+                    {
+                        port = listenValue.substr(colonPos + 1, semiCo - colonPos -1);
+                        if (!isValPort(port))
+                            return false;
+                    }
+                }
+                else 
+                {
                     std::cerr << "Error: Invalid listen directive format." << std::endl;
                     return false;
                 }
             }
         }
-        else if (line.find("server_name") == 0) {
+
+        else if (line.find("server_name") == 0 && flagServerName) 
+        {
+            flagServerName = false;
             size_t spacePos = line.find(' ');
             if (spacePos != std::string::npos) {
-                server_name = line.substr(spacePos + 1);
+                size_t semiCo = line.find(';');
+                if (semiCo != std::string::npos)
+                    server_name = line.substr(spacePos + 1, semiCo - spacePos - 1);
+                ///maybe check error here;
             }
         }
-        else if (line.find("client_max_body_size") == 0) {
+
+        else if (line.find("client_max_body_size") == 0 && flagCMBZ) 
+        {
+            flagCMBZ = false;
             size_t spacePos = line.find(' ');
-            if (spacePos != std::string::npos) {
-                max_body = std::stoi(line.substr(spacePos + 1));
+            if (spacePos != std::string::npos) 
+            {
+                size_t semiCo = line.find(';');
+                if (semiCo != std::string::npos)
+                    max_body = line.substr(spacePos + 1, semiCo - spacePos - 1);
+                if (!isValBZ(max_body))
+                    return false;
             }
         }
-        else if (line.find("error_page") == 0) {
+
+        else if (line.find("error_page") == 0 && flagErrorP) 
+        {
+            flagErrorP = false;
             size_t spacePos = line.find(' ');
-            if (spacePos != std::string::npos) {
-                errorPage = line.substr(spacePos + 1);
+            if (spacePos != std::string::npos) 
+            {
+                size_t semiCo = line.find(';');
+                if (semiCo != std::string::npos)
+                    errorPage = line.substr(spacePos + 1, semiCo - spacePos - 1);
             }
         }
-        else if (line.find("location") == 0) {
+
+        else if (line.find("location") == 0) 
+        {
             size_t spacePos = line.find(' ');
-            if (spacePos != std::string::npos) {
+            if (spacePos != std::string::npos) 
                 currentLocation = line.substr(spacePos + 1);
-            }
+
             std::string temp;
             temp = line + "\n";
-            while (std::getline(file, line)) {
+            while (std::getline(file, line)) 
+            {
                 line = trim(line);
-                if (line.empty() || line[0] == '#') {
+                if (line.empty() || line[0] == '#') 
                     continue;
-                }
                 temp += line + "\n"; 
-                if (line == "}") {
+                if (line.find("}") != std::string::npos) 
+                {
                     locations.push_back (temp);
                     temp.clear();
                     break; // End of location block
                 }
             }
         }
-        else if (line == "}")
+        else if (line.find("}") != std::string::npos)
+        {
             break ;
+        }
         else
             return false;
-
     }
-
     return true;
 }
-
-
-
-////test rege
-
-/*bool validateConfig(const std::string& filepath) {
-    std::ifstream configFile(filepath);
-    if (!configFile.is_open()) {
-        std::cerr << "Error: Could not open the file.\n";
-        return false;
-    }
-
-    // Regular expressions for various patterns
-    std::regex serverBlockStart(R"(^\s*server\s*\{\s*$)"); // Matches "server {"
-    std::regex listenDirective(R"(^\s*listen\s+\d{1,3}(\.\d{1,3}){3}:\d{1,5};\s*$)"); // Matches "listen 127.0.0.1:8080;"
-    std::regex serverNameDirective(R"(^\s*server_name\s+\S+;\s*$)"); // Matches "server_name example.com;"
-    std::regex clientMaxBodySizeDirective(R"(^\s*client_max_body_size\s+\d+[KMG]?\s*;\s*$)"); // Matches "client_max_body_size 10M;"
-    std::regex errorPageDirective(R"(^\s*error_page\s+\d{3}\s+\S+;\s*$)"); // Matches "error_page 404 /404.html;"
-    std::regex locationBlockStart(R"(^\s*location\s+\S+\s*\{\s*$)"); // Matches "location / {"
-    std::regex genericDirective(R"(^\s*\S+\s+\S+;\s*$)"); // Matches general directives like "root /path;"
-
-    int blockDepth = 0; // To track nested blocks
-    std::string line;
-
-    while (std::getline(configFile, line)) {
-        if (std::regex_match(line, serverBlockStart)) {
-            blockDepth++;
-        }
-        else if (std::regex_match(line, listenDirective))
-            return false;
-    }
-
-    configFile.close();
-
-    if (blockDepth != 0) {
-        std::cerr << "Error: Unmatched opening brace '{'.\n";
-        return false;
-    }
-
-    return true; // If no errors found
-}*/
 
 int main(int ac, char **av) 
 {
