@@ -1,5 +1,6 @@
 #include <iostream>
 #include "HttpResponse.hpp"
+#include "CgiHandler.hpp"
 
 int main() {
     std::string url = "hel.he.lo.txt.txt";
@@ -7,6 +8,9 @@ int main() {
     std::pair<int, std::string> file = locateAndReadFile(url, mime);
     //std::cout << "content is " << file.second << std::endl;
     HttpResponse response(file.first, mime);
+    CgiHandler cgi;
+    std::string output = cgi.executeCgi("www/test.sh");
+    std::cout << output << std::endl;
     response.setHeader("Server", "Webserv/1.0");
     response.setBody(file.second);
     std::cout << response.generate();
