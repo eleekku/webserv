@@ -49,7 +49,7 @@ bool ConfigFile::parseServerParams()
 {
     std::string line;
     std::string currentLocation;
-    bool insideServerBlock = true;
+    bool insideServerBlock = false;
     bool flagListen = true;
     bool flagServerName = true;
     bool flagCMBZ = true;
@@ -57,11 +57,10 @@ bool ConfigFile::parseServerParams()
     bool isBlockC = false;
 
     std::ifstream file(_fileName);
-    if (!file.is_open()) {
-        std::cerr << "Cannot open file: " << _fileName << std::endl;
-        return false;
+    if (!file.is_open()) 
+    {
+        throw parseError();
     }
-
     while(std::getline(file, line)) 
     {
         line = trim(line);
@@ -80,18 +79,23 @@ bool ConfigFile::parseServerParams()
                     continue;
                     }
                     if (line.find("{") == 0)
+                    {
+                        insideServerBlock = true;
                         break;
+                    }
                 }
             }
             else
             {
                 if (line.find("{") != std::string::npos)
-                {
-                    break;
-                }
+                    insideServerBlock = true;
             }
         }
+        if (insideServerBlock == true)
+            break;
     }
+    if (!std::getline(file, line))
+        throw parseError();
     while (std::getline(file, line)) 
     {
         
@@ -111,23 +115,22 @@ bool ConfigFile::parseServerParams()
                 {
                     ip_server = listenValue.substr(0, colonPos);
                     if (!isValIp(ip_server))
-                        return false;
+                        throw parseError();
                     size_t semiCo = listenValue.find(';');
                     if (semiCo != std::string::npos)
                     {
                         port = listenValue.substr(colonPos + 1, semiCo - colonPos -1);
                         if (!isValPort(port))
-                            return false;
+                            throw parseError();;
                     }
                 }
                 else 
                 {
-                    std::cerr << "Error: Invalid listen directive format." << std::endl;
-                    return false;
+                    throw parseError();;
                 }
             }
         }
-
+        
         else if (line.find("server_name") == 0 && flagServerName) 
         {
             flagServerName = false;
@@ -150,7 +153,7 @@ bool ConfigFile::parseServerParams()
                 if (semiCo != std::string::npos)
                     max_body = line.substr(spacePos + 1, semiCo - spacePos - 1);
                 if (!isValBZ(max_body))
-                    return false;
+                    throw parseError();
             }
         }
 
@@ -163,6 +166,7 @@ bool ConfigFile::parseServerParams()
                 size_t semiCo = line.find(';');
                 if (semiCo != std::string::npos)
                     errorPage = line.substr(spacePos + 1, semiCo - spacePos - 1);
+                //check error pag;
             }
         }
 
@@ -190,11 +194,14 @@ bool ConfigFile::parseServerParams()
         }
         else if (line.find("}") != std::string::npos)
         {
+            insideServerBlock = false;
             break ;
         }
         else
-            return false;
+            throw parseError();;
     }
+    if (insideServerBlock == true)
+        throw parseError();;
     return true;
 }
 

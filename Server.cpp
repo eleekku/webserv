@@ -124,7 +124,7 @@ void Server::run()
                 {
                     std::cout << "epoll_ctl client\n";
                     close(client_fd);
-                    continue; ;
+                    continue;
                 }
 
                 std::cout << "New connection from "

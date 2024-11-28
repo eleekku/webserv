@@ -27,6 +27,14 @@ private:
 
 public:
 
+        class parseError : public std::exception {
+        public:
+            virtual const char* what() const throw()
+            {
+                return ("parse config file error\n");
+            }
+    };
+
     ConfigFile(std::string file);
     ~ConfigFile();
 
