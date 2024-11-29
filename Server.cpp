@@ -6,7 +6,7 @@
 #include <fcntl.h>
 
 #define MAX_EVENTS 10
-#define BAFFER_SIZE 1024
+#define BUFFER_SIZE 1024
 
 int setNonBlocking(int fd) 
 {
@@ -134,34 +134,43 @@ void Server::run()
             else
             {
                 int client_fd = events[i].data.fd;
-                char buffer[BAFFER_SIZE];
-                ssize_t bytesRead = read(client_fd, buffer, BAFFER_SIZE - 1);
+                std::string buffer;// xabi expect this 
+                buffer.resize(BUFFER_SIZE); 
+                ssize_t bytesRead = recv(client_fd, &buffer[0], BUFFER_SIZE - 1, 0);
 
                 if (bytesRead == -1)
                 {
-                    std::cout << "error read bytes client\n";
+                    std::cout << "Error receiving data from client" << std::endl;
                     close(client_fd);
                     continue;
                 }
                 else if (bytesRead == 0)
                 {
-                    // Connection closed
+                    // Conexión cerrada
                     std::cout << "Client disconnected." << std::endl;
                     close(client_fd);
                     epoll_ctl(epollFd, EPOLL_CTL_DEL, client_fd, nullptr);
                 }
                 else
                 {
-                    buffer[bytesRead] = '\0';
+                    ssize_t nl = buffer.find("\n");
+                    std::string test1 = buffer.substr(0, nl);
+                    std::cout << "firsh line of client request----------------\n"<< test1 << "\n" << "-------------\n";
+                    buffer.resize(bytesRead);
                     std::cout << "Received: " << buffer << std::endl;
+
                     std::string httpResponse = "HTTP/1.1 200 OK\r\n"
-                                            "Content-Type: text/plain\r\n"
-                                            "Content-Length: " + std::to_string(bytesRead) + "\r\n"
-                                            "\r\n" +
-                                            std::string(buffer, bytesRead);
-                    write(client_fd, httpResponse.c_str(), httpResponse.size());
+                                                "Content-Type: text/plain\r\n"
+                                                "Content-Length: " + std::to_string(bytesRead) + "\r\n"
+                                                "\r\n" +
+                                                buffer;
+
+                    ssize_t bytesSent = send(client_fd, httpResponse.c_str(), httpResponse.size(), MSG_NOSIGNAL);
+                    if (bytesSent == -1)
+                    {
+                        std::cerr << "Error sending data to client." << std::endl;
+                    }
                 }
-                
             }
         }
     }

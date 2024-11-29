@@ -20,7 +20,7 @@ int main(int ac, char **av)
     }
     
     //serverFile.printParam();
-    /*Server  server(serverFile.getPort(), serverFile.getIpServer(), serverFile.getServerName());
+    Server  server(serverFile.getPort(), serverFile.getIpServer(), serverFile.getServerName());
 
 
     if (!server.initialize())
@@ -29,7 +29,7 @@ int main(int ac, char **av)
         return 1;
     }
 
-    server.run();*/
+    server.run();
 
     return 0;
 }
