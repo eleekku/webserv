@@ -38,8 +38,8 @@ private:
 	static const std::map<std::string, std::string> m_mimeTypes;
 };
 
-std::pair<int, std::string> locateAndReadFile(std::string& url, std::string& mime);
+std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime);
 std::string getExtension(const std::string_view& url);
 
-void	receiveRequest(HttpParser& request);
+HttpResponse	receiveRequest(HttpParser& request);
 

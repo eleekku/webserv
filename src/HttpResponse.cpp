@@ -1,5 +1,8 @@
 #include "../include/HttpResponse.hpp"
 
+/*To use the HttpResponse declare HttpResponse object and define it with receiveRequest funciton which takes HttpParser object.
+Then call HttpParser member function generate which will return the response as string.*/
+
 const std::map<int, std::string> HttpResponse::m_statusMap = {
 	{200, "OK"},
 	{201, "Created"},
@@ -102,13 +105,13 @@ std::string getExtension(const std::string_view& url) {
 	return std::string(url.substr(pos));
 }
 
-std::pair<int, std::string> locateAndReadFile(std::string& url, std::string& mime) {
-	std::string fullPath = "www/" + url;
+std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime) {
+	std::string fullPath = "../www/" + (std::string)url;
 	struct stat fileStat;
 	mime = getExtension(url);
 	if (stat(fullPath.c_str(), &fileStat) == -1)
 	{
-		std::ifstream file("www/404.html", std::ios::binary);
+		std::ifstream file("../www/404.html", std::ios::binary);
 		std::ostringstream buffer;
 		buffer << file.rdbuf();
 		mime = ".html";
@@ -126,6 +129,11 @@ std::pair<int, std::string> locateAndReadFile(std::string& url, std::string& mim
 	return {200, buffer.str()};
 }
 
-void receiveRequest(HttpParser& request) {
+HttpResponse receiveRequest(HttpParser& request) {
 	std::string mime = getExtension(request.getTarget());
+	std::pair<int, std::string> file = locateAndReadFile(request.getTarget(), mime);
+	HttpResponse response(file.first, mime);
+	response.setHeader("Server", "Webserv/1.0");
+	response.setBody(file.second);
+	return response;
 }
