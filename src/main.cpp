@@ -1,5 +1,5 @@
-#include "include/ConfigFile.hpp"
-#include "include/Server.hpp"
+#include "../include/ConfigFile.hpp"
+#include "../include/Server.hpp"
 
 
 int main(int ac, char **av) 

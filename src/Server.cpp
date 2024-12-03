@@ -1,4 +1,5 @@
 #include "../include/Server.hpp"
+#include "../include/HttpResponse.hpp"
 
 
 #define MAX_EVENTS 10
@@ -152,16 +153,10 @@ void Server::run() // I will split it.
                     HttpParser request(bytesRead);
 
                     request.parseRequest(buffer);
+                    HttpResponse response = receiveRequest(request);
+                    std::string body = response.generate();
 
-
-                    // elias part-------------------------------------------------------------------------------
-                    std::string httpResponse = "HTTP/1.1 200 OK\r\n"
-                                                "Content-Type: text/plain\r\n"
-                                                "Content-Length: " + std::to_string(bytesRead) + "\r\n"
-                                                "\r\n" +
-                                                buffer;
-
-                    ssize_t bytesSent = send(client_fd, httpResponse.c_str(), httpResponse.size(), MSG_NOSIGNAL);
+                    ssize_t bytesSent = send(client_fd, body.c_str(), body.size(), MSG_NOSIGNAL);
                     if (bytesSent == -1)
                     {
                         std::cerr << "Error sending data to client." << std::endl;
