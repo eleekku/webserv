@@ -153,6 +153,7 @@ void Server::run() // I will split it.
                     HttpParser request(bytesRead);
 
                     request.parseRequest(buffer);
+                    std::cout << "request is:\n" << request.getMethodString() << std::endl;
                     HttpResponse response = receiveRequest(request);
                     std::string body = response.generate();
 
