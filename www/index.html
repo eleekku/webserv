@@ -1,1 +1,260 @@
-haha this is just a test
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Character Selection</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+				font-family: "Arial", sans-serif;
+			}
+
+			body {
+				background-color: #0a0a0a;
+				color: #fff;
+				min-height: 100vh;
+				background-image: linear-gradient(
+						rgba(0, 0, 0, 0.7),
+						rgba(0, 0, 0, 0.7)
+					),
+					url("https://images.unsplash.com/photo-1511512578047-dfb367046420?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80");
+				background-size: cover;
+				background-position: center;
+			}
+
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 2rem;
+			}
+
+			header {
+				text-align: center;
+				padding: 2rem 0;
+			}
+
+			.game-title {
+				font-size: 3.5rem;
+				color: #ff3e3e;
+				text-shadow: 0 0 10px rgba(255, 62, 62, 0.5);
+				margin-bottom: 1rem;
+			}
+
+			.subtitle {
+				color: #ffffff;
+				font-size: 1.2rem;
+				text-transform: uppercase;
+				letter-spacing: 3px;
+			}
+
+			.character-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+				gap: 2rem;
+				padding: 2rem 0;
+			}
+
+			.character-card {
+				background: rgba(255, 255, 255, 0.1);
+				border: 2px solid rgba(255, 255, 255, 0.2);
+				border-radius: 15px;
+				padding: 1.5rem;
+				transition: all 0.3s ease;
+				cursor: pointer;
+				position: relative;
+				overflow: hidden;
+			}
+
+			.character-card:hover {
+				transform: translateY(-10px);
+				border-color: #ff3e3e;
+				box-shadow: 0 0 20px rgba(255, 62, 62, 0.3);
+			}
+
+			.character-image {
+				width: 100%;
+				height: 250px;
+				background-color: #1a1a1a;
+				border-radius: 10px;
+				margin-bottom: 1rem;
+				background-size: cover;
+				background-position: center;
+			}
+
+			.warrior .character-image {
+				background-image: url("https://cdn.intra.42.fr/users/0038cc38d9c617e55f5c96cdd94192d6/dzurita.jpg");
+			}
+
+			.mage .character-image {
+				background-image: url("https://cdn.intra.42.fr/users/406106b37ab710c7d3d4f5bcf7a03463/esalmela.jpg");
+			}
+
+			.rogue .character-image {
+				background-image: url("https://cdn.intra.42.fr/users/a20a41347e79e7ca15741e2fd12fd069/xriera-c.jpg");
+			}
+
+			.character-info {
+				text-align: center;
+			}
+
+			.character-name {
+				font-size: 1.5rem;
+				margin-bottom: 0.5rem;
+				color: #fff;
+			}
+
+			.character-class {
+				color: #ff3e3e;
+				font-size: 1rem;
+				margin-bottom: 1rem;
+			}
+
+			.stats {
+				display: grid;
+				grid-template-columns: repeat(2, 1fr);
+				gap: 0.5rem;
+			}
+
+			.stat {
+				background: rgba(255, 255, 255, 0.1);
+				padding: 0.5rem;
+				border-radius: 5px;
+			}
+
+			.select-btn {
+				width: 100%;
+				padding: 1rem;
+				margin-top: 1rem;
+				background: #ff3e3e;
+				border: none;
+				border-radius: 5px;
+				color: white;
+				font-size: 1rem;
+				cursor: pointer;
+				transition: background 0.3s ease;
+			}
+
+			.select-btn:hover {
+				background: #ff6060;
+			}
+
+			.glow {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				top: 0;
+				left: 0;
+				background: radial-gradient(
+					circle at center,
+					rgba(255, 62, 62, 0.2) 0%,
+					transparent 70%
+				);
+				opacity: 0;
+				transition: opacity 0.3s ease;
+			}
+
+			.character-card:hover .glow {
+				opacity: 1;
+			}
+
+			@media (max-width: 768px) {
+				.game-title {
+					font-size: 2.5rem;
+				}
+
+				.character-grid {
+					grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<header>
+				<h1 class="game-title">EPIC QUEST</h1>
+				<p class="subtitle">Choose Your Hero</p>
+			</header>
+
+			<div class="character-grid">
+				<!-- Warrior Character Card -->
+				<div class="character-card warrior">
+					<div class="glow"></div>
+					<div class="character-image"></div>
+					<div class="character-info">
+						<h2 class="character-name">Deivy</h2>
+						<p class="character-class">Warrior</p>
+						<div class="stats">
+							<div class="stat">
+								<p>HP: 100</p>
+							</div>
+							<div class="stat">
+								<p>ATK: 80</p>
+							</div>
+							<div class="stat">
+								<p>DEF: 70</p>
+							</div>
+							<div class="stat">
+								<p>SPD: 50</p>
+							</div>
+						</div>
+						<button class="select-btn">Select Character</button>
+					</div>
+				</div>
+
+				<!-- Mage Character Card -->
+				<div class="character-card mage">
+					<div class="glow"></div>
+					<div class="character-image"></div>
+					<div class="character-info">
+						<h2 class="character-name">Elias</h2>
+						<p class="character-class">Mage</p>
+						<div class="stats">
+							<div class="stat">
+								<p>HP: 70</p>
+							</div>
+							<div class="stat">
+								<p>ATK: 100</p>
+							</div>
+							<div class="stat">
+								<p>DEF: 40</p>
+							</div>
+							<div class="stat">
+								<p>SPD: 60</p>
+							</div>
+						</div>
+						<button class="select-btn">Select Character</button>
+					</div>
+				</div>
+
+				<!-- Rogue Character Card -->
+				<div class="character-card rogue">
+					<div class="glow"></div>
+					<div class="character-image"></div>
+					<div class="character-info">
+						<h2 class="character-name">Xavi</h2>
+						<p class="character-class">Rogue</p>
+						<div class="stats">
+							<div class="stat">
+								<p>HP: 60</p>
+							</div>
+							<div class="stat">
+								<p>ATK: 70</p>
+							</div>
+							<div class="stat">
+								<p>DEF: 50</p>
+							</div>
+							<div class="stat">
+								<p>SPD: 100</p>
+							</div>
+						</div>
+						<button class="select-btn">Select Character</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
+=======
