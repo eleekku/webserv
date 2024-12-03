@@ -1,4 +1,4 @@
-#include "ConfigFile.hpp"
+#include "../include/ConfigFile.hpp"
 
 void ConfigFile::printParam()
 {
@@ -45,7 +45,7 @@ bool isValBZ(const std::string& bodySize)
     return std::regex_match(bodySize, maxBodySize);
 }
 
-bool ConfigFile::parseServerParams()
+bool ConfigFile::parseServerParams() //remember have to split 
 {
     std::string line;
     std::string currentLocation;

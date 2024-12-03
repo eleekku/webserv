@@ -1,9 +1,5 @@
-#include "Server.hpp"
-#include <iostream>
-#include <arpa/inet.h>
-#include <stdexcept>
-#include <sys/epoll.h>
-#include <fcntl.h>
+#include "../include/Server.hpp"
+
 
 #define MAX_EVENTS 10
 #define BUFFER_SIZE 1024
@@ -13,12 +9,12 @@ int setNonBlocking(int fd)
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1) 
     {
-        perror("fcntl");
+        std::cout <<"error fcntl setNonBlocking\n";
         return(-1);
     }
     flags |= O_NONBLOCK;
     if (fcntl(fd, F_SETFL, flags) == -1) {
-        perror("fcntl");
+        std::cout << "error fcntl setNonBlocking O_NONBLOCK\n";
         return(-1);
     }
     return 0;
@@ -71,7 +67,7 @@ bool Server::initialize()
     return true;
 }
 
-void Server::run()
+void Server::run() // I will split it.
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
@@ -80,13 +76,13 @@ void Server::run()
     int epollFd = epoll_create1(0);
     if (epollFd == -1)
     {
-        std::cout << "epoll created1\n";
+        std::cout << "error epoll created1\n";
         return ;
     }
     event.events = EPOLLIN;
     event.data.fd = serveSocket;
     if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket, &event) == -1) {
-        std::cout << "epoll_ctl\n";
+        std::cout << "error epoll_ctl\n";
         return ;
     }
 
@@ -95,7 +91,7 @@ void Server::run()
     {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
-            std::cout << "epoll_wait\n";
+            std::cout << "error epoll_wait\n";
             exit(EXIT_FAILURE);
         }
 
@@ -113,7 +109,7 @@ void Server::run()
             
                 if (setNonBlocking(client_fd) == -1)
                 {
-                    std::cout << "setNonBlocking cliente fail\n";
+                    std::cout << "error setNonBlocking cliente fail\n";
                     close(client_fd);
                     continue;
                 }
@@ -122,7 +118,7 @@ void Server::run()
                 event.data.fd = client_fd;
                 if (epoll_ctl(epollFd , EPOLL_CTL_ADD, client_fd, &event))
                 {
-                    std::cout << "epoll_ctl client\n";
+                    std::cout << "erro epoll_ctl client 2\n";
                     close(client_fd);
                     continue;
                 }
@@ -153,12 +149,12 @@ void Server::run()
                 }
                 else
                 {
-                    ssize_t nl = buffer.find("\n");
-                    std::string test1 = buffer.substr(0, nl);
-                    std::cout << "firsh line of client request----------------\n"<< test1 << "\n" << "-------------\n";
-                    buffer.resize(bytesRead);
-                    std::cout << "Received: " << buffer << std::endl;
+                    HttpParser request(bytesRead);
 
+                    request.parseRequest(buffer);
+
+
+                    // elias part-------------------------------------------------------------------------------
                     std::string httpResponse = "HTTP/1.1 200 OK\r\n"
                                                 "Content-Type: text/plain\r\n"
                                                 "Content-Length: " + std::to_string(bytesRead) + "\r\n"

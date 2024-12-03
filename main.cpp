@@ -1,13 +1,11 @@
-#include "ConfigFile.hpp"
-#include "Server.hpp"
-
-#define PORT 8080
+#include "include/ConfigFile.hpp"
+#include "include/Server.hpp"
 
 
 int main(int ac, char **av) 
 {
     if (ac != 2) {
-        std::cout << "Too many arguments" << std::endl;
+        std::cout << "arguments" << std::endl;
         return -1;
     }
     ConfigFile serverFile(av[1]);
