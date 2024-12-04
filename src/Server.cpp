@@ -156,7 +156,7 @@ void Server::run() // I will split it.
                     std::cout << "request is:\n" << request.getMethodString() << std::endl;
                     HttpResponse response = receiveRequest(request);
                     std::string body = response.generate();
-
+                    std::cout << "response is:\n" << body << std::endl;
                     ssize_t bytesSent = send(client_fd, body.c_str(), body.size(), MSG_NOSIGNAL);
                     if (bytesSent == -1)
                     {

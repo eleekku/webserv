@@ -30,6 +30,8 @@ const std::map<std::string, std::string> HttpResponse::m_mimeTypes = {
 	{".pdf", "application/pdf"}
 };
 
+HttpResponse::HttpResponse() {}
+
 HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_mime(mime), m_sent(false) {
 	auto it = m_statusMap.find(code);
 	if (it != m_statusMap.end()) {
@@ -40,6 +42,27 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 }
 
 HttpResponse::~HttpResponse() {}
+
+HttpResponse::HttpResponse(const HttpResponse& other) {
+	m_statusCode = other.m_statusCode;
+	m_reasonPhrase = other.m_reasonPhrase;
+	m_headers = other.m_headers;
+	m_body = other.m_body;
+	m_mime = other.m_mime;
+	m_sent = other.m_sent;
+}
+
+HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
+	if (this == &other)
+		return *this;
+	m_statusCode = other.m_statusCode;
+	m_reasonPhrase = other.m_reasonPhrase;
+	m_headers = other.m_headers;
+	m_body = other.m_body;
+	m_mime = other.m_mime;
+	m_sent = other.m_sent;
+	return *this;
+}
 
 std::string HttpResponse::getCurrentDate() const
 {
@@ -72,6 +95,22 @@ void HttpResponse::setHeader(const std::string& key, const std::string& value)
 void HttpResponse::setBody(const std::string& body)
 {
 	m_body = body;
+}
+
+void HttpResponse::setStatusCode(int code)
+{
+	m_statusCode = code;
+	auto it = m_statusMap.find(code);
+	if (it != m_statusMap.end()) {
+		m_reasonPhrase = it->second;
+	}
+	else 
+		m_reasonPhrase = "Unknown";
+}
+
+void HttpResponse::setMimeType(const std::string& mime)
+{
+	m_mime = mime;
 }
 
 std::string HttpResponse::generate() const {
@@ -130,18 +169,44 @@ std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string&
 }
 
 HttpResponse receiveRequest(HttpParser& request) {
-	if (request.getMethod() == GET) {
-	std::string mime = getExtension(request.getTarget());
-	std::pair<int, std::string> file = locateAndReadFile(request.getTarget(), mime);
-	HttpResponse response(file.first, mime);
-	response.setHeader("Server", "Webserv/1.0");
-	response.setBody(file.second);
-	return response;
+	int	method = request.getMethod();
+	std::string	mime;
+	std::pair<int, std::string> file;
+	HttpResponse response;
+	int code;
+	switch (method) {
+		case DELETE:
+			code = 404;
+			mime = ".html";
+			response.setStatusCode(code);
+			response.setMimeType(mime);
+			response.setHeader("Server", "Webserv/1.0");
+			response.setBody("Not found");
+			return response;
+		case GET:
+			mime = getExtension(request.getTarget());
+			file = locateAndReadFile(request.getTarget(), mime);
+			response.setStatusCode(file.first);
+			response.setMimeType(mime);
+			response.setHeader("Server", "Webserv/1.0");
+			response.setBody(file.second);
+			return response;
+
+		case POST:
+			code = 404;
+			mime = ".html";
+			response.setStatusCode(code);
+			response.setMimeType(mime);
+			response.setHeader("Server", "Webserv/1.0");
+			response.setBody("Not found");
+			return response;
+		default:
+			code = 404;
+			mime = ".html";
+			response.setStatusCode(code);
+			response.setMimeType(mime);
+			response.setHeader("Server", "Webserv/1.0");
+			response.setBody("Not found");
+			return response;
 	}
-	int	code = 404;
-	std::string mime = ".html";
-	HttpResponse response(code, mime);
-	response.setHeader("Server", "Webserv/1.0");
-	response.setBody("Not found");
-	return response;	
 }
