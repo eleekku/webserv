@@ -133,7 +133,7 @@ void Server::run() // I will split it.
                 std::string buffer;// xabi expect this 
                 buffer.resize(BUFFER_SIZE); 
                 ssize_t bytesRead = recv(client_fd, &buffer[0], BUFFER_SIZE - 1, 0);
-
+                //check for the body size
                 if (bytesRead == -1)
                 {
                     std::cout << "Error receiving data from client" << std::endl;

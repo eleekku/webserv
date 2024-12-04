@@ -2,19 +2,23 @@
 
 void ConfigFile::printParam()
 {
-    std::cout << "IP Server: " << ip_server << "\n"
-              << "Server Name: " << server_name << "\n"
-              << "Port: " << port << "\n"
-              << "Max Body Size: " << max_body << "\n"
-              << "Error Page: " << errorPage << "\n";
-
-    for (const std::string& locations : locations) {
-        std::cout << locations << " \n";
+    int i = -1;
+    while (i > port.size())
+    {
+        i++;
+        std::cout << "IP Server: " << ip_server[i] << "\n"
+                << "Server Name: " << server_name[i] << "\n"
+                << "Port: " << port[i] << "\n"
+                << "Max Body Size: " << max_body[i] << "\n"
+                << "Error Page: " << errorPage[i] << "\n";
     }
+    /*for (const std::string& locations : locations) {
+        std::cout << locations << " \n";
+    }*/
 
 }
 
-ConfigFile::ConfigFile(std::string file) : _fileName(file), port(""), ip_server(""), server_name(""), max_body(""), errorPage(""){}
+ConfigFile::ConfigFile(std::string file) : _fileName(file), indexLocation(0) {}
 
 ConfigFile::~ConfigFile() {}
 
@@ -45,22 +49,27 @@ bool isValBZ(const std::string& bodySize)
     return std::regex_match(bodySize, maxBodySize);
 }
 
-bool ConfigFile::parseServerParams() //remember have to split 
+void ConfigFile::openConfigFile()
+{
+    std::ifstream file(_fileName);
+    if (!file.is_open()) 
+    {
+        throw parseError();
+    }
+    parseServerParams(file, 0);
+}
+
+bool ConfigFile::parseServerParams(std::ifstream& file, int i) //remember have to split 
 {
     std::string line;
     std::string currentLocation;
-    bool insideServerBlock = false;
+    insideServerBlock = false;
     bool flagListen = true;
     bool flagServerName = true;
     bool flagCMBZ = true;
     bool flagErrorP = true;
     bool isBlockC = false;
 
-    std::ifstream file(_fileName);
-    if (!file.is_open()) 
-    {
-        throw parseError();
-    }
     while(std::getline(file, line)) 
     {
         line = trim(line);
@@ -94,8 +103,9 @@ bool ConfigFile::parseServerParams() //remember have to split
         if (insideServerBlock == true)
             break;
     }
-    if (!std::getline(file, line))
-        throw parseError();
+    //if (!std::getline(file, line))
+    //    throw parseError();
+    int indexL = 0;
     while (std::getline(file, line)) 
     {
         
@@ -113,14 +123,14 @@ bool ConfigFile::parseServerParams() //remember have to split
                 size_t colonPos = listenValue.find(':');
                 if (colonPos != std::string::npos) 
                 {
-                    ip_server = listenValue.substr(0, colonPos);
-                    if (!isValIp(ip_server))
+                    ip_server.push_back(listenValue.substr(0, colonPos));
+                    if (!isValIp(ip_server[i]))
                         throw parseError();
                     size_t semiCo = listenValue.find(';');
                     if (semiCo != std::string::npos)
                     {
-                        port = listenValue.substr(colonPos + 1, semiCo - colonPos -1);
-                        if (!isValPort(port))
+                        port.push_back(listenValue.substr(colonPos + 1, semiCo - colonPos -1));
+                        if (!isValPort(port[i]))
                             throw parseError();;
                     }
                 }
@@ -138,7 +148,7 @@ bool ConfigFile::parseServerParams() //remember have to split
             if (spacePos != std::string::npos) {
                 size_t semiCo = line.find(';');
                 if (semiCo != std::string::npos)
-                    server_name = line.substr(spacePos + 1, semiCo - spacePos - 1);
+                    server_name.push_back(line.substr(spacePos + 1, semiCo - spacePos - 1));
                 ///maybe check error here;
             }
         }
@@ -151,8 +161,8 @@ bool ConfigFile::parseServerParams() //remember have to split
             {
                 size_t semiCo = line.find(';');
                 if (semiCo != std::string::npos)
-                    max_body = line.substr(spacePos + 1, semiCo - spacePos - 1);
-                if (!isValBZ(max_body))
+                    max_body.push_back(line.substr(spacePos + 1, semiCo - spacePos - 1));
+                if (!isValBZ(max_body[i]))
                     throw parseError();
             }
         }
@@ -165,7 +175,7 @@ bool ConfigFile::parseServerParams() //remember have to split
             {
                 size_t semiCo = line.find(';');
                 if (semiCo != std::string::npos)
-                    errorPage = line.substr(spacePos + 1, semiCo - spacePos - 1);
+                    errorPage.push_back(line.substr(spacePos + 1, semiCo - spacePos - 1));
                 //check error pag;
             }
         }
@@ -188,6 +198,7 @@ bool ConfigFile::parseServerParams() //remember have to split
                 {
                     locations.push_back (temp);
                     temp.clear();
+                    indexL++;
                     break; // End of location block
                 }
             }
@@ -195,17 +206,91 @@ bool ConfigFile::parseServerParams() //remember have to split
         else if (line.find("}") != std::string::npos)
         {
             insideServerBlock = false;
+            std::getline(file, line);
             break ;
         }
         else
             throw parseError();;
     }
     if (insideServerBlock == true)
-        throw parseError();;
+        throw parseError();
+    indexLocation.push_back(indexL);
+    setLocations();
+    std::cout << "estas es la ultima linea -----\n" << line << "\n";
+    if (std::getline(file, line))
+        parseServerParams(file, i++); // continuar trabajando aqui
     return true;
 }
 
-int ConfigFile::getPort() { return (std::stoi(port)); }
-std::string ConfigFile::getIpServer() { return ip_server; }
-std::string ConfigFile::getServerName() { return server_name; }
+int ConfigFile::getPort(int i) { return (std::stoi(port[i])); }
+std::string ConfigFile::getIpServer(int i) { return ip_server[i]; }
+std::string ConfigFile::getServerName(int i) { return server_name[i]; }
+
+std::vector<std::string> ConfigFile::splitIntoLines(const std::string& str) 
+{
+    std::istringstream stream(str);
+    std::vector<std::string> lines;
+    std::string line;
+
+    while (std::getline(stream, line)) {
+        lines.push_back(trim(line));
+    }
+
+    return lines;
+}
+
+bool stringToBool(const std::string& str) {
+    return str == "on" || str == "true";
+}
+
+void ConfigFile::setLocations()
+{
+    std::string currentLocation;
+    LocationConfig config;
+    std::vector<std::string> lines;
+    for (const std::string& locations : locations) 
+    {
+        lines = splitIntoLines(locations);
+
+        for (const auto& line : lines) {
+            if (line.starts_with("location")) {
+
+                size_t start = line.find("location") + 8;
+                size_t end = line.find("{");
+                currentLocation = trim(line.substr(start, end - start));
+            } else if (line.starts_with("limit_except")) {
+
+                size_t start = line.find("limit_except") + 12;
+                size_t end = line.find(";");
+                config.limit_except = trim(line.substr(start, end - start));
+            } else if (line.starts_with("root")) {
+
+                size_t start = line.find("root") + 4;
+                size_t end = line.find(";");
+                config.root = trim(line.substr(start, end - start));
+            } else if (line.starts_with("autoindex")) {
+
+                size_t start = line.find("autoindex") + 9;
+                size_t end = line.find(";");
+                config.autoindex = stringToBool(trim(line.substr(start, end - start)));
+            } else if (line.starts_with("index")) {
+
+                size_t start = line.find("index") + 5;
+                size_t end = line.find(";");
+                config.index = trim(line.substr(start, end - start));
+            }
+        }
+
+        serverConfig[currentLocation] = config;
+
+    }
+    // Imprimir la configuración
+    for (const auto& [key, config] : serverConfig) {
+        std::cout << key << ":\n";
+        std::cout << "  limit_except: " << config.limit_except << "\n";
+        std::cout << "  root: " << config.root << "\n";
+        std::cout << "  autoindex: " << (config.autoindex ? "on" : "off") << "\n";
+        std::cout << "  index: " << config.index << "\n";
+    }
+}
 

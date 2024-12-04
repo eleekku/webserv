@@ -13,17 +13,28 @@
 #include <map>
 #include <cstring>
 #include <regex>
+#include <sstream>
+
+struct LocationConfig {
+    std::string limit_except;
+    std::string root;
+    bool autoindex;
+    std::string index;
+};
 
 class ConfigFile 
 {
 private:
-    std::string port;
+    std::vector<std::string> port;
     std::string _fileName;
-    std::string ip_server;
-    std::string server_name;
-    std::string max_body;
-    std::string errorPage;
+    std::vector<std::string>ip_server;
+    std::vector<std::string> server_name;
+    std::vector<std::string> max_body;
+    std::vector<std::string> errorPage;
     std::vector<std::string> locations;
+    std::map<std::string, LocationConfig> serverConfig;
+    bool insideServerBlock;
+    std::vector<int> indexLocation;
 
 public:
 
@@ -39,11 +50,14 @@ public:
     ~ConfigFile();
 
     std::string trim(const std::string &str);
-    bool parseServerParams();
+    bool parseServerParams(std::ifstream& file, int i);
     void printParam();
-    int getPort();
-    std::string getIpServer();
-    std::string getServerName();
+    int getPort(int i);
+    std::string getIpServer(int i);
+    std::string getServerName(int i);
+    void setLocations();
+    std::vector<std::string> splitIntoLines(const std::string& str);
+    void openConfigFile();
 };
 
 #endif
