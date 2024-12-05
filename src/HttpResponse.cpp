@@ -130,10 +130,18 @@ std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string&
 }
 
 HttpResponse receiveRequest(HttpParser& request) {
+	if (request.getMethod() == GET) {
 	std::string mime = getExtension(request.getTarget());
 	std::pair<int, std::string> file = locateAndReadFile(request.getTarget(), mime);
 	HttpResponse response(file.first, mime);
 	response.setHeader("Server", "Webserv/1.0");
 	response.setBody(file.second);
 	return response;
+	}
+	int	code = 404;
+	std::string mime = ".html";
+	HttpResponse response(code, mime);
+	response.setHeader("Server", "Webserv/1.0");
+	response.setBody("Not found");
+	return response;	
 }
