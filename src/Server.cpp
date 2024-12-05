@@ -20,9 +20,9 @@ int setNonBlocking(int fd)
     return 0;
 }
 
-Server::Server(int portServer, std::string ipserver, std::string servername)  
+Server::Server(const ConfigFile& confFile)  
 {
-    port = portServer;
+    port = std::stoi(confFile.) ;
     ipServer = ipserver;
     serverName = servername;
     serveSocket = -1;

@@ -15,14 +15,15 @@ class HttpParser;
 
 class Server {
 private:
-    int port;
-    int serveSocket;
+    std::vector<int> port;
+    std::vector<int> serveSocket;
     std::string ipServer;
     std::string serverName;
+    const ConfigFile& confFile;
 
 public:
 
-    Server(int portServer, std::string ipserver, std::string servername);
+    Server(const ConfigFile& confFile );
     ~Server();
     bool initialize();
     void run();

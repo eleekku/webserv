@@ -17,17 +17,17 @@ int main(int ac, char **av)
         std::cout << e.what() << std::endl;
     }
     
-    serverFile.printParam();
-    /*Server  server(serverFile.getPort(), serverFile.getIpServer(), serverFile.getServerName());
+    //serverFile.printParam();
+    Server  server(serverFile);
 
-
+    
     if (!server.initialize())
     {
         std::cout << "error to initialize\n";
         return 1;
     }
 
-    server.run();*/
+    server.run();
 
     return 0;
 }

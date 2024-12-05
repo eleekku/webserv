@@ -2,20 +2,15 @@
 
 void ConfigFile::printParam()
 {
-    int i = -1;
-    while (i > port.size())
+    for(size_t i = 0;  i < port.size(); i++)
     {
-        i++;
         std::cout << "IP Server: " << ip_server[i] << "\n"
                 << "Server Name: " << server_name[i] << "\n"
                 << "Port: " << port[i] << "\n"
                 << "Max Body Size: " << max_body[i] << "\n"
-                << "Error Page: " << errorPage[i] << "\n";
+                << "Error Page: " << errorPage[i] << "\n"
+                << "index location: " << indexLocation[i] << "\n";
     }
-    /*for (const std::string& locations : locations) {
-        std::cout << locations << " \n";
-    }*/
-
 }
 
 ConfigFile::ConfigFile(std::string file) : _fileName(file), indexLocation(0) {}
@@ -206,7 +201,6 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int i) //remember have t
         else if (line.find("}") != std::string::npos)
         {
             insideServerBlock = false;
-            std::getline(file, line);
             break ;
         }
         else
@@ -215,8 +209,8 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int i) //remember have t
     if (insideServerBlock == true)
         throw parseError();
     indexLocation.push_back(indexL);
-    setLocations();
-    std::cout << "estas es la ultima linea -----\n" << line << "\n";
+    if (line.find("}") != std::string::npos)
+        setLocations();
     if (std::getline(file, line))
         parseServerParams(file, i++); // continuar trabajando aqui
     return true;
