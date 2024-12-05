@@ -20,12 +20,33 @@ int setNonBlocking(int fd)
     return 0;
 }
 
-Server::Server(const ConfigFile& confFile)  
+Server::Server(ConfigFile& conf, int i)  
 {
-    port = std::stoi(confFile.) ;
-    ipServer = ipserver;
-    serverName = servername;
+    port = conf.getPort(i);
+    ipServer = conf.getIpServer(i);
+    serverName = conf.getServerName(i);
     serveSocket = -1;
+    serverConfig = conf.getLocations();
+    indexLocation = conf.getIndexLocation();
+    maxBody = conf.getMax_body(i);
+    errorPage = conf.getErrorPage(i);
+
+    /*std::cout << "IP Server: " << ipServer << "\n"
+                << "Server Name: " << serverName << "\n"
+                << "Port: " << port << "\n"
+                << "Max Body Size: " << maxBody << "\n"
+                << "Error Page: " << errorPage << "\n"
+                << "index location: " << indexLocation[i] << "\n";
+
+
+    std::cout << "Server location:\n";
+    for (const auto& [location, config] : serverConfig) {
+        std::cout << "Location: " << location << "\n";
+        std::cout << "  limit_except: " << config.limit_except << "\n";
+        std::cout << "  root: " << config.root << "\n";
+        std::cout << "  autoindex: " << (config.autoindex ? "on" : "off") << "\n";
+        std::cout << "  index: " << config.index << "\n";
+    }*/
 }
 
 Server::~Server(){}

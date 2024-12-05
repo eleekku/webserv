@@ -278,13 +278,29 @@ void ConfigFile::setLocations()
         serverConfig[currentLocation] = config;
 
     }
-    // Imprimir la configuración
+    //Imprimir la configuración
+    /*std::cout << "imprimiendo de setLocations funcion \n";
     for (const auto& [key, config] : serverConfig) {
         std::cout << key << ":\n";
         std::cout << "  limit_except: " << config.limit_except << "\n";
         std::cout << "  root: " << config.root << "\n";
         std::cout << "  autoindex: " << (config.autoindex ? "on" : "off") << "\n";
         std::cout << "  index: " << config.index << "\n";
-    }
+    }*/
+}
+std::map<std::string, LocationConfig>& ConfigFile::getLocations()
+{
+    return serverConfig;
+}
+std::vector<int> ConfigFile::getIndexLocation()
+{
+    return indexLocation;
+}
+
+std::string ConfigFile::getErrorPage(int i) { return errorPage[i]; }
+std::string ConfigFile::getMax_body(int i) { return max_body[i]; }
+int ConfigFile::serverAmoung()
+{
+    return port.size();
 }
 

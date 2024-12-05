@@ -27,7 +27,7 @@ class ConfigFile
 private:
     std::vector<std::string> port;
     std::string _fileName;
-    std::vector<std::string>ip_server;
+    std::vector<std::string> ip_server;
     std::vector<std::string> server_name;
     std::vector<std::string> max_body;
     std::vector<std::string> errorPage;
@@ -55,9 +55,14 @@ public:
     int getPort(int i);
     std::string getIpServer(int i);
     std::string getServerName(int i);
+    std::string getErrorPage(int i);
+    std::string getMax_body(int i);
+    std::map<std::string, LocationConfig>& getLocations();
     void setLocations();
     std::vector<std::string> splitIntoLines(const std::string& str);
     void openConfigFile();
+    int serverAmoung();
+    std::vector<int> getIndexLocation();
 };
 
 #endif

@@ -18,9 +18,9 @@ int main(int ac, char **av)
     }
     
     //serverFile.printParam();
-    Server  server(serverFile);
+    Server  server(serverFile, 0);
 
-    
+
     if (!server.initialize())
     {
         std::cout << "error to initialize\n";
