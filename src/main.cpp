@@ -10,7 +10,7 @@ int main(int ac, char **av)
     }
     ConfigFile serverFile(av[1]);
     try {
-    serverFile.parseServerParams();
+    serverFile.openConfigFile();
     }
     catch(const std::exception& e){
 
@@ -18,7 +18,7 @@ int main(int ac, char **av)
     }
     
     //serverFile.printParam();
-    Server  server(serverFile.getPort(), serverFile.getIpServer(), serverFile.getServerName());
+    Server  server(serverFile, 0);
 
 
     if (!server.initialize())

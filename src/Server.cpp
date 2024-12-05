@@ -21,12 +21,33 @@ int setNonBlocking(int fd)
     return 0;
 }
 
-Server::Server(int portServer, std::string ipserver, std::string servername)  
+Server::Server(ConfigFile& conf, int i)  
 {
-    port = portServer;
-    ipServer = ipserver;
-    serverName = servername;
+    port = conf.getPort(i);
+    ipServer = conf.getIpServer(i);
+    serverName = conf.getServerName(i);
     serveSocket = -1;
+    serverConfig = conf.getLocations();
+    indexLocation = conf.getIndexLocation();
+    maxBody = conf.getMax_body(i);
+    errorPage = conf.getErrorPage(i);
+
+    /*std::cout << "IP Server: " << ipServer << "\n"
+                << "Server Name: " << serverName << "\n"
+                << "Port: " << port << "\n"
+                << "Max Body Size: " << maxBody << "\n"
+                << "Error Page: " << errorPage << "\n"
+                << "index location: " << indexLocation[i] << "\n";
+
+
+    std::cout << "Server location:\n";
+    for (const auto& [location, config] : serverConfig) {
+        std::cout << "Location: " << location << "\n";
+        std::cout << "  limit_except: " << config.limit_except << "\n";
+        std::cout << "  root: " << config.root << "\n";
+        std::cout << "  autoindex: " << (config.autoindex ? "on" : "off") << "\n";
+        std::cout << "  index: " << config.index << "\n";
+    }*/
 }
 
 Server::~Server(){}
@@ -134,7 +155,7 @@ void Server::run() // I will split it.
                 std::string buffer;// xabi expect this 
                 buffer.resize(BUFFER_SIZE); 
                 ssize_t bytesRead = recv(client_fd, &buffer[0], BUFFER_SIZE - 1, 0);
-
+                //check for the body size
                 if (bytesRead == -1)
                 {
                     std::cout << "Error receiving data from client" << std::endl;
