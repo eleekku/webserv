@@ -154,9 +154,19 @@ void Server::run() // I will split it.
 
                     request.parseRequest(buffer);
                     std::cout << "request is:\n" << request.getMethodString() << std::endl;
+                    std::cout << "request headers are: " << std::endl;
+                    for (const auto& [key, value] : request.getHeaders())
+                    {
+                        std::cout << key << ": " << value << std::endl;
+                    }
+                    std::cout << "request body is:\n";
+                    std::cout << request.getBody() << std::endl;
+                    std::cout << "request target is:\n";
+                    std::cout << request.getTarget() << std::endl;
+                
                     HttpResponse response = receiveRequest(request);
                     std::string body = response.generate();
-                    std::cout << "response is:\n" << body << std::endl;
+               //     std::cout << "response is:\n" << body << std::endl;
                     ssize_t bytesSent = send(client_fd, body.c_str(), body.size(), MSG_NOSIGNAL);
                     if (bytesSent == -1)
                     {
