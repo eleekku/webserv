@@ -22,7 +22,7 @@ private:
 
 public:
 
-    Server(ConfigFile& conf, int i);
+    Server();
     ~Server();
     bool initialize(ConfigFile& conf);
     int create_server_socket(int port, std::string ipServer);

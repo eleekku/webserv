@@ -63,7 +63,6 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) //remember
     bool flagServerName = true;
     bool flagCMBZ = true;
     bool flagErrorP = true;
-    bool isBlockC = false;
 
     while(std::getline(file, line)) 
     {
@@ -300,4 +299,15 @@ int ConfigFile::serverAmoung()
 {
     return port.size();
 }
+
+/*LocationConfig &ConfigFile::findKey(std::string key, std::string mainKey) 
+{
+    std::map<std::string, std::map<std::string, LocationConfig>> locations;
+    locations = getServerConfig();
+    std::map<std::string, LocationConfig> mymap = locations.find(mainKey);
+    auto it2 = it.find(key);
+    if (it2 != correctmap.end())
+        return it->second;
+    throw std::runtime_error("Key not found");
+}*/
 

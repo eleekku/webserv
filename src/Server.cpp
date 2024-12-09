@@ -1,7 +1,6 @@
 #include "../include/Server.hpp"
 #include "../include/HttpResponse.hpp"
 
-
 #define MAX_EVENTS 10
 #define BUFFER_SIZE 1024
 
@@ -23,7 +22,7 @@ int setNonBlocking(int fd)
     return 0;
 }
 
-Server::Server(ConfigFile& conf, int i)  
+Server::Server()  
 {
     //port = conf.getPort(i);
     //ipServer = conf.getIpServer(i);
@@ -122,8 +121,8 @@ bool Server::initialize(ConfigFile& conf)
     }*/
     std::vector<std::string> ips = conf.getIpServer();
     std::vector<int> portServer = conf.getPort();
-
-    for (int i = 0; i < ips.size(); i++)
+    int sizeIP = ips.size();
+    for (int i = 0; i < sizeIP; i++)
     {
         int serverFd = create_server_socket(portServer[i], ips[i]);
         if (serverFd == -1)
@@ -136,7 +135,7 @@ bool Server::initialize(ConfigFile& conf)
 
     g_serverInstance = this;
 
-    for (int i = 0; i < ips.size(); i++)
+    for (int i = 0; i < sizeIP; i++)
     { 
         std::cout << "Server [" << i + 1 << "] initialized on " << ips[i] << ":" << portServer[i] << std::endl;
     }
@@ -155,30 +154,22 @@ void Server::run(ConfigFile& conf)
         std::cout << "Error creating epoll instance\n";
         return;
     }
-
-    for (int i = 0; i < serveSocket.size(); ++i) 
+    int socketSize = serveSocket.size();
+    for (int i = 0; i < socketSize; ++i) 
     {
         event.events = EPOLLIN;
         event.data.fd = serveSocket[i];
-        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
-        {
-            std::cout << "Error adding server socket to epoll\n";
-            return;
-        }
-    }
-
-    while (true) {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
             std::cout << "Error in epoll_wait\n";
             exit(EXIT_FAILURE);
         }
 
-        for (int i = 0; i < nfds; i++) {
+        for (ssize_t i = 0; i < nfds; i++) {
             int currentFd = events[i].data.fd;
 
             //check what server the client try to connect
-            for (int j = 0; j < serveSocket.size(); ++j) 
+            for (int j = 0; j < socketSize; ++j) 
             {
                 if (currentFd == serveSocket[j]) 
                 {
@@ -198,7 +189,7 @@ void Server::run(ConfigFile& conf)
         }
     }
     close(epollFd);
-    for (int i = 0; i < serveSocket.size(); ++i) 
+    for (int i = 0; i < socketSize; ++i) 
     {
         close(serveSocket[i]);
     }
@@ -235,7 +226,7 @@ void Server::handleClientConnection(int clientFd, int serverIndex, ConfigFile& c
     std::cout << "Request method: " << request.getMethodString() << std::endl;
 
     //elisas serverIndex lets u know what server have have to response.
-    HttpResponse response = receiveRequest(request);
+    HttpResponse response = receiveRequest(request, conf);
     std::string body = response.generate();
 
     ssize_t bytesSent = send(clientFd, body.c_str(), body.size(), MSG_NOSIGNAL);

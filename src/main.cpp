@@ -19,13 +19,15 @@ void globalSignalHandler(int signum)
 
 void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig) 
 {
-    for (const auto& server : serverConfig) {
+    for (const auto& server : serverConfig) 
+    {
         const std::string& serverKey = server.first;
         const auto& locations = server.second;
 
         std::cout << "Server: " << serverKey << "\n";
 
-        for (const auto& location : locations) {
+        for (const auto& location : locations) 
+        {
             const std::string& locationKey = location.first;
             const LocationConfig& config = location.second;
 
@@ -52,9 +54,8 @@ int main(int ac, char **av)
 
         std::cout << e.what() << std::endl;
     }
-    
     //serverFile.printParam();
-    Server  server(serverFile, 0);
+    Server  server;
 
     //printServerConfig(serverFile.getServerConfig());
     if (!server.initialize(serverFile))
