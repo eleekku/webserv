@@ -304,3 +304,12 @@ int ConfigFile::serverAmoung()
     return port.size();
 }
 
+LocationConfig &ConfigFile::findKey(std::string key) {
+    std::map<std::string, LocationConfig> locations;
+    locations = this->getLocations();
+    auto it = locations.find(key);
+    if (it != locations.end())
+        return it->second;
+    throw std::runtime_error("Key not found");
+}
+

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sys/stat.h>
 #include "HttpParser.hpp"
+#include "ConfigFile.hpp"
 
 class HttpResponse
 {
@@ -43,8 +44,8 @@ private:
 	static const std::map<std::string, std::string> m_mimeTypes;
 };
 
-std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime);
+std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime, ConfigFile &confile);
 std::string getExtension(const std::string_view& url);
 
-HttpResponse	receiveRequest(HttpParser& request);
+HttpResponse	receiveRequest(HttpParser& request, ConfigFile &confile);
 

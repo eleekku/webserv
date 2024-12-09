@@ -144,13 +144,18 @@ std::string getExtension(const std::string_view& url) {
 	return std::string(url.substr(pos));
 }
 
-std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime) {
-	std::string fullPath = "../www/" + (std::string)url;
+std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime, ConfigFile &confile) {
+	LocationConfig location;
+	
+	location = confile.findKey("/");
+	std::string root = "." + location.root;
+	std::string fullPath = root + (std::string)url;
 	struct stat fileStat;
 	mime = getExtension(url);
 	if (stat(fullPath.c_str(), &fileStat) == -1)
 	{
-		std::ifstream file("../www/404.html", std::ios::binary);
+		std::ifstream file("." + confile.getErrorPage(0), std::ios::binary);
+		std::cout << "error url is " << root + confile.getErrorPage(0) << std::endl;
 		std::ostringstream buffer;
 		buffer << file.rdbuf();
 		mime = ".html";
@@ -168,7 +173,7 @@ std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string&
 	return {200, buffer.str()};
 }
 
-HttpResponse receiveRequest(HttpParser& request) {
+HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile) {
 	int	method = request.getMethod();
 	std::string	mime;
 	std::pair<int, std::string> file;
@@ -180,15 +185,15 @@ HttpResponse receiveRequest(HttpParser& request) {
 			mime = ".html";
 			response.setStatusCode(code);
 			response.setMimeType(mime);
-			response.setHeader("Server", "Webserv/1.0");
+			response.setHeader("Server", confile.getServerName(0));
 			response.setBody("Not found");
 			return response;
 		case GET:
 			mime = getExtension(request.getTarget());
-			file = locateAndReadFile(request.getTarget(), mime);
+			file = locateAndReadFile(request.getTarget(), mime, confile);
 			response.setStatusCode(file.first);
 			response.setMimeType(mime);
-			response.setHeader("Server", "Webserv/1.0");
+			response.setHeader("Server", confile.getServerName(0));
 			response.setBody(file.second);
 			return response;
 
@@ -197,7 +202,7 @@ HttpResponse receiveRequest(HttpParser& request) {
 			mime = ".html";
 			response.setStatusCode(code);
 			response.setMimeType(mime);
-			response.setHeader("Server", "Webserv/1.0");
+			response.setHeader("Server", confile.getServerName(0));
 			response.setBody("Not found");
 			return response;
 		default:
@@ -205,7 +210,7 @@ HttpResponse receiveRequest(HttpParser& request) {
 			mime = ".html";
 			response.setStatusCode(code);
 			response.setMimeType(mime);
-			response.setHeader("Server", "Webserv/1.0");
+			response.setHeader("Server", confile.getServerName(0));
 			response.setBody("Not found");
 			return response;
 	}

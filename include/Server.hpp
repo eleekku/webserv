@@ -30,7 +30,7 @@ public:
     Server(ConfigFile& conf, int i);
     ~Server();
     bool initialize();
-    void run();
+    void run(ConfigFile &confile);
 
 };
 

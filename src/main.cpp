@@ -27,7 +27,7 @@ int main(int ac, char **av)
         return 1;
     }
 
-    server.run();
+    server.run(serverFile);
 
     return 0;
 }

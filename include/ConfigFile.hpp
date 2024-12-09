@@ -63,6 +63,7 @@ public:
     void openConfigFile();
     int serverAmoung();
     std::vector<int> getIndexLocation();
+    LocationConfig &findKey(std::string key);
 };
 
 #endif

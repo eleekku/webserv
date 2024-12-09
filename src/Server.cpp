@@ -1,7 +1,6 @@
 #include "../include/Server.hpp"
 #include "../include/HttpResponse.hpp"
 
-
 #define MAX_EVENTS 10
 #define BUFFER_SIZE 1024
 
@@ -89,7 +88,14 @@ bool Server::initialize()
     return true;
 }
 
-void Server::run() // I will split it.
+void printLocationConfig(const LocationConfig& config) {
+    std::cout << "limit_except: " << config.limit_except << "\n";
+    std::cout << "root: " << config.root << "\n";
+    std::cout << "autoindex: " << (config.autoindex ? "true" : "false") << "\n";
+    std::cout << "index: " << config.index << "\n";
+}
+
+void Server::run(ConfigFile &confile) // I will split it.
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
@@ -174,18 +180,11 @@ void Server::run() // I will split it.
                     HttpParser request(bytesRead);
 
                     request.parseRequest(buffer);
-                    std::cout << "request is:\n" << request.getMethodString() << std::endl;
-                    std::cout << "request headers are: " << std::endl;
                     for (const auto& [key, value] : request.getHeaders())
                     {
                         std::cout << key << ": " << value << std::endl;
                     }
-                    std::cout << "request body is:\n";
-                    std::cout << request.getBody() << std::endl;
-                    std::cout << "request target is:\n";
-                    std::cout << request.getTarget() << std::endl;
-                
-                    HttpResponse response = receiveRequest(request);
+                    HttpResponse response = receiveRequest(request, confile);
                     std::string body = response.generate();
                //     std::cout << "response is:\n" << body << std::endl;
                     ssize_t bytesSent = send(client_fd, body.c_str(), body.size(), MSG_NOSIGNAL);
