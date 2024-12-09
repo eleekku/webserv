@@ -63,7 +63,6 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int i) //remember have t
     bool flagServerName = true;
     bool flagCMBZ = true;
     bool flagErrorP = true;
-    bool isBlockC = false;
 
     while(std::getline(file, line)) 
     {

@@ -32,7 +32,7 @@ const std::map<std::string, std::string> HttpResponse::m_mimeTypes = {
 
 HttpResponse::HttpResponse() {}
 
-HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_mime(mime), m_sent(false) {
+HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_sent(false), m_mime(mime) {
 	auto it = m_statusMap.find(code);
 	if (it != m_statusMap.end()) {
 		m_reasonPhrase = it->second;
