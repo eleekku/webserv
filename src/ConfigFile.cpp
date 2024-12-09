@@ -54,7 +54,7 @@ void ConfigFile::openConfigFile()
     parseServerParams(file, 0);
 }
 
-bool ConfigFile::parseServerParams(std::ifstream& file, int i) //remember have to split 
+bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) //remember have to split 
 {
     std::string line;
     std::string currentLocation;
@@ -119,14 +119,16 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int i) //remember have t
                 if (colonPos != std::string::npos) 
                 {
                     ip_server.push_back(listenValue.substr(0, colonPos));
-                    if (!isValIp(ip_server[i]))
+                    if (!isValIp(ip_server[indexSer]))
                         throw parseError();
                     size_t semiCo = listenValue.find(';');
                     if (semiCo != std::string::npos)
                     {
-                        port.push_back(listenValue.substr(colonPos + 1, semiCo - colonPos -1));
-                        if (!isValPort(port[i]))
-                            throw parseError();;
+                        std::string portstr = listenValue.substr(colonPos + 1, semiCo - colonPos -1);
+                        //port.push_back(listenValue.substr(colonPos + 1, semiCo - colonPos -1));
+                        if (!isValPort(portstr))
+                            throw parseError();
+                        port.push_back(std::stoi(portstr));
                     }
                 }
                 else 
@@ -157,7 +159,7 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int i) //remember have t
                 size_t semiCo = line.find(';');
                 if (semiCo != std::string::npos)
                     max_body.push_back(line.substr(spacePos + 1, semiCo - spacePos - 1));
-                if (!isValBZ(max_body[i]))
+                if (!isValBZ(max_body[indexSer]))
                     throw parseError();
             }
         }
@@ -210,14 +212,15 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int i) //remember have t
         throw parseError();
     indexLocation.push_back(indexL);
     if (line.find("}") != std::string::npos)
-        setLocations();
+        setLocations(indexSer);
+    indexSer += 1;
     if (std::getline(file, line))
-        parseServerParams(file, i++); // continuar trabajando aqui
+        parseServerParams(file, indexSer); // continuar trabajando aqui
     return true;
 }
 
-int ConfigFile::getPort(int i) { return (std::stoi(port[i])); }
-std::string ConfigFile::getIpServer(int i) { return ip_server[i]; }
+std::vector<int> ConfigFile::getPort() { return port; }
+std::vector<std::string> ConfigFile::getIpServer() { return ip_server; }
 std::string ConfigFile::getServerName(int i) { return server_name[i]; }
 
 std::vector<std::string> ConfigFile::splitIntoLines(const std::string& str) 
@@ -237,61 +240,55 @@ bool stringToBool(const std::string& str) {
     return str == "on" || str == "true";
 }
 
-void ConfigFile::setLocations()
+void ConfigFile::setLocations(int i) //chequea si alguna key se repite debo mostrar un error
 {
     std::string currentLocation;
     LocationConfig config;
     std::vector<std::string> lines;
-    for (const std::string& locations : locations) 
+    std::string serverkey = "server " + std::to_string(i);
+
+    serverConfig[serverkey] = std::map<std::string, LocationConfig>();
+
+    for (const std::string& locationConfig : locations) 
     {
-        lines = splitIntoLines(locations);
+        lines = splitIntoLines(locationConfig);
 
         for (const auto& line : lines) {
             if (line.starts_with("location")) {
-
                 size_t start = line.find("location") + 8;
                 size_t end = line.find("{");
                 currentLocation = trim(line.substr(start, end - start));
             } else if (line.starts_with("limit_except")) {
-
                 size_t start = line.find("limit_except") + 12;
                 size_t end = line.find(";");
                 config.limit_except = trim(line.substr(start, end - start));
             } else if (line.starts_with("root")) {
-
                 size_t start = line.find("root") + 4;
                 size_t end = line.find(";");
                 config.root = trim(line.substr(start, end - start));
             } else if (line.starts_with("autoindex")) {
-
                 size_t start = line.find("autoindex") + 9;
                 size_t end = line.find(";");
                 config.autoindex = stringToBool(trim(line.substr(start, end - start)));
             } else if (line.starts_with("index")) {
-
                 size_t start = line.find("index") + 5;
                 size_t end = line.find(";");
                 config.index = trim(line.substr(start, end - start));
             }
         }
 
-        serverConfig[currentLocation] = config;
-
+        serverConfig[serverkey][currentLocation] = config;
     }
-    //Imprimir la configuración
-    /*std::cout << "imprimiendo de setLocations funcion \n";
-    for (const auto& [key, config] : serverConfig) {
-        std::cout << key << ":\n";
-        std::cout << "  limit_except: " << config.limit_except << "\n";
-        std::cout << "  root: " << config.root << "\n";
-        std::cout << "  autoindex: " << (config.autoindex ? "on" : "off") << "\n";
-        std::cout << "  index: " << config.index << "\n";
-    }*/
 }
-std::map<std::string, LocationConfig>& ConfigFile::getLocations()
+
+
+
+const std::map<std::string, std::map<std::string, LocationConfig>>& ConfigFile::getServerConfig() const 
 {
     return serverConfig;
 }
+
+
 std::vector<int> ConfigFile::getIndexLocation()
 {
     return indexLocation;

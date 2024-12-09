@@ -5,6 +5,8 @@
 #define MAX_EVENTS 10
 #define BUFFER_SIZE 1024
 
+Server* g_serverInstance = nullptr;
+
 int setNonBlocking(int fd) 
 {
     int flags = fcntl(fd, F_GETFL, 0);
@@ -23,14 +25,14 @@ int setNonBlocking(int fd)
 
 Server::Server(ConfigFile& conf, int i)  
 {
-    port = conf.getPort(i);
-    ipServer = conf.getIpServer(i);
-    serverName = conf.getServerName(i);
-    serveSocket = -1;
-    serverConfig = conf.getLocations();
-    indexLocation = conf.getIndexLocation();
-    maxBody = conf.getMax_body(i);
-    errorPage = conf.getErrorPage(i);
+    //port = conf.getPort(i);
+    //ipServer = conf.getIpServer(i);
+    //serverName = conf.getServerName(i);
+    //serveSocket = -1;
+    //serverConfig = conf.getLocations();
+    //indexLocation = conf.getIndexLocation();
+    //maxBody = conf.getMax_body(i);
+    //errorPage = conf.getErrorPage(i);
 
     /*std::cout << "IP Server: " << ipServer << "\n"
                 << "Server Name: " << serverName << "\n"
@@ -52,9 +54,44 @@ Server::Server(ConfigFile& conf, int i)
 
 Server::~Server(){}
 
-bool Server::initialize()
+int Server::create_server_socket(int port, std::string ipServer)
 {
-    serveSocket = socket(AF_INET, SOCK_STREAM, 0);
+    int fds;
+    fds = socket(AF_INET, SOCK_STREAM, 0);
+    if (fds < 0)
+    {
+        std::cout << "socket error\n";
+        return -1;
+    }
+
+    if (setNonBlocking(fds) == -1)
+    {
+        std::cout << "setNonBlocking cliente fail\n";
+        return -1;
+    }
+
+    sockaddr_in serverAddr{};
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(port);
+    serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());
+    
+    if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) 
+    {
+        std::cout << "bind fail\n";
+        return -1;
+    }
+
+    if (listen(fds, 10) < 0) 
+    {
+        std::cout << "listen fail\n";
+        return -1;
+    }
+    return fds;
+}
+
+bool Server::initialize(ConfigFile& conf)
+{
+    /*serveSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serveSocket < 0)
     {
         std::cout << "socket error\n";
@@ -82,111 +119,135 @@ bool Server::initialize()
     {
         std::cout << "listen fail\n";
         return false;
+    }*/
+    std::vector<std::string> ips = conf.getIpServer();
+    std::vector<int> portServer = conf.getPort();
+
+    for (int i = 0; i < ips.size(); i++)
+    {
+        int serverFd = create_server_socket(portServer[i], ips[i]);
+        if (serverFd == -1)
+        {
+            std::cout << "serverFd fail\n";
+            return false;
+        }
+        serveSocket.push_back(serverFd);
     }
 
-    std::cout << "Server initialized on " << ipServer << ":" << port << std::endl;
+    g_serverInstance = this;
+
+    for (int i = 0; i < ips.size(); i++)
+    { 
+        std::cout << "Server [" << i + 1 << "] initialized on " << ips[i] << ":" << portServer[i] << std::endl;
+    }
 
     return true;
 }
 
-void Server::run() // I will split it.
+void Server::run(ConfigFile& conf) 
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
     struct epoll_event event, events[MAX_EVENTS];
-
     int epollFd = epoll_create1(0);
-    if (epollFd == -1)
+    if (epollFd == -1) 
     {
-        std::cout << "error epoll created1\n";
-        return ;
-    }
-    event.events = EPOLLIN;
-    event.data.fd = serveSocket;
-    if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket, &event) == -1) {
-        std::cout << "error epoll_ctl\n";
-        return ;
+        std::cout << "Error creating epoll instance\n";
+        return;
     }
 
-
-    while (true) 
+    for (int i = 0; i < serveSocket.size(); ++i) 
     {
+        event.events = EPOLLIN;
+        event.data.fd = serveSocket[i];
+        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
+        {
+            std::cout << "Error adding server socket to epoll\n";
+            return;
+        }
+    }
+
+    while (true) {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
-            std::cout << "error epoll_wait\n";
+            std::cout << "Error in epoll_wait\n";
             exit(EXIT_FAILURE);
         }
 
-        for (int i = 0; i < nfds; i++)
-        {
-            if (events[i].data.fd == serveSocket) 
+        for (int i = 0; i < nfds; i++) {
+            int currentFd = events[i].data.fd;
+
+            //check what server the client try to connect
+            for (int j = 0; j < serveSocket.size(); ++j) 
             {
-                sockaddr_in clientAddr{};
-                socklen_t clientLen = sizeof(clientAddr);
-                int client_fd = accept(serveSocket, (sockaddr*)&clientAddr, &clientLen);
-                if (client_fd == -1) {
-                    std::cout << "accept fail\n";
-                    continue;
-                }
-            
-                if (setNonBlocking(client_fd) == -1)
+                if (currentFd == serveSocket[j]) 
                 {
-                    std::cout << "error setNonBlocking cliente fail\n";
-                    close(client_fd);
-                    continue;
-                }
-
-                event.events = EPOLLIN | EPOLLET;
-                event.data.fd = client_fd;
-                if (epoll_ctl(epollFd , EPOLL_CTL_ADD, client_fd, &event))
-                {
-                    std::cout << "erro epoll_ctl client 2\n";
-                    close(client_fd);
-                    continue;
-                }
-
-                std::cout << "New connection from "
-                        << inet_ntoa(clientAddr.sin_addr) << ":"
-                        << ntohs(clientAddr.sin_port) << std::endl;
-            }
-            else
-            {
-                int client_fd = events[i].data.fd;
-                std::string buffer;// xabi expect this 
-                buffer.resize(BUFFER_SIZE); 
-                ssize_t bytesRead = recv(client_fd, &buffer[0], BUFFER_SIZE - 1, 0);
-                //check for the body size
-                if (bytesRead == -1)
-                {
-                    std::cout << "Error receiving data from client" << std::endl;
-                    close(client_fd);
-                    continue;
-                }
-                else if (bytesRead == 0)
-                {
-                    // Conexión cerrada
-                    std::cout << "Client disconnected." << std::endl;
-                    close(client_fd);
-                    epoll_ctl(epollFd, EPOLL_CTL_DEL, client_fd, nullptr);
-                }
-                else
-                {
-                    HttpParser request(bytesRead);
-
-                    request.parseRequest(buffer);
-                    std::cout << "request is:\n" << request.getMethodString() << std::endl;
-                    HttpResponse response = receiveRequest(request);
-                    std::string body = response.generate();
-
-                    ssize_t bytesSent = send(client_fd, body.c_str(), body.size(), MSG_NOSIGNAL);
-                    if (bytesSent == -1)
+                    // j is the index to find with server have to process
+                    sockaddr_in clientAddr{};
+                    socklen_t clientLen = sizeof(clientAddr);
+                    int clientFd = accept(serveSocket[j], (sockaddr*)&clientAddr, &clientLen);
+                    if (clientFd == -1) 
                     {
-                        std::cerr << "Error sending data to client." << std::endl;
+                        std::cout << "Accept failed\n";
+                        continue;
                     }
+                    handleClientConnection(clientFd, j, conf);
+                    break;
                 }
             }
         }
     }
     close(epollFd);
-    close(serveSocket);
+    for (int i = 0; i < serveSocket.size(); ++i) 
+    {
+        close(serveSocket[i]);
+    }
+}
+
+void Server::handleClientConnection(int clientFd, int serverIndex, ConfigFile& conf) 
+{
+    std::vector <std::string> ips = conf.getIpServer();
+    std::vector <int> portServerC = conf.getPort();
+    std::cout << "New connection from "
+              << ips[serverIndex] << ":"
+              << portServerC[serverIndex]
+              << " to server " << serverIndex << std::endl;
+
+    std::string buffer;
+    buffer.resize(BUFFER_SIZE);
+    ssize_t bytesRead = recv(clientFd, &buffer[0], BUFFER_SIZE - 1, 0);
+    if (bytesRead == -1) 
+    {
+        std::cout << "Error receiving data from client" << std::endl;
+        close(clientFd);
+        return;
+    }
+    else if (bytesRead == 0) 
+    {
+        std::cout << "Client disconnected." << std::endl;
+        close(clientFd);
+        return;
+    }
+
+    HttpParser request(bytesRead);
+    request.parseRequest(buffer);
+
+    std::cout << "Request method: " << request.getMethodString() << std::endl;
+
+    //elisas serverIndex lets u know what server have have to response.
+    HttpResponse response = receiveRequest(request);
+    std::string body = response.generate();
+
+    ssize_t bytesSent = send(clientFd, body.c_str(), body.size(), MSG_NOSIGNAL);
+    if (bytesSent == -1) 
+    {
+        std::cerr << "Error sending data to client." << std::endl;
+    }
+
+    close(clientFd);
+}
+
+std::vector<int>  Server::getServerSocket()
+{
+    return serveSocket;
 }
