@@ -147,8 +147,8 @@ std::string getExtension(const std::string_view& url) {
 std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime, ConfigFile &confile) {
 	LocationConfig location;
 	
-//	location = confile.findKey("/");
-	std::string root = "./www"; // location.root;
+	location = confile.findKey("/", "server 0");
+	std::string root = "." + location.root;
 	std::string fullPath = root + (std::string)url;
 	struct stat fileStat;
 	mime = getExtension(url);
