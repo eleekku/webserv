@@ -112,6 +112,7 @@ class HttpParser {
 		e_http_method			getMethod();
 		std::string_view		getMethodString();
 		std::string_view		getTarget();
+		unsigned int			getStatus();
 		bool 					isValidHttp();
 		std::unordered_map<std::string_view, std::string_view> getHeaders();
 		std::string				getBody();

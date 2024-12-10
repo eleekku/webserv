@@ -11,6 +11,7 @@ HttpParser::HttpParser(size_t size) : _max_body_size(size), _status(200) {}
 e_http_method HttpParser::getMethod() { return _method;}
 std::string_view HttpParser::getMethodString() {return _method_string;}
 std::string_view HttpParser::getTarget() { return _target;}
+unsigned int	HttpParser::getStatus() { return _status;}
 bool HttpParser::isValidHttp() { return _valid_http;}
 std::unordered_map<std::string_view, std::string_view> HttpParser::getHeaders() { return _headers;}
 std::string HttpParser::getBody() { return _body;}
