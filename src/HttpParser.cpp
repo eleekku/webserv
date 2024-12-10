@@ -1,10 +1,11 @@
 #include "HttpParser.hpp"
+#include <exception>
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
 
 // Constructor
-HttpParser::HttpParser(size_t size) : _max_body_size(size) {}
+HttpParser::HttpParser(size_t size) : _max_body_size(size), _status(200) {}
 
 //Getters
 e_http_method HttpParser::getMethod() { return _method;}
@@ -17,6 +18,7 @@ std::string HttpParser::getBody() { return _body;}
 void	HttpParser::checkReqLineErrors()
 {
 	if (_request.size() > MAX_REQ_LINE_SIZE)
+
 		throw std::invalid_argument("Request line too long.");
 }
 
@@ -150,21 +152,107 @@ void	HttpParser::parseBody(size_t index)
 	}
 }
 
+void HttpParser::checkMethod()
+{
+	unsigned int i = 0;
+
+	while (i < _method_string.size())
+	{
+		if (!isToken(_method_string[i]))
+		{
+			_status = 400;
+			throw std::invalid_argument("Bad Request.");
+		}
+		i++;
+	}
+	if (_method == UNKNOWN)
+	{
+		_status = 501;
+		throw std::invalid_argument("Not Immplemented.");
+	}
+}
+void HttpParser::checkHeaders()
+{
+	if (_headers.count("Host") != 1)
+	{
+		_status = 400;
+		throw std::invalid_argument("Bad Request.");
+	}
+}
+
+void HttpParser::checkTarget()
+{
+	unsigned int i = 0;
+
+	if (_target.size() > MAX_URI_SIZE)
+	{
+		_status = 414;
+		throw std::invalid_argument("URI Too Long.");
+	}
+	while(i < _target.size())
+	{
+		if (!isUri(_target[i]))
+		{
+			_status = 400;
+			throw std::invalid_argument("Bad Request.");
+		}
+		i++;
+	}
+}
+
 void HttpParser::parseRequest(std::string_view request)
 {
 	_request = request;
 	size_t index;
 	try {
 		index = parseMethod();
-		if (_method == UNKNOWN)
-			throw std::invalid_argument("Wrong method.");
+		checkMethod();
 		index = parseTarget(index);
 		index = parseHttp(index);
 		if (_valid_http == false)
-			throw std::invalid_argument("Wrong HTTP version.");
+		{
+			_status = 505;
+			throw std::invalid_argument("HTTP Version Not Supported.");
+		}
 		index = parseHeaders(index);
+		checkHeaders();
 		parseBody(index);
 	} catch (std::invalid_argument &e) {
 		std::cerr << e.what() << std::endl;
 	}
+}
+
+bool HttpParser::isToken(unsigned char c)
+{
+	return _TABLE[c] & TOKEN;
+}
+
+bool HttpParser::isWhitespace(unsigned char c)
+{
+	return _TABLE[c] & WHITESPACE;
+}
+
+bool HttpParser::isUri(unsigned char c)
+{
+	return _TABLE[c] & URI;
+}
+
+bool HttpParser::isHeader(unsigned char c)
+{
+	return _TABLE[c] & HEADER;
+}
+
+bool HttpParser::isValue(unsigned char c)
+{
+	return _TABLE[c] & VALUE;
+}
+
+bool HttpParser::isHex(unsigned char c)
+{
+	return _TABLE[c] & HEX;
+}
+
+bool HttpParser::isDigit(unsigned char c)
+{
+	return _TABLE[c] & DIGIT;
 }
