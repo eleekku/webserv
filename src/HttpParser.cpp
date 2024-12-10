@@ -18,13 +18,20 @@ std::string HttpParser::getBody() { return _body;}
 void	HttpParser::checkReqLineErrors()
 {
 	if (_request.size() > MAX_REQ_LINE_SIZE)
-
-		throw std::invalid_argument("Request line too long.");
+	{
+		_status = 400;
+		throw std::invalid_argument("Bad request. Request line too long.");
+	}
 }
 
 size_t HttpParser::parseMethod()
 {
 	size_t index = _request.find(' ');
+	if (index == std::string_view::npos)
+	{
+		_status = 400;
+		throw std::invalid_argument("Bad Request. Missing space after method.");
+	}
 	_method_string = _request.substr(0, index);
 	if (_method_string == "GET")
 		_method = GET;
@@ -42,6 +49,11 @@ size_t HttpParser::parseTarget(size_t index)
 	while (index < _request.size() && std::isspace(_request[index]))
 		index++;
 	size_t new_index = _request.find(' ', index);
+	if (new_index == std::string_view::npos)
+	{
+		_status = 400;
+		throw std::invalid_argument("Bad Request. Missing space after target.");
+	}
 	_target = _request.substr(index, new_index - (index));
 	return new_index;
 }
@@ -51,6 +63,11 @@ size_t HttpParser::parseHttp(size_t index)
 	while (index < _request.size() && std::isspace(_request[index]))
 		index++;
 	size_t new_index = _request.find("\r\n", index);
+	if (new_index == std::string_view::npos)
+	{
+		_status = 400;
+		throw std::invalid_argument("Bad Request. Missing CRLF after HTTP version.");
+	}
 	std::string_view sv = _request.substr(index, new_index - (index));
 	if (sv == "HTTP/1.1")
 		_valid_http = true;
@@ -64,23 +81,35 @@ size_t HttpParser::parseHeaders(size_t index)
 	size_t iter, end_line;
 	index += 2;
 	size_t end_headers = _request.find("\r\n\r\n", index);
+	if (end_headers == std::string_view::npos)
+	{
+		_status = 400;
+		throw std::invalid_argument("Bad Request. Missing CRLFCRLF after headers.");
+	}
 	while (index < end_headers)
 	{
 		iter = index;
 		end_line = _request.find("\r\n", index);
+		if (end_line == std::string_view::npos)
+		{
+			_status = 400;
+			throw std::invalid_argument("Bad Request. Missing CRLF after header.");
+		}
 		while (iter < end_line && _request[iter] != ':')
 			iter++;
 		if (_request[iter - 1] == ' ')
 		{
 			_status = 400;
-			throw std::invalid_argument("Wrong headers.");
+			throw std::invalid_argument("Bad request. Wrong header format.");
 		}
 		std::string_view key = _request.substr(index, iter - index);
+		checkKey(key);
 		iter++;
 		while (iter < end_line && _request[iter] == ' ')
 			iter++;
 		index = iter;
 		std::string_view value = _request.substr(index, end_line - index);
+		checkValue(value);
 		if (_request[end_line - 1] == ' ')
 		{
 			iter = 1;
@@ -145,8 +174,8 @@ void	HttpParser::parseBody(size_t index)
 		_body_size = std::stoi(content_length);
 		if (_body_size > _max_body_size)
 		{
-			_status = 400;
-			throw std::invalid_argument("Max body size exceeded.");
+			_status = 413	;
+			throw std::invalid_argument("Payload Too Large");
 		}
 		_body = _request.substr(index, _body_size);
 	}
@@ -171,6 +200,31 @@ void HttpParser::checkMethod()
 		throw std::invalid_argument("Not Immplemented.");
 	}
 }
+
+void HttpParser::checkKey(std::string_view sv)
+{
+	for (unsigned int i = 0; i < sv.size(); i++)
+	{
+		if (!isHeader(sv[i]))
+		{
+			_status = 400;
+			throw std::invalid_argument("Bad request.");
+		}
+	}
+}
+
+void HttpParser::checkValue(std::string_view sv)
+{
+	for (unsigned int i = 0; i < sv.size(); i++)
+	{
+		if (!isValue(sv[i]))
+		{
+			_status = 400;
+			throw std::invalid_argument("Bad request.");
+		}
+	}
+}
+
 void HttpParser::checkHeaders()
 {
 	if (_headers.count("Host") != 1)
@@ -208,6 +262,7 @@ void HttpParser::parseRequest(std::string_view request)
 		index = parseMethod();
 		checkMethod();
 		index = parseTarget(index);
+		checkTarget();
 		index = parseHttp(index);
 		if (_valid_http == false)
 		{

@@ -5,7 +5,7 @@
 #include <string>
 #include <array>
 
-#define MAX_REQ_LINE_SIZE 8000
+#define MAX_REQ_LINE_SIZE 64000
 #define MAX_METHOD_SIZE 6
 #define MAX_URI_SIZE 8000
 
@@ -48,6 +48,8 @@ class HttpParser {
 		void	checkMethod();
 		void	checkHeaders();
 		void	checkTarget();
+		void	checkKey(std::string_view sv);
+		void	checkValue(std::string_view sv);
 
 		static constexpr std::array<uint8_t, 256> _TABLE = []()
 		{
