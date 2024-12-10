@@ -300,14 +300,21 @@ int ConfigFile::serverAmoung()
     return port.size();
 }
 
-/*LocationConfig &ConfigFile::findKey(std::string key, std::string mainKey) 
+LocationConfig &ConfigFile::findKey(std::string key, std::string mainKey) 
 {
     std::map<std::string, std::map<std::string, LocationConfig>> locations;
     locations = getServerConfig();
-    std::map<std::string, LocationConfig> mymap = locations.find(mainKey);
-    auto it2 = it.find(key);
-    if (it2 != correctmap.end())
+    
+    auto mainIt = locations.find(mainKey);
+    if (mainIt == locations.end()) {
+        throw std::runtime_error("Main key not found");
+    }
+    
+    std::map<std::string, LocationConfig> &mymap = mainIt->second;
+    auto it = mymap.find(key);
+    if (it != mymap.end()) {
         return it->second;
+    } 
     throw std::runtime_error("Key not found");
-}*/
+}
 
