@@ -159,31 +159,38 @@ void Server::run(ConfigFile& conf)
     {
         event.events = EPOLLIN;
         event.data.fd = serveSocket[i];
+        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
+        {
+            std::cout << "Error adding server socket to epoll\n";
+            return;
+        }
+    }
+
+    while (true) 
+    {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
-            std::cout << "Error in epoll_wait\n";
-            exit(EXIT_FAILURE);
+            std::cerr << "Error in epoll_wait\n";
+            exit(1);
         }
 
-        for (ssize_t i = 0; i < nfds; i++) {
+        for (int i = 0; i < nfds; ++i) 
+        {
             int currentFd = events[i].data.fd;
 
-            //check what server the client try to connect
             for (int j = 0; j < socketSize; ++j) 
             {
                 if (currentFd == serveSocket[j]) 
                 {
-                    // j is the index to find with server have to process
                     sockaddr_in clientAddr{};
                     socklen_t clientLen = sizeof(clientAddr);
                     int clientFd = accept(serveSocket[j], (sockaddr*)&clientAddr, &clientLen);
-                    if (clientFd == -1) 
-                    {
-                        std::cout << "Accept failed\n";
+                    if (clientFd == -1) {
+                        std::cerr << "Accept failed on socket " << serveSocket[j] << "\n";
                         continue;
                     }
+                    std::cout << "Accepted connection on server " << j << "\n";
                     handleClientConnection(clientFd, j, conf);
-                    break;
                 }
             }
         }
@@ -217,22 +224,23 @@ void Server::handleClientConnection(int clientFd, int serverIndex, ConfigFile& c
     {
         std::cout << "Client disconnected." << std::endl;
         close(clientFd);
-        return;
     }
-
-    HttpParser request(bytesRead);
-    request.parseRequest(buffer);
-
-    std::cout << "Request method: " << request.getMethodString() << std::endl;
-
-    //elisas serverIndex lets u know what server have have to response.
-    HttpResponse response = receiveRequest(request, conf);
-    std::string body = response.generate();
-
-    ssize_t bytesSent = send(clientFd, body.c_str(), body.size(), MSG_NOSIGNAL);
-    if (bytesSent == -1) 
+    else
     {
-        std::cerr << "Error sending data to client." << std::endl;
+        HttpParser request(bytesRead);
+        request.parseRequest(buffer);
+
+        std::cout << "Request method: " << request.getMethodString() << std::endl;
+
+        //elias serverIndex lets u know what server have have to response.
+        HttpResponse response = receiveRequest(request, conf);
+        std::string body = response.generate();
+
+        ssize_t bytesSent = send(clientFd, body.c_str(), body.size(), MSG_NOSIGNAL);
+        if (bytesSent == -1) 
+        {
+            std::cerr << "Error sending data to client." << std::endl;
+        }
     }
 
     close(clientFd);
