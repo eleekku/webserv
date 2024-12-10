@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include "HttpParser.hpp"
 #include "ConfigFile.hpp"
+#include "Server.hpp"
 
 class HttpResponse
 {
@@ -47,5 +48,6 @@ private:
 std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime, ConfigFile &confile);
 std::string getExtension(const std::string_view& url);
 
+LocationConfig findKey(std::string key, std::string mainKey, ConfigFile &confile);
 HttpResponse	receiveRequest(HttpParser& request, ConfigFile &confile);
 
