@@ -3,19 +3,33 @@
 
 void globalSignalHandler(int signum) 
 {
-    std::cout << "\nClosing server..." << std::endl;
-
     if (g_serverInstance != nullptr) 
     {
-
         for (int socket : g_serverInstance->getServerSocket()) 
         {
-            close(socket);
-            std::cout << "Socket " << socket << " closed." << std::endl;
+            if (socket >= 0) 
+            {
+                close(socket);
+            }
+        }
+        if (g_serverInstance->getfdGeneral() >= 0) 
+        {
+            close(g_serverInstance->getfdGeneral());
+        }
+        if (g_serverInstance->getClientFd() >= 0) 
+        {
+            close(g_serverInstance->getClientFd());
+        }
+        if (g_serverInstance->getEpollFd() >= 0) 
+        {
+            close(g_serverInstance->getEpollFd());
         }
     }
+
+    std::cout << "Server shut down." << std::endl;
     exit(signum);
 }
+
 
 void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig) 
 {
