@@ -71,7 +71,7 @@ int main(int ac, char **av)
     //serverFile.printParam();
     Server  server;
 
-    //printServerConfig(serverFile.getServerConfig());
+   // printServerConfig(serverFile.getServerConfig());
     if (!server.initialize(serverFile))
     {
         std::cout << "error to initialize\n";

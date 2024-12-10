@@ -282,7 +282,7 @@ void ConfigFile::setLocations(int i) //chequea si alguna key se repite debo most
 
 
 
-const std::map<std::string, std::map<std::string, LocationConfig>>& ConfigFile::getServerConfig() const 
+const std::map<std::string, std::map<std::string, LocationConfig>> ConfigFile::getServerConfig() const 
 {
     return serverConfig;
 }
@@ -299,22 +299,3 @@ int ConfigFile::serverAmoung()
 {
     return port.size();
 }
-
-LocationConfig &ConfigFile::findKey(std::string key, std::string mainKey) 
-{
-    std::map<std::string, std::map<std::string, LocationConfig>> locations;
-    locations = getServerConfig();
-    
-    auto mainIt = locations.find(mainKey);
-    if (mainIt == locations.end()) {
-        throw std::runtime_error("Main key not found");
-    }
-    
-    std::map<std::string, LocationConfig> &mymap = mainIt->second;
-    auto it = mymap.find(key);
-    if (it != mymap.end()) {
-        return it->second;
-    } 
-    throw std::runtime_error("Key not found");
-}
-

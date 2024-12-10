@@ -11,6 +11,8 @@
 #include "../include/ConfigFile.hpp" 
 #include "../include/HttpParser.hpp"
 
+void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig);
+
 class ConfigFile;
 class HttpParser;
 

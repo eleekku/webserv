@@ -57,13 +57,12 @@ public:
     std::string getServerName(int i);
     std::string getErrorPage(int i);
     std::string getMax_body(int i);
-    const std::map<std::string, std::map<std::string, LocationConfig>>& getServerConfig() const;
+    const std::map<std::string, std::map<std::string, LocationConfig>> getServerConfig() const;
     void setLocations(int i);
     std::vector<std::string> splitIntoLines(const std::string& str);
     void openConfigFile();
     int serverAmoung();
     std::vector<int> getIndexLocation();
-    LocationConfig &findKey(std::string key, std::string mainKey);
 };
 
 #endif
