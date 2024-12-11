@@ -6,10 +6,10 @@
 
 Server* g_serverInstance = nullptr;
 
-int setNonBlocking(int fd) 
+int setNonBlocking(int fd)
 {
     int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1) 
+    if (flags == -1)
     {
         std::cout <<"error fcntl setNonBlocking\n";
         return(-1);
@@ -22,7 +22,7 @@ int setNonBlocking(int fd)
     return 0;
 }
 
-Server::Server()  
+Server::Server()
 {
 }
 
@@ -44,7 +44,7 @@ int Server::create_server_socket(int port, std::string ipServer)
         return -1;
     }
         int opt = 1;
-    if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) 
+    if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
         std::cout << "Error setting SO_REUSEADDR\n";
         close(fds);
@@ -54,14 +54,14 @@ int Server::create_server_socket(int port, std::string ipServer)
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
     serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());
-    
-    if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) 
+
+    if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
     {
         std::cout << "bind fail\n";
         return -1;
     }
 
-    if (listen(fds, 10) < 0) 
+    if (listen(fds, 10) < 0)
     {
         std::cout << "listen fail\n";
         return -1;
@@ -88,14 +88,14 @@ bool Server::initialize(ConfigFile& conf)
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
     serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());
-    
-    if (bind(serveSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) 
+
+    if (bind(serveSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
     {
         std::cout << "bind fail\n";
         return false;
     }
 
-    if (listen(serveSocket, 10) < 0) 
+    if (listen(serveSocket, 10) < 0)
     {
         std::cout << "listen fail\n";
         return false;
@@ -117,20 +117,20 @@ bool Server::initialize(ConfigFile& conf)
     g_serverInstance = this;
 
     for (int i = 0; i < sizeIP; i++)
-    { 
+    {
         std::cout << "Server [" << i + 1 << "] initialized on " << ips[i] << ":" << portServer[i] << std::endl;
     }
 
     return true;
 }
 
-void Server::run(ConfigFile& conf) 
+void Server::run(ConfigFile& conf)
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
     struct epoll_event event, events[MAX_EVENTS];
     int epollFd = epoll_create1(0);
-    if (epollFd == -1) 
+    if (epollFd == -1)
     {
         std::cout << "Error creating epoll instance\n";
         return;
@@ -138,7 +138,7 @@ void Server::run(ConfigFile& conf)
     pollfd = epollFd;
     g_serverInstance = this;
     int socketSize = serveSocket.size();
-    for (int i = 0; i < socketSize; ++i) 
+    for (int i = 0; i < socketSize; ++i)
     {
         event.events = EPOLLIN | EPOLLET; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
@@ -149,7 +149,7 @@ void Server::run(ConfigFile& conf)
         }
     }
 
-    while (true) 
+    while (true)
     {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -157,14 +157,14 @@ void Server::run(ConfigFile& conf)
             break;
         }
 
-        for (int i = 0; i < nfds; ++i) 
+        for (int i = 0; i < nfds; ++i)
         {
             int currentData = events[i].data.u32;
             int serverIndex = currentData >> 16;
             int fd = currentData & 0xFFFF;
             fdGeneral = fd;
 
-            if (std::find(serveSocket.begin(), serveSocket.end(), fd) != serveSocket.end()) 
+            if (std::find(serveSocket.begin(), serveSocket.end(), fd) != serveSocket.end())
             {
                 // New connection on server socket
                 sockaddr_in clientAddr{};
@@ -191,24 +191,29 @@ void Server::run(ConfigFile& conf)
                 }
 
                 std::cout << "Accepted connection on server " << serverIndex << "\n";
-            } 
-            else 
+            }
+            else
             {
                 // Data available on client socket
                 char buffer[BUFFER_SIZE];
                 ssize_t bytesRead = recv(fd, buffer, sizeof(buffer) - 1, 0);
 
-                if (bytesRead <= 0) 
+                if (bytesRead <= 0)
                 {
                     close(fd);
                     epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, nullptr);
-                } 
-                else 
+                }
+                else
                 {
                     HttpParser request(bytesRead);
                     request.parseRequest(buffer);
 
           //          std::cout << "Request method: " << request.getMethodString() << std::endl;
+                    std::cout << "Request target: " << request.getTarget() << '\n';
+                    std::cout << "Request headers:" << std::endl;
+                    for (const auto& [key, value] : request.getHeaders()) {
+                        std::cout << "<" << key << ">:<" << value << ">\n";
+                    }
                     std::cout << "Request body is" << request.getBody() << std::endl;
 
                     //elias serverIndex lets u know what server have have to response.
@@ -217,7 +222,7 @@ void Server::run(ConfigFile& conf)
                     std::string body = response.generate();
 
                     ssize_t bytesSent = send(fd, body.c_str(), body.size(), MSG_NOSIGNAL);
-                    if (bytesSent == -1) 
+                    if (bytesSent == -1)
                     {
                         std::cerr << "Error sending data to client." << std::endl;
                     }
