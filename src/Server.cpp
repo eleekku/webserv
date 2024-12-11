@@ -16,10 +16,10 @@ Server::Server(){}
 
 Server::~Server(){}
 
-int setNonBlocking(int fd) 
+int setNonBlocking(int fd)
 {
     int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1) 
+    if (flags == -1)
     {
         std::cout <<"error fcntl setNonBlocking\n";
         return(-1);
@@ -85,7 +85,7 @@ void Server::initialize(ConfigFile& conf)
     }
     g_serverInstance = this;
     for (int i = 0; i < sizeIP; i++)
-    { 
+    {
         std::cout << "Server [" << i + 1 << "] initialized on " << ips[i] << ":" << portServer[i] << std::endl;
     }
     run(conf);
@@ -97,7 +97,7 @@ void Server::run(ConfigFile& conf) //need to spit
 
     struct epoll_event event, events[MAX_EVENTS];
     int epollFd = epoll_create1(0);
-    if (epollFd == -1) 
+    if (epollFd == -1)
     {
         closeServerFd();
         throw std::runtime_error("run = Error creating epoll instance");
@@ -105,7 +105,7 @@ void Server::run(ConfigFile& conf) //need to spit
     epollfd = epollFd;
     g_serverInstance = this;
     int socketSize = serveSocket.size();
-    for (int i = 0; i < socketSize; ++i) 
+    for (int i = 0; i < socketSize; ++i)
     {
         event.events = EPOLLIN | EPOLLET; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
@@ -137,7 +137,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
             int fd = currentData & 0xFFFF;
             fdGeneral = fd;
 
-            if (std::find(serveSocket.begin(), serveSocket.end(), fd) != serveSocket.end()) 
+            if (std::find(serveSocket.begin(), serveSocket.end(), fd) != serveSocket.end())
             {
                 // New connection on server socket
                 sockaddr_in clientAddr{};
@@ -165,8 +165,8 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     continue;
                 }
                 std::cout << "Accepted connection on server " << serverIndex << "\n";
-            } 
-            else 
+            }
+            else
             {
                 handleClientConnection(serverIndex, conf);
             }
