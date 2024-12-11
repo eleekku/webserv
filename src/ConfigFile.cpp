@@ -1,5 +1,10 @@
 #include "../include/ConfigFile.hpp"
 
+
+//  clean code 
+//  have to do parse of param
+//  vector location need to parsing 
+
 void ConfigFile::printParam()
 {
     for(size_t i = 0;  i < port.size(); i++)
@@ -28,8 +33,7 @@ std::string ConfigFile::trim(const std::string &str)
 }
 
 bool isValIp(const std::string& ip) 
-{
-    
+{    
     std::regex ipv4Regex(    R"(^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}$)"    );
     return std::regex_match(ip, ipv4Regex);
 }
@@ -244,7 +248,6 @@ void ConfigFile::setLocations(int indexServer) //chequea si alguna key se repite
     std::string currentLocation;
     LocationConfig config;
     std::vector<std::string> lines;
-    //std::string serverkey = "server " + std::to_string(i);
 
     serverConfig[indexServer] = std::map<std::string, LocationConfig>();
 

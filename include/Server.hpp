@@ -16,21 +16,25 @@ void printServerConfig(  std::map<std::string, std::map<std::string, LocationCon
 class ConfigFile;
 class HttpParser;
 
-class Server {
-private:
-    //int port;
+class Server 
+{
+    private:
+
     std::vector<int> serveSocket;
     int pollfd;
     int fdClient;
     int fdGeneral;
 
 
-public:
+    public:
 
     Server();
     ~Server();
+
+    class 
+    
     bool initialize(ConfigFile& conf);
-    int create_server_socket(int port, std::string ipServer);
+    int createServerSocket(int port, std::string ipServer);
     void run(ConfigFile& conf);
     std::vector<int> getServerSocket();
     //void handleClientConnection(int clientFd, int serverIndex, ConfigFile& conf);
