@@ -26,7 +26,7 @@ void globalSignalHandler(int signum)
         }
     }
 
-    std::cout << "Server shut down." << std::endl;
+    std::cout << "\nServer shut down.\n" << std::endl;
     exit(signum);
 }
 
@@ -56,29 +56,25 @@ void printServerConfig(  std::map<int, std::map<std::string, LocationConfig>> se
 
 int main(int ac, char **av) 
 {
-    if (ac != 2) {
+    if (ac != 2) 
+    {
         std::cout << "arguments" << std::endl;
         return -1;
-    }
-    ConfigFile serverFile(av[1]);
-    try {
-    serverFile.openConfigFile();
-    }
-    catch(const std::exception& e){
-
-        std::cout << e.what() << std::endl;
-    }
-    //serverFile.printParam();
-    Server  server;
-
-  //  printServerConfig(serverFile.getServerConfig());
-    if (!server.initialize(serverFile))
+    }   
+    try 
     {
-        std::cout << "error to initialize\n";
+        ConfigFile serverFile(av[1]);
+        serverFile.openConfigFile();
+        //serverFile.printParam();  
+        //printServerConfig(serverFile.getServerConfig());
+        Server  server;
+        signal(SIGINT, globalSignalHandler);
+        server.initialize(serverFile);
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
         return 1;
     }
-    signal(SIGINT, globalSignalHandler);
-    server.run(serverFile);
-
     return 0;
 }

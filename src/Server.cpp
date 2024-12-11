@@ -2,7 +2,7 @@
 #include "../include/HttpResponse.hpp"
 
 #define MAX_EVENTS 10
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 10000
 
 
 
@@ -37,20 +37,17 @@ int Server::createServerSocket(int port, std::string ipServer)
     int fds = socket(AF_INET, SOCK_STREAM, 0);
     if (fds < 0)
     {
-        std::cout << "socket error\n";
-        return -1;
+        throw std::runtime_error("createServerSocket = Error open a socket server");
     }
     if (setNonBlocking(fds) == -1)
     {
-        std::cout << "setNonBlocking cliente fail\n";
-        return -1;
+        throw std::runtime_error("createServerSocket = setNonBlocking");
     }
     int opt = 1;
     if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) 
     {
-        std::cout << "Error setting SO_REUSEADDR\n";
         close(fds);
-        return -1;
+        throw std::runtime_error("createServerSocket = error setting SO_REUSEADDR");
     }
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
@@ -58,18 +55,25 @@ int Server::createServerSocket(int port, std::string ipServer)
     serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());    
     if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) 
     {
-        std::cout << "bind fail\n";
-        return -1;
+        throw std::runtime_error(" CreateServerSocket bind fail");
     }
     if (listen(fds, 10) < 0) 
     {
-        std::cout << "listen fail\n";
-        return -1;
+        throw std::runtime_error("createServerSocket = listen fail");
     }
     return fds;
 }
+void Server::closeServerFd()
+{
+    for (int socket : getServerSocket()) 
+    {
+        if (socket >= 0) 
+            close(socket);
+    }
+}
 
-bool Server::initialize(ConfigFile& conf)
+
+void Server::initialize(ConfigFile& conf)
 {
     std::vector<std::string> ips = conf.getIpServer();
     std::vector<int> portServer = conf.getPort();
@@ -77,11 +81,6 @@ bool Server::initialize(ConfigFile& conf)
     for (int i = 0; i < sizeIP; i++)
     {
         int serverFd = createServerSocket(portServer[i], ips[i]);
-        if (serverFd == -1)
-        {
-            std::cout << "serverFd fail\n";
-            return false;
-        }
         serveSocket.push_back(serverFd);
     }
     g_serverInstance = this;
@@ -89,7 +88,7 @@ bool Server::initialize(ConfigFile& conf)
     { 
         std::cout << "Server [" << i + 1 << "] initialized on " << ips[i] << ":" << portServer[i] << std::endl;
     }
-    return true;
+    run(conf);
 }
 
 void Server::run(ConfigFile& conf) //need to spit 
@@ -100,10 +99,10 @@ void Server::run(ConfigFile& conf) //need to spit
     int epollFd = epoll_create1(0);
     if (epollFd == -1) 
     {
-        std::cout << "Error creating epoll instance\n";
-        return;
+        closeServerFd();
+        throw std::runtime_error("run = Error creating epoll instance");
     }
-    pollfd = epollFd;
+    epollfd = epollFd;
     g_serverInstance = this;
     int socketSize = serveSocket.size();
     for (int i = 0; i < socketSize; ++i) 
@@ -112,18 +111,24 @@ void Server::run(ConfigFile& conf) //need to spit
         event.data.u32 = (i << 16) | serveSocket[i];
         if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
         {
-            std::cerr << "Error adding server socket to epoll\n";
+            closeServerFd();
             close(epollFd);
-            return;
+            throw std::runtime_error("run = Error adding server socket to epoll");
         }
     }
+    runLoop(conf, &events[MAX_EVENTS], event);
+}
+
+void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event event)
+{
     while (true) 
     {
-        int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
+        int nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
         if (nfds == -1) 
         {
-            std::cerr << "Error in epoll_wait\n";
-            break;
+            closeServerFd();
+            close(epollfd);
+            throw std::runtime_error("run = Error in epoll_wait");
         }
         for (int i = 0; i < nfds; ++i) 
         {
@@ -153,7 +158,7 @@ void Server::run(ConfigFile& conf) //need to spit
                 // Associate client with server index
                 event.events = EPOLLIN | EPOLLET;
                 event.data.u32 = (serverIndex << 16) | clientFd;
-                if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1) 
+                if (epoll_ctl(epollfd, EPOLL_CTL_ADD, clientFd, &event) == -1) 
                 {
                     std::cerr << "Failed to add client to epoll\n";
                     close(clientFd);
@@ -163,46 +168,53 @@ void Server::run(ConfigFile& conf) //need to spit
             } 
             else 
             {
-                // Data available on client socket
-                char buffer[BUFFER_SIZE];
-                ssize_t bytesRead = recv(fd, buffer, sizeof(buffer) - 1, 0);
-                if (bytesRead <= 0) 
-                {
-                    close(fd);
-                    epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, nullptr);
-                } 
-                else 
-                {
-                    HttpParser request(bytesRead);
-                    request.parseRequest(buffer);
-
-          //          std::cout << "Request method: " << request.getMethodString() << std::endl;
-          //          std::cout << "Request body is" << request.getBody() << std::endl;
-
-                    //elias serverIndex lets u know what server have have to response.
-                    std::cout << "\nserver index = " << serverIndex << "\n";
-                    HttpResponse response = receiveRequest(request, conf, serverIndex);
-                    std::string body = response.generate();
-
-                    ssize_t bytesSent = send(fd, body.c_str(), body.size(), MSG_NOSIGNAL);
-                    if (bytesSent == -1) 
-                    {
-                        std::cerr << "Error sending data to client." << std::endl;
-                    }
-                }
+                handleClientConnection(serverIndex, conf);
             }
         }
     }
-    close(epollFd);
+    close(epollfd);
     for (int fd : serveSocket) 
     {
         close(fd);
     }
 }
 
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf)
+{
+
+    // Data available on client socket
+    char buffer[BUFFER_SIZE];
+    ssize_t bytesRead = recv(fdGeneral, buffer, sizeof(buffer) - 1, 0);
+    if (bytesRead <= 0) 
+    {
+        close(fdGeneral);
+        epoll_ctl(epollfd, EPOLL_CTL_DEL, fdGeneral, nullptr);
+    } 
+    else 
+    {
+        HttpParser request(bytesRead);
+        request.parseRequest(buffer);
+
+//          std::cout << "Request method: " << request.getMethodString() << std::endl;
+//          std::cout << "Request body is" << request.getBody() << std::endl;
+
+        //elias serverIndex lets u know what server have to response.
+        std::cout << "\nserver index = " << serverIndex << "\n";
+        HttpResponse response = receiveRequest(request, conf, serverIndex);
+        std::string body = response.generate();
+
+        ssize_t bytesSent = send(fdGeneral, body.c_str(), body.size(), MSG_NOSIGNAL);
+        if (bytesSent == -1) 
+        {
+            std::cerr << "Error sending data to client." << std::endl;
+            //what we need o do when this error happend
+        }
+    }
+}
+
 std::vector<int>  Server::getServerSocket() { return serveSocket; }
 
-int Server::getEpollFd() { return pollfd; }
+int Server::getEpollFd() { return epollfd; }
 
 int Server::getClientFd() { return fdClient; }
 
