@@ -165,9 +165,8 @@ LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile)
 
 std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile) {
 	LocationConfig location;
-//	location = findKey("/", "server 0", confile);
-//	std::string path = "." + location.root;
-	std::string path = "";
+	location = findKey("/", 0, confile);
+	std::string path = "." + location.root;
 	std::string error = confile.getErrorPage(0);
 	if (target == "/")
 		path += location.index;
