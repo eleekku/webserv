@@ -2,7 +2,7 @@
 #include "../include/HttpResponse.hpp"
 
 #define MAX_EVENTS 10
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 10000
 
 Server* g_serverInstance = nullptr;
 
@@ -209,7 +209,7 @@ void Server::run(ConfigFile& conf)
                     request.parseRequest(buffer);
 
           //          std::cout << "Request method: " << request.getMethodString() << std::endl;
-          //          std::cout << "Request body is" << request.getBody() << std::endl;
+                    std::cout << "Request body is" << request.getBody() << std::endl;
 
                     //elias serverIndex lets u know what server have have to response.
                     std::cout << "\nserver index = " << serverIndex << "\n";

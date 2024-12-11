@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <sys/stat.h>
+#include <dirent.h>
 #include "HttpParser.hpp"
 #include "ConfigFile.hpp"
 #include "Server.hpp"

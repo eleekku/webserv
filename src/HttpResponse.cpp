@@ -184,8 +184,25 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 		mime = ".html";
 		return {404, buffer.str()};
 	}
-	if (S_ISDIR(fileStat.st_mode))
+	if (S_ISDIR(fileStat.st_mode)) {
+		if (location.autoindex) {
+			std::ostringstream buffer;
+			buffer << "<!DOCTYPE html>\n<html><head><title>Index of " << target << "</title></head><body><h1>Index of " << target << "</h1><hr><pre>";
+			DIR *dir;
+			struct dirent *ent;
+			if ((dir = opendir(path.c_str())) != NULL) {
+				while ((ent = readdir(dir)) != NULL) {
+					buffer << "<a href=\"" << ent->d_name << "\">" << ent->d_name << "</a><br>";
+				}
+				closedir(dir);
+			}
+			buffer << "</pre><hr></body></html>";
+			mime = ".html";
+			return {200, buffer.str()};
+		}
+		else
 		return {403, "Forbidden"};
+	}
 
 	std::ifstream file(path, std::ios::binary);
 	if (!file)
