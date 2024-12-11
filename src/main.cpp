@@ -71,14 +71,14 @@ int main(int ac, char **av)
     //serverFile.printParam();
     Server  server;
 
-    printServerConfig(serverFile.getServerConfig());
-    /*if (!server.initialize(serverFile))
+  //  printServerConfig(serverFile.getServerConfig());
+    if (!server.initialize(serverFile))
     {
         std::cout << "error to initialize\n";
         return 1;
     }
     signal(SIGINT, globalSignalHandler);
-    server.run(serverFile);*/
+    server.run(serverFile);
 
     return 0;
 }

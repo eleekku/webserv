@@ -163,11 +163,10 @@ LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile)
     throw std::runtime_error("Key not found");
 }
 
-std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile) {
+std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile, int serverIndex) {
 	LocationConfig location;
-//	location = findKey("/", "server 0", confile);
-//	std::string path = "." + location.root;
-	std::string path = "";
+	location = findKey("/", serverIndex, confile);
+	std::string path = "." + location.root;
 	std::string error = confile.getErrorPage(0);
 	if (target == "/")
 		path += location.index;
@@ -197,7 +196,7 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 	return {200, buffer.str()};
 }
 
-HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile) {
+HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
 	unsigned int status = request.getStatus();
 //	if (status != 200)
 //	{
@@ -218,15 +217,15 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile) {
 			mime = ".html";
 			response.setStatusCode(status);
 			response.setMimeType(mime);
-			response.setHeader("Server", confile.getServerName(0));
+			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody("Not found");
 			return response;
 		case GET:
 			mime = getExtension(request.getTarget());
-			file = locateAndReadFile(request.getTarget(), mime, confile);
+			file = locateAndReadFile(request.getTarget(), mime, confile, serverIndex);
 			response.setStatusCode(file.first);
 			response.setMimeType(mime);
-			response.setHeader("Server", confile.getServerName(0));
+			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody(file.second);
 			return response;
 
@@ -235,7 +234,7 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile) {
 			mime = ".html";
 			response.setStatusCode(status);
 			response.setMimeType(mime);
-			response.setHeader("Server", confile.getServerName(0));
+			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody("Not found");
 			return response;
 		default:
@@ -243,7 +242,7 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile) {
 			mime = ".html";
 			response.setStatusCode(status);
 			response.setMimeType(mime);
-			response.setHeader("Server", confile.getServerName(0));
+			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody("Not found");
 			return response;
 	}
