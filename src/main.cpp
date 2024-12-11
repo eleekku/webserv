@@ -31,11 +31,11 @@ void globalSignalHandler(int signum)
 }
 
 
-void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig) 
+void printServerConfig(  std::map<int, std::map<std::string, LocationConfig>> serverConfig) 
 {
     for (const auto& server : serverConfig) 
     {
-        const std::string& serverKey = server.first;
+        const int& serverKey = server.first;
         const auto& locations = server.second;
 
         std::cout << "Server: " << serverKey << "\n";
@@ -71,14 +71,14 @@ int main(int ac, char **av)
     //serverFile.printParam();
     Server  server;
 
-   // printServerConfig(serverFile.getServerConfig());
-    if (!server.initialize(serverFile))
+    printServerConfig(serverFile.getServerConfig());
+    /*if (!server.initialize(serverFile))
     {
         std::cout << "error to initialize\n";
         return 1;
     }
     signal(SIGINT, globalSignalHandler);
-    server.run(serverFile);
+    server.run(serverFile);*/
 
     return 0;
 }

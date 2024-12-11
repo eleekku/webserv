@@ -239,50 +239,56 @@ bool stringToBool(const std::string& str) {
     return str == "on" || str == "true";
 }
 
-void ConfigFile::setLocations(int i) //chequea si alguna key se repite debo mostrar un error
+void ConfigFile::setLocations(int indexServer) //chequea si alguna key se repite debo mostrar un error
 {
     std::string currentLocation;
     LocationConfig config;
     std::vector<std::string> lines;
-    std::string serverkey = "server " + std::to_string(i);
+    //std::string serverkey = "server " + std::to_string(i);
 
-    serverConfig[serverkey] = std::map<std::string, LocationConfig>();
+    serverConfig[indexServer] = std::map<std::string, LocationConfig>();
 
     for (const std::string& locationConfig : locations) 
     {
         lines = splitIntoLines(locationConfig);
 
-        for (const auto& line : lines) {
-            if (line.starts_with("location")) {
+        for (const auto& line : lines) 
+        {
+            if (line.starts_with("location")) 
+            {
                 size_t start = line.find("location") + 8;
                 size_t end = line.find("{");
                 currentLocation = trim(line.substr(start, end - start));
-            } else if (line.starts_with("limit_except")) {
+            } 
+            else if (line.starts_with("limit_except")) {
                 size_t start = line.find("limit_except") + 12;
                 size_t end = line.find(";");
                 config.limit_except = trim(line.substr(start, end - start));
-            } else if (line.starts_with("root")) {
+            } 
+            else if (line.starts_with("root")) {
                 size_t start = line.find("root") + 4;
                 size_t end = line.find(";");
                 config.root = trim(line.substr(start, end - start));
-            } else if (line.starts_with("autoindex")) {
+            } 
+            else if (line.starts_with("autoindex")) {
                 size_t start = line.find("autoindex") + 9;
                 size_t end = line.find(";");
                 config.autoindex = stringToBool(trim(line.substr(start, end - start)));
-            } else if (line.starts_with("index")) {
+            } 
+            else if (line.starts_with("index")) {
                 size_t start = line.find("index") + 5;
                 size_t end = line.find(";");
                 config.index = trim(line.substr(start, end - start));
             }
         }
 
-        serverConfig[serverkey][currentLocation] = config;
+        serverConfig[indexServer][currentLocation] = config;
     }
 }
 
 
 
-const std::map<std::string, std::map<std::string, LocationConfig>> ConfigFile::getServerConfig() const 
+const std::map<int, std::map<std::string, LocationConfig>> ConfigFile::getServerConfig() const 
 {
     return serverConfig;
 }

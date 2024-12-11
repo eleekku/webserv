@@ -146,9 +146,9 @@ std::string getExtension(const std::string_view& url) {
 	return std::string(url.substr(pos));
 }
 
-LocationConfig findKey(std::string key, std::string mainKey, ConfigFile &confile) 
+LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile) 
 {
-	std::map<std::string, std::map<std::string, LocationConfig>> locations;
+	std::map<int, std::map<std::string, LocationConfig>> locations;
 	locations = confile.getServerConfig();
 
     auto mainIt = locations.find(mainKey);
@@ -165,8 +165,9 @@ LocationConfig findKey(std::string key, std::string mainKey, ConfigFile &confile
 
 std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile) {
 	LocationConfig location;
-	location = findKey("/", "server 0", confile);
-	std::string path = "." + location.root;
+//	location = findKey("/", "server 0", confile);
+//	std::string path = "." + location.root;
+	std::string path = "";
 	std::string error = confile.getErrorPage(0);
 	if (target == "/")
 		path += location.index;
@@ -177,7 +178,7 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 	mime = getExtension(path);
 	if (stat(path.c_str(), &fileStat) == -1)
 	{
-		std::ifstream file("." + confile.getErrorPage(0), std::ios::binary);
+		std::ifstream file("." + error, std::ios::binary);
 //		std::cout << "error url is " << error << std::endl;
 		std::ostringstream buffer;
 		buffer << file.rdbuf();

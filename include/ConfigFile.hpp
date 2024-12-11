@@ -32,7 +32,7 @@ private:
     std::vector<std::string> max_body;
     std::vector<std::string> errorPage;
     std::vector<std::string> locations;
-    std::map<std::string, std::map<std::string, LocationConfig>> serverConfig;
+    std::map<int, std::map<std::string, LocationConfig>> serverConfig;
     bool insideServerBlock;
     std::vector<int> indexLocation;
 
@@ -57,7 +57,7 @@ public:
     std::string getServerName(int i);
     std::string getErrorPage(int i);
     std::string getMax_body(int i);
-    const std::map<std::string, std::map<std::string, LocationConfig>> getServerConfig() const;
+    const std::map<int, std::map<std::string, LocationConfig>> getServerConfig() const;
     void setLocations(int i);
     std::vector<std::string> splitIntoLines(const std::string& str);
     void openConfigFile();
