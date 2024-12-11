@@ -14,6 +14,8 @@ const std::map<int, std::string> HttpResponse::m_statusMap = {
 	{404, "Not Found"},
 	{415, "Unsupported Media Type"},
 	{500, "Internal Server Error"},
+	{501, "Wrong Method"},
+	{505, "HTTP Version Not Supported"},
 	{502, "Bad Gateway"}
 };
 
@@ -144,27 +146,65 @@ std::string getExtension(const std::string_view& url) {
 	return std::string(url.substr(pos));
 }
 
-std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime, ConfigFile &confile) {
+LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile) 
+{
+	std::map<int, std::map<std::string, LocationConfig>> locations;
+	locations = confile.getServerConfig();
+
+    auto mainIt = locations.find(mainKey);
+    if (mainIt == locations.end()) {
+        throw std::runtime_error("Main key not found");
+    }
+    
+    std::map<std::string, LocationConfig> &mymap = mainIt->second;
+    auto it = mymap.find(key);
+    if (it != mymap.end())
+        return it->second;
+    throw std::runtime_error("Key not found");
+}
+
+std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile, int serverIndex) {
 	LocationConfig location;
-	
-	location = confile.findKey("/", "server 0");
-	std::string root = "." + location.root;
-	std::string fullPath = root + (std::string)url;
+	location = findKey("/", serverIndex, confile);
+	std::string path = "." + location.root;
+	std::string error = confile.getErrorPage(0);
+	if (target == "/")
+		path += location.index;
+	else
+		path += target;
+//	std::cout << "path is " << path << std::endl;
 	struct stat fileStat;
-	mime = getExtension(url);
-	if (stat(fullPath.c_str(), &fileStat) == -1)
+	mime = getExtension(path);
+	if (stat(path.c_str(), &fileStat) == -1)
 	{
-		std::ifstream file("." + confile.getErrorPage(0), std::ios::binary);
-		std::cout << "error url is " << root + confile.getErrorPage(0) << std::endl;
+		std::ifstream file("." + error, std::ios::binary);
+//		std::cout << "error url is " << error << std::endl;
 		std::ostringstream buffer;
 		buffer << file.rdbuf();
 		mime = ".html";
 		return {404, buffer.str()};
 	}
-	if (S_ISDIR(fileStat.st_mode))
+	if (S_ISDIR(fileStat.st_mode)) {
+		if (location.autoindex) {
+			std::ostringstream buffer;
+			buffer << "<!DOCTYPE html>\n<html><head><title>Index of " << target << "</title></head><body><h1>Index of " << target << "</h1><hr><pre>";
+			DIR *dir;
+			struct dirent *ent;
+			if ((dir = opendir(path.c_str())) != NULL) {
+				while ((ent = readdir(dir)) != NULL) {
+					buffer << "<a href=\"" << ent->d_name << "\">" << ent->d_name << "</a><br>";
+				}
+				closedir(dir);
+			}
+			buffer << "</pre><hr></body></html>";
+			mime = ".html";
+			return {200, buffer.str()};
+		}
+		else
 		return {403, "Forbidden"};
+	}
 
-	std::ifstream file(fullPath, std::ios::binary);
+	std::ifstream file(path, std::ios::binary);
 	if (!file)
 		return {500, "Failed to open file"};
 	
@@ -173,44 +213,53 @@ std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string&
 	return {200, buffer.str()};
 }
 
-HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile) {
+HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
+	unsigned int status = request.getStatus();
+//	if (status != 200)
+//	{
+//		HttpResponse response;
+//		response.setStatusCode(status);
+//		response.setMimeType(".html");
+//		response.setHeader("Server", confile.getServerName(0));
+//		response.setBody("Bad Request");
+//		return response;
+//	}
 	int	method = request.getMethod();
 	std::string	mime;
 	std::pair<int, std::string> file;
 	HttpResponse response;
-	int code;
 	switch (method) {
 		case DELETE:
-			code = 404;
+			status = 404;
 			mime = ".html";
-			response.setStatusCode(code);
+			response.setStatusCode(status);
 			response.setMimeType(mime);
-			response.setHeader("Server", confile.getServerName(0));
+			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody("Not found");
 			return response;
 		case GET:
 			mime = getExtension(request.getTarget());
-			file = locateAndReadFile(request.getTarget(), mime, confile);
+			file = locateAndReadFile(request.getTarget(), mime, confile, serverIndex);
 			response.setStatusCode(file.first);
 			response.setMimeType(mime);
-			response.setHeader("Server", confile.getServerName(0));
+			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody(file.second);
 			return response;
 
 		case POST:
-			code = 404;
+			status = 404;
 			mime = ".html";
-			response.setStatusCode(code);
+			response.setStatusCode(status);
 			response.setMimeType(mime);
-			response.setHeader("Server", confile.getServerName(0));
+			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody("Not found");
 			return response;
 		default:
-			code = 404;
+			status = 404;
 			mime = ".html";
-			response.setStatusCode(code);
+			response.setStatusCode(status);
 			response.setMimeType(mime);
-			response.setHeader("Server", confile.getServerName(0));
+			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody("Not found");
 			return response;
 	}

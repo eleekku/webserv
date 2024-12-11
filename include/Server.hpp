@@ -11,6 +11,8 @@
 #include "../include/ConfigFile.hpp" 
 #include "../include/HttpParser.hpp"
 
+void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig);
+
 class ConfigFile;
 class HttpParser;
 
@@ -18,6 +20,9 @@ class Server {
 private:
     //int port;
     std::vector<int> serveSocket;
+    int pollfd;
+    int fdClient;
+    int fdGeneral;
 
 
 public:
@@ -28,7 +33,10 @@ public:
     int create_server_socket(int port, std::string ipServer);
     void run(ConfigFile& conf);
     std::vector<int> getServerSocket();
-    void handleClientConnection(int clientFd, int serverIndex, ConfigFile& conf);
+    //void handleClientConnection(int clientFd, int serverIndex, ConfigFile& conf);
+    int getEpollFd();
+    int getClientFd();
+    int getfdGeneral();
 
 
 };

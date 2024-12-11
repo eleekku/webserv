@@ -3,25 +3,39 @@
 
 void globalSignalHandler(int signum) 
 {
-    std::cout << "\nClosing server..." << std::endl;
-
     if (g_serverInstance != nullptr) 
     {
-
         for (int socket : g_serverInstance->getServerSocket()) 
         {
-            close(socket);
-            std::cout << "Socket " << socket << " closed." << std::endl;
+            if (socket >= 0) 
+            {
+                close(socket);
+            }
+        }
+        if (g_serverInstance->getfdGeneral() >= 0) 
+        {
+            close(g_serverInstance->getfdGeneral());
+        }
+        if (g_serverInstance->getClientFd() >= 0) 
+        {
+            close(g_serverInstance->getClientFd());
+        }
+        if (g_serverInstance->getEpollFd() >= 0) 
+        {
+            close(g_serverInstance->getEpollFd());
         }
     }
+
+    std::cout << "Server shut down." << std::endl;
     exit(signum);
 }
 
-void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig) 
+
+void printServerConfig(  std::map<int, std::map<std::string, LocationConfig>> serverConfig) 
 {
     for (const auto& server : serverConfig) 
     {
-        const std::string& serverKey = server.first;
+        const int& serverKey = server.first;
         const auto& locations = server.second;
 
         std::cout << "Server: " << serverKey << "\n";
@@ -57,7 +71,7 @@ int main(int ac, char **av)
     //serverFile.printParam();
     Server  server;
 
-    //printServerConfig(serverFile.getServerConfig());
+  //  printServerConfig(serverFile.getServerConfig());
     if (!server.initialize(serverFile))
     {
         std::cout << "error to initialize\n";
