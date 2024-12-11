@@ -208,12 +208,12 @@ void Server::run(ConfigFile& conf)
                     HttpParser request(bytesRead);
                     request.parseRequest(buffer);
 
-                    std::cout << "Request method: " << request.getMethodString() << std::endl;
-                    std::cout << "Request body is" << request.getBody() << std::endl;
+          //          std::cout << "Request method: " << request.getMethodString() << std::endl;
+          //          std::cout << "Request body is" << request.getBody() << std::endl;
 
                     //elias serverIndex lets u know what server have have to response.
                     std::cout << "\nserver index = " << serverIndex << "\n";
-                    HttpResponse response = receiveRequest(request, conf);
+                    HttpResponse response = receiveRequest(request, conf, serverIndex);
                     std::string body = response.generate();
 
                     ssize_t bytesSent = send(fd, body.c_str(), body.size(), MSG_NOSIGNAL);
