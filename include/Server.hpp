@@ -41,6 +41,7 @@ class Server
     int getfdGeneral();
     void closeServerFd();
     void runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event event);
+    bool isCompleteRequest(const std::string& request);
 };
 
 extern Server* g_serverInstance;

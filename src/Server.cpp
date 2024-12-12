@@ -95,7 +95,7 @@ void Server::run(ConfigFile& conf) //need to spit
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
-    struct epoll_event event, events[MAX_EVENTS];
+    struct epoll_event event, events[MAX_EVENTS];//MAX_EVENTS depende de cuanta carga tendra el servidor pero mas grande sea este numero mas recurso tomara del sistema 
     int epollFd = epoll_create1(0);
     if (epollFd == -1)
     {
@@ -107,7 +107,7 @@ void Server::run(ConfigFile& conf) //need to spit
     int socketSize = serveSocket.size();
     for (int i = 0; i < socketSize; ++i)
     {
-        event.events = EPOLLIN | EPOLLET; // Non-blocking edge-triggered
+        event.events = EPOLLIN; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
         if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
         {
@@ -156,7 +156,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     continue;
                 }
                 // Associate client with server index
-                event.events = EPOLLIN | EPOLLET;
+                event.events = EPOLLIN;
                 event.data.u32 = (serverIndex << 16) | clientFd;
                 if (epoll_ctl(epollfd, EPOLL_CTL_ADD, clientFd, &event) == -1) 
                 {
@@ -179,38 +179,59 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
     }
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf)
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf) // fixed to read biger files
 {
 
     // Data available on client socket
-    char buffer[BUFFER_SIZE];
-    ssize_t bytesRead = recv(fdGeneral, buffer, sizeof(buffer) - 1, 0);
-    if (bytesRead <= 0) 
+     char buffer[BUFFER_SIZE];
+    ssize_t bytesRead = 0;
+    std::string fullRequest;
+    while (true)
     {
-        close(fdGeneral);
-        epoll_ctl(epollfd, EPOLL_CTL_DEL, fdGeneral, nullptr);
-    } 
-    else 
-    {
-        HttpParser request(bytesRead);
-        request.parseRequest(buffer);
-
-//          std::cout << "Request method: " << request.getMethodString() << std::endl;
-//          std::cout << "Request body is" << request.getBody() << std::endl;
-
-        //elias serverIndex lets u know what server have to response.
-        std::cout << "\nserver index = " << serverIndex << "\n";
-        HttpResponse response = receiveRequest(request, conf, serverIndex);
-        std::string body = response.generate();
-
-        ssize_t bytesSent = send(fdGeneral, body.c_str(), body.size(), MSG_NOSIGNAL);
-        if (bytesSent == -1) 
+        bytesRead = recv(fdGeneral, buffer, sizeof(buffer) - 1, 0);
+        if (bytesRead <= 0) 
         {
-            std::cerr << "Error sending data to client." << std::endl;
-            //what we need o do when this error happend
+            close(fdGeneral);
+            epoll_ctl(epollfd, EPOLL_CTL_DEL, fdGeneral, nullptr);
+        }
+        else 
+        {
+            buffer[bytesRead] = '\0';
+            
+            fullRequest.append(buffer, bytesRead);
+            if (isCompleteRequest(fullRequest)) 
+            {
+                HttpParser request(fullRequest.size());
+                request.parseRequest(fullRequest.c_str());
+
+                //std::cout << "Request method: " << request.getMethodString() << std::endl;
+                //std::cout << "Request body: " << request.getBody() << std::endl;
+
+                std::cout << "\nserver index = " << serverIndex << "\n";
+                HttpResponse response = receiveRequest(request, conf, serverIndex);
+                std::string body = response.generate();
+
+                ssize_t bytesSent = send(fdGeneral, body.c_str(), body.size(), MSG_NOSIGNAL);
+                if (bytesSent == -1) 
+                {
+                    std::cerr << "Error sending response to cliente.\n";
+                }
+                break;
+            }
         }
     }
 }
+
+bool Server::isCompleteRequest(const std::string& request)
+{
+    size_t headerEndPos = request.find("\r\n\r\n");
+
+    if (headerEndPos != std::string::npos)
+        return true;
+
+    return false;
+}
+
 
 std::vector<int>  Server::getServerSocket() { return serveSocket; }
 
