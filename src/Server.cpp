@@ -2,7 +2,7 @@
 #include "../include/HttpResponse.hpp"
 
 #define MAX_EVENTS 10
-#define BUFFER_SIZE 10000
+#define BUFFER_SIZE 10
 
 
 
@@ -12,7 +12,7 @@
 
 Server* g_serverInstance = nullptr;
 
-Server::Server(){}
+Server::Server(){  test = 0; }
 
 Server::~Server(){}
 
@@ -183,6 +183,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf) // fixed 
 {
 
     // Data available on client socket
+    test++;
      char buffer[BUFFER_SIZE];
     ssize_t bytesRead = 0;
     std::string fullRequest;
@@ -199,8 +200,11 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf) // fixed 
             buffer[bytesRead] = '\0';
             
             fullRequest.append(buffer, bytesRead);
+            std::cout << "\n\n bytesRead =\n"  << bytesRead <<  "\n\n";
+            std::cout << "\n\n before process------------\n\n" << fullRequest << std::endl << "\n";
             if (isCompleteRequest(fullRequest)) 
             {
+                std::cout << "\n\n Request body: \n\n" << fullRequest << std::endl << "\n";
                 HttpParser request(fullRequest.size());
                 request.parseRequest(fullRequest.c_str());
 
