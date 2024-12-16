@@ -7,7 +7,7 @@
 
 
 //note : try catch to handle errors
-//       study code part how i got the indexsever   
+//       study code part how i got the indexsever
 //       check max client body
 
 Server* g_serverInstance = nullptr;
@@ -44,7 +44,7 @@ int Server::createServerSocket(int port, std::string ipServer)
         throw std::runtime_error("createServerSocket = setNonBlocking");
     }
     int opt = 1;
-    if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) 
+    if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
         close(fds);
         throw std::runtime_error("createServerSocket = error setting SO_REUSEADDR");
@@ -52,12 +52,12 @@ int Server::createServerSocket(int port, std::string ipServer)
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
-    serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());    
-    if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) 
+    serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());
+    if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
     {
         throw std::runtime_error(" CreateServerSocket bind fail");
     }
-    if (listen(fds, 10) < 0) 
+    if (listen(fds, 10) < 0)
     {
         throw std::runtime_error("createServerSocket = listen fail");
     }
@@ -65,9 +65,9 @@ int Server::createServerSocket(int port, std::string ipServer)
 }
 void Server::closeServerFd()
 {
-    for (int socket : getServerSocket()) 
+    for (int socket : getServerSocket())
     {
-        if (socket >= 0) 
+        if (socket >= 0)
             close(socket);
     }
 }
@@ -91,11 +91,11 @@ void Server::initialize(ConfigFile& conf)
     run(conf);
 }
 
-void Server::run(ConfigFile& conf) //need to spit 
+void Server::run(ConfigFile& conf) //need to spit
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
-    struct epoll_event event, events[MAX_EVENTS];//MAX_EVENTS depende de cuanta carga tendra el servidor pero mas grande sea este numero mas recurso tomara del sistema 
+    struct epoll_event event, events[MAX_EVENTS];//MAX_EVENTS depende de cuanta carga tendra el servidor pero mas grande sea este numero mas recurso tomara del sistema
     int epollFd = epoll_create1(0);
     if (epollFd == -1)
     {
@@ -109,7 +109,7 @@ void Server::run(ConfigFile& conf) //need to spit
     {
         event.events = EPOLLIN; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
-        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
+        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1)
         {
             closeServerFd();
             close(epollFd);
@@ -121,16 +121,16 @@ void Server::run(ConfigFile& conf) //need to spit
 
 void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event event)
 {
-    while (true) 
+    while (true)
     {
         int nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
-        if (nfds == -1) 
+        if (nfds == -1)
         {
             closeServerFd();
             close(epollfd);
             throw std::runtime_error("run = Error in epoll_wait");
         }
-        for (int i = 0; i < nfds; ++i) 
+        for (int i = 0; i < nfds; ++i)
         {
             int currentData = events[i].data.u32;
             int serverIndex = currentData >> 16;
@@ -143,14 +143,14 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 sockaddr_in clientAddr{};
                 socklen_t clientLen = sizeof(clientAddr);
                 int clientFd = accept(fd, (sockaddr*)&clientAddr, &clientLen);
-                if (clientFd == -1) 
+                if (clientFd == -1)
                 {
                     std::cerr << "Accept failed\n";
                     continue;
                 }
                 fdClient = clientFd;
                 g_serverInstance = this;
-                if (setNonBlocking(clientFd) == -1) 
+                if (setNonBlocking(clientFd) == -1)
                 {
                     close(clientFd);
                     continue;
@@ -158,7 +158,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 // Associate client with server index
                 event.events = EPOLLIN;
                 event.data.u32 = (serverIndex << 16) | clientFd;
-                if (epoll_ctl(epollfd, EPOLL_CTL_ADD, clientFd, &event) == -1) 
+                if (epoll_ctl(epollfd, EPOLL_CTL_ADD, clientFd, &event) == -1)
                 {
                     std::cerr << "Failed to add client to epoll\n";
                     close(clientFd);
@@ -173,7 +173,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
         }
     }
     close(epollfd);
-    for (int fd : serveSocket) 
+    for (int fd : serveSocket)
     {
         close(fd);
     }
@@ -186,23 +186,25 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf) // fixed 
      char buffer[BUFFER_SIZE];
     ssize_t bytesRead = 0;
     std::string fullRequest;
+    std::stringstream ss;
     while (true)
     {
         bytesRead = recv(fdGeneral, buffer, sizeof(buffer) - 1, 0);
-        if (bytesRead <= 0) 
+        if (bytesRead <= 0)
         {
             close(fdGeneral);
             epoll_ctl(epollfd, EPOLL_CTL_DEL, fdGeneral, nullptr);
         }
-        else 
+        else
         {
             buffer[bytesRead] = '\0';
-            
+
             fullRequest.append(buffer, bytesRead);
-            if (isCompleteRequest(fullRequest)) 
+            if (isCompleteRequest(fullRequest))
             {
                 HttpParser request(fullRequest.size());
-                request.parseRequest(fullRequest.c_str());
+                ss << fullRequest;
+                request.parseRequest(ss);
 
                 //std::cout << "Request method: " << request.getMethodString() << std::endl;
                 //std::cout << "Request body: " << request.getBody() << std::endl;
@@ -212,7 +214,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf) // fixed 
                 std::string body = response.generate();
 
                 ssize_t bytesSent = send(fdGeneral, body.c_str(), body.size(), MSG_NOSIGNAL);
-                if (bytesSent == -1) 
+                if (bytesSent == -1)
                 {
                     std::cerr << "Error sending response to cliente.\n";
                 }

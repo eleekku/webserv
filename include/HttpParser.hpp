@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <sstream>
 #include <string_view>
 #include <unordered_map>
 #include <string>
@@ -18,16 +19,19 @@ enum e_http_method {
 
 class HttpParser {
 	private:
-		std::string_view								_request;
+		std::stringstream								_request;
 		e_http_method									_method;
-		std::string_view								_method_string;
-		std::string_view								_target;
+		std::string										_method_str;
+		std::string										_target_str;
+		std::string										_http_str;
 		bool											_valid_http;
-		std::unordered_map<std::string_view, std::string_view>	_headers;
+		std::unordered_map<std::string, std::string>	_headers;
 		const size_t									_max_body_size;
+		bool											_has_body;
 		size_t											_body_size;
 		std::string										_body;
 		unsigned int									_status;
+		std::string										_boundary;
 
 		static constexpr uint8_t TOKEN = 1 << 0;
 		static constexpr uint8_t URI = 1 << 1;
@@ -38,18 +42,20 @@ class HttpParser {
 		static constexpr uint8_t SEPARATOR = 1 << 6;
 		static constexpr uint8_t WHITESPACE = 1 << 7;
 
-		void	checkReqLineErrors(); // to do
-		size_t	parseMethod();
+		void	checkReqParse(); // to do
+		void	extractReqLine(std::stringstream& request);
+		void	parseMethod();
 		size_t	parseTarget(size_t index);
 		size_t	parseHttp(size_t index);
-		size_t	parseHeaders(size_t index);
-		void	parseBody(size_t index);
+		void	parseHeaders(std::stringstream& request);
 		void	parseChunkedBody(size_t index);
 		void	checkMethod();
 		void	checkHeaders();
 		void	checkTarget();
 		void	checkKey(std::string_view sv);
 		void	checkValue(std::string_view sv);
+		void	checkBody();
+		void	parseBody(size_t index);
 
 		static constexpr std::array<uint8_t, 256> _TABLE = []()
 		{
@@ -108,13 +114,14 @@ class HttpParser {
 
 	public:
 		HttpParser(size_t size);
-		void 					parseRequest(std::string_view request);
+		void 					parseRequest(std::stringstream& request);
 		e_http_method			getMethod();
 		std::string_view		getMethodString();
 		std::string_view		getTarget();
 		unsigned int			getStatus();
+		size_t					getBodySize();
 		bool 					isValidHttp();
-		std::unordered_map<std::string_view, std::string_view> getHeaders();
+		std::unordered_map<std::string, std::string> getHeaders();
 		std::string				getBody();
 
 		// Character types checks
