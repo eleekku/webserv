@@ -13,12 +13,11 @@ void ConfigFile::printParam()
                 << "Server Name: " << server_name[i] << "\n"
                 << "Port: " << port[i] << "\n"
                 << "Max Body Size: " << max_body[i] << "\n"
-                << "Error Page: " << errorPage[i] << "\n"
-                << "index location: " << indexLocation[i] << "\n";
+                << "Error Page: " << errorPage[i] << "\n";
     }
 }
 
-ConfigFile::ConfigFile(std::string file) : _fileName(file), indexLocation(0) {}
+ConfigFile::ConfigFile(std::string file) : _fileName(file), openBracket(0), closeBracket(0)  {}
 
 ConfigFile::~ConfigFile() {}
 
@@ -95,9 +94,13 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) //remember
             else
             {
                 if (line.find("{") != std::string::npos)
+                {
                     insideServerBlock = true;
+                }
             }
         }
+        else 
+            throw std::runtime_error("\nError invalid conf file");
         if (insideServerBlock == true)
             break;
     }
@@ -185,7 +188,6 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) //remember
             size_t spacePos = line.find(' ');
             if (spacePos != std::string::npos) 
                 currentLocation = line.substr(spacePos + 1);
-
             std::string temp;
             temp = line + "\n";
             while (std::getline(file, line)) 
@@ -213,14 +215,18 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) //remember
     }
     if (insideServerBlock == true)
         throw parseError();
-    indexLocation.push_back(indexL);
     if (line.find("}") != std::string::npos)
         setLocations(indexSer);
+    if (ip_server.empty() ||  ip_server[indexSer].empty())
+    {
+        throw std::runtime_error("\nserver error");
+    }
     indexSer += 1;
     if (std::getline(file, line))
         parseServerParams(file, indexSer); // continuar trabajando aqui
     return true;
 }
+
 
 std::vector<int> ConfigFile::getPort() { return port; }
 std::vector<std::string> ConfigFile::getIpServer() { return ip_server; }
@@ -243,11 +249,25 @@ bool stringToBool(const std::string& str) {
     return str == "on" || str == "true";
 }
 
+/*void ConfigFile::locationParsing()
+{
+    int 
+    for (int i = 0; locations[i].empty(); i++)
+    {
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+    }
+}*/
+
 void ConfigFile::setLocations(int indexServer) //chequea si alguna key se repite debo mostrar un error
 {
     std::string currentLocation;
     LocationConfig config;
     std::vector<std::string> lines;
+
+    if (locations.empty() || locations[indexServer].empty())
+        throw std::runtime_error("\n\nfile conf error in location part\n");
 
     serverConfig[indexServer] = std::map<std::string, LocationConfig>();
 
@@ -261,32 +281,50 @@ void ConfigFile::setLocations(int indexServer) //chequea si alguna key se repite
             {
                 size_t start = line.find("location") + 8;
                 size_t end = line.find("{");
+                if (end != std::string::npos)
+                    openBracket++;
                 currentLocation = trim(line.substr(start, end - start));
             } 
             else if (line.starts_with("limit_except")) {
                 size_t start = line.find("limit_except") + 12;
                 size_t end = line.find(";");
+                if (end == std::string::npos)
+                    throw std::runtime_error("\n\nError locations\n\n");
                 config.limit_except = trim(line.substr(start, end - start));
             } 
             else if (line.starts_with("root")) {
                 size_t start = line.find("root") + 4;
                 size_t end = line.find(";");
+                if (end == std::string::npos)
+                    throw std::runtime_error("\n\nError locations\n\n");
                 config.root = trim(line.substr(start, end - start));
             } 
             else if (line.starts_with("autoindex")) {
                 size_t start = line.find("autoindex") + 9;
                 size_t end = line.find(";");
+                if (end == std::string::npos)
+                    throw std::runtime_error("\n\nError locations\n\n");
                 config.autoindex = stringToBool(trim(line.substr(start, end - start)));
             } 
             else if (line.starts_with("index")) {
                 size_t start = line.find("index") + 5;
                 size_t end = line.find(";");
+                if (end == std::string::npos)
+                    throw std::runtime_error("\n\nError locations\n\n");
                 config.index = trim(line.substr(start, end - start));
+            }
+            else if (line.starts_with("}"))
+            {
+                closeBracket++;
             }
         }
 
         serverConfig[indexServer][currentLocation] = config;
     }
+    std::cout << "\n\n brackets   " << openBracket << "\nclosed brackets   " << closeBracket << "\n";
+    if (openBracket != closeBracket)
+        throw std::runtime_error("\n\nunclosed bracket\n");
+    
 }
 
 
@@ -296,15 +334,9 @@ const std::map<int, std::map<std::string, LocationConfig>> ConfigFile::getServer
     return serverConfig;
 }
 
-
-std::vector<int> ConfigFile::getIndexLocation()
-{
-    return indexLocation;
-}
-
 std::string ConfigFile::getErrorPage(int i) { return errorPage[i]; }
 std::string ConfigFile::getMax_body(int i) { return max_body[i]; }
-int ConfigFile::serverAmoung()
+int ConfigFile::serverAmount()
 {
     return port.size();
 }

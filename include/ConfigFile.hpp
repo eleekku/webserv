@@ -33,8 +33,9 @@ private:
     std::vector<std::string> errorPage;
     std::vector<std::string> locations;
     std::map<int, std::map<std::string, LocationConfig>> serverConfig;
+    int openBracket;
+    int closeBracket;
     bool insideServerBlock;
-    std::vector<int> indexLocation;
 
 public:
 
@@ -61,8 +62,7 @@ public:
     void setLocations(int i);
     std::vector<std::string> splitIntoLines(const std::string& str);
     void openConfigFile();
-    int serverAmoung();
-    std::vector<int> getIndexLocation();
+    int serverAmount();
 };
 
 #endif
