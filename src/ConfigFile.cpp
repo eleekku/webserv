@@ -2,7 +2,6 @@
 
 
 //  clean code 
-//  have to do parse of param
 //  vector location need to parsing 
 
 void ConfigFile::printParam()
@@ -17,7 +16,7 @@ void ConfigFile::printParam()
     }
 }
 
-ConfigFile::ConfigFile(std::string file) : _fileName(file), openBracket(0), closeBracket(0)  {}
+ConfigFile::ConfigFile(std::string file) : _fileName(file), openBracket(0), closeBracket(0) {}
 
 ConfigFile::~ConfigFile() {}
 
@@ -57,16 +56,8 @@ void ConfigFile::openConfigFile()
     parseServerParams(file, 0);
 }
 
-bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) //remember have to split 
+void ConfigFile::firstStepParsingCF(std::ifstream& file, std::string& line) //it will show a error if it does not find "server" and "{",  
 {
-    std::string line;
-    std::string currentLocation;
-    insideServerBlock = false;
-    bool flagListen = true;
-    bool flagServerName = true;
-    bool flagCMBZ = true;
-    bool flagErrorP = true;
-
     while(std::getline(file, line)) 
     {
         line = trim(line);
@@ -104,8 +95,16 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) //remember
         if (insideServerBlock == true)
             break;
     }
-    //if (!std::getline(file, line))
-    //    throw parseError();
+}
+
+void ConfigFile::secondStepParsingCF(std::ifstream& file, std::string& line, int indexSer)
+{
+    bool flagListen = true;
+    bool flagServerName = true;
+    bool flagCMBZ = true;
+    bool flagErrorP = true;
+    std::string currentLocation;
+
     int indexL = 0;
     while (std::getline(file, line)) 
     {
@@ -131,7 +130,6 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) //remember
                     if (semiCo != std::string::npos)
                     {
                         std::string portstr = listenValue.substr(colonPos + 1, semiCo - colonPos -1);
-                        //port.push_back(listenValue.substr(colonPos + 1, semiCo - colonPos -1));
                         if (!isValPort(portstr))
                             throw parseError();
                         port.push_back(std::stoi(portstr));
@@ -213,20 +211,30 @@ bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) //remember
         else
             throw parseError();;
     }
+    indexLocations.push_back(indexL);
+}
+
+bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) 
+{
+    std::string line;
+
+    firstStepParsingCF(file, line);
+
+    secondStepParsingCF(file, line, indexSer);
+
     if (insideServerBlock == true)
         throw parseError();
     if (line.find("}") != std::string::npos)
         setLocations(indexSer);
-    if (ip_server.empty() ||  ip_server[indexSer].empty())
+    if (ip_server.empty() ||  ip_server[indexSer].empty()) //agregar mas check aqui de los parametros 
     {
         throw std::runtime_error("\nserver error");
     }
     indexSer += 1;
     if (std::getline(file, line))
-        parseServerParams(file, indexSer); // continuar trabajando aqui
+        parseServerParams(file, indexSer);
     return true;
 }
-
 
 std::vector<int> ConfigFile::getPort() { return port; }
 std::vector<std::string> ConfigFile::getIpServer() { return ip_server; }
@@ -238,40 +246,64 @@ std::vector<std::string> ConfigFile::splitIntoLines(const std::string& str)
     std::vector<std::string> lines;
     std::string line;
 
-    while (std::getline(stream, line)) {
+    while (std::getline(stream, line)) 
         lines.push_back(trim(line));
-    }
 
     return lines;
 }
 
-bool stringToBool(const std::string& str) {
-    return str == "on" || str == "true";
+bool stringToBool(const std::string& str) { return str == "on" || str == "true"; }
+
+bool isValidLimit(const std::string& example) //maybe check if there are methodo duplicates
+{
+    std::regex validPattern(R"((POST|GET|DELETE)(\s(POST|GET|DELETE))*$)");
+    return std::regex_match(example, validPattern);
 }
 
-/*void ConfigFile::locationParsing()
+void ConfigFile::CheckLocationKey(int indexServer, std::string newKey)
 {
-    int 
-    for (int i = 0; locations[i].empty(); i++)
+    const auto& innerMap = serverConfig[indexServer];
+
+    for (const auto& innerPair : innerMap) 
     {
-        if (line.empty() || line[0] == '#') {
-            continue;
-        }
+        if (innerPair.first == newKey)
+            throw std::runtime_error("\nduplicated Location Key\n");
     }
-}*/
+}
+
+std::vector<std::string> ConfigFile::setLocationBlock(int indexServer)
+{
+    int i;
+    std::vector<std::string> locationBlock;
+
+    if (indexServer == 0)
+        i = 0;
+    else
+        i = indexLocations[indexServer - 1];
+    int end = i;
+    while (i < indexLocations[indexServer] + end)
+    {
+        locationBlock.push_back(locations[i]);
+        i++;
+    }
+    return locationBlock;
+}
 
 void ConfigFile::setLocations(int indexServer) //chequea si alguna key se repite debo mostrar un error
 {
     std::string currentLocation;
     LocationConfig config;
     std::vector<std::string> lines;
+    std::vector<std::string> locationBlock;
+
+    locationBlock = setLocationBlock(indexServer);
 
     if (locations.empty() || locations[indexServer].empty())
         throw std::runtime_error("\n\nfile conf error in location part\n");
 
     serverConfig[indexServer] = std::map<std::string, LocationConfig>();
 
-    for (const std::string& locationConfig : locations) 
+    for (const std::string& locationConfig : locationBlock) 
     {
         lines = splitIntoLines(locationConfig);
 
@@ -284,29 +316,37 @@ void ConfigFile::setLocations(int indexServer) //chequea si alguna key se repite
                 if (end != std::string::npos)
                     openBracket++;
                 currentLocation = trim(line.substr(start, end - start));
-            } 
-            else if (line.starts_with("limit_except")) {
+            }
+            else if (line.starts_with("{"))
+                    openBracket++;
+            else if (line.starts_with("limit_except")) 
+            {
                 size_t start = line.find("limit_except") + 12;
                 size_t end = line.find(";");
                 if (end == std::string::npos)
                     throw std::runtime_error("\n\nError locations\n\n");
                 config.limit_except = trim(line.substr(start, end - start));
+                if(!isValidLimit(config.limit_except))
+                    throw std::runtime_error("\nError no valid limit_except\n");
             } 
-            else if (line.starts_with("root")) {
+            else if (line.starts_with("root")) 
+            {
                 size_t start = line.find("root") + 4;
                 size_t end = line.find(";");
                 if (end == std::string::npos)
                     throw std::runtime_error("\n\nError locations\n\n");
                 config.root = trim(line.substr(start, end - start));
             } 
-            else if (line.starts_with("autoindex")) {
+            else if (line.starts_with("autoindex")) 
+            {
                 size_t start = line.find("autoindex") + 9;
                 size_t end = line.find(";");
                 if (end == std::string::npos)
                     throw std::runtime_error("\n\nError locations\n\n");
                 config.autoindex = stringToBool(trim(line.substr(start, end - start)));
             } 
-            else if (line.starts_with("index")) {
+            else if (line.starts_with("index")) 
+            {
                 size_t start = line.find("index") + 5;
                 size_t end = line.find(";");
                 if (end == std::string::npos)
@@ -314,20 +354,15 @@ void ConfigFile::setLocations(int indexServer) //chequea si alguna key se repite
                 config.index = trim(line.substr(start, end - start));
             }
             else if (line.starts_with("}"))
-            {
                 closeBracket++;
-            }
         }
-
+        CheckLocationKey(indexServer, currentLocation);
         serverConfig[indexServer][currentLocation] = config;
     }
-    std::cout << "\n\n brackets   " << openBracket << "\nclosed brackets   " << closeBracket << "\n";
     if (openBracket != closeBracket)
-        throw std::runtime_error("\n\nunclosed bracket\n");
+        throw std::runtime_error("\n\nunclosed bracket Locations\n");
     
 }
-
-
 
 const std::map<int, std::map<std::string, LocationConfig>> ConfigFile::getServerConfig() const 
 {

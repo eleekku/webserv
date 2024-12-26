@@ -65,7 +65,9 @@ int main(int ac, char **av)
     {
         ConfigFile serverFile(av[1]);
         serverFile.openConfigFile();
+        std::cout << "\n-------------------\n";
         serverFile.printParam();  
+        std::cout << "\n-------------------\n";
         printServerConfig(serverFile.getServerConfig());
         /*std::cout << "Welcome to Server Red Oscura\n";
         Server  server;

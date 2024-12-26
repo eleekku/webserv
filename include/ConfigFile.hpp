@@ -14,6 +14,7 @@
 #include <cstring>
 #include <regex>
 #include <sstream>
+#include <set>
 
 struct LocationConfig {
     std::string limit_except;
@@ -32,6 +33,7 @@ private:
     std::vector<std::string> max_body;
     std::vector<std::string> errorPage;
     std::vector<std::string> locations;
+    std::vector<int> indexLocations;
     std::map<int, std::map<std::string, LocationConfig>> serverConfig;
     int openBracket;
     int closeBracket;
@@ -51,6 +53,8 @@ public:
     ~ConfigFile();
 
     std::string trim(const std::string &str);
+    void CheckLocationKey(int indexServer, std::string newKey);
+    std::vector<std::string> setLocationBlock(int indexServer);
     bool parseServerParams(std::ifstream& file, int i);
     void printParam();
     std::vector<int> getPort();
@@ -63,6 +67,8 @@ public:
     std::vector<std::string> splitIntoLines(const std::string& str);
     void openConfigFile();
     int serverAmount();
+    void firstStepParsingCF(std::ifstream& file, std::string& line);
+    void secondStepParsingCF(std::ifstream& file, std::string& line, int indexSer);
 };
 
 #endif
