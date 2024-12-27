@@ -58,21 +58,22 @@ int main(int ac, char **av)
 {
     if (ac != 2) 
     {
-        std::cout << "arguments" << std::endl;
-        return -1;
+        std::cout << "sintaxis : ./webserver [configfile path]" << std::endl;
+        return 1;
     }   
     try 
     {
         ConfigFile serverFile(av[1]);
         serverFile.openConfigFile();
-        std::cout << "\n-------------------\n";
+        serverFile.finalCheck();
+        /*std::cout << "\n-------------------\n";
         serverFile.printParam();  
         std::cout << "\n-------------------\n";
-        printServerConfig(serverFile.getServerConfig());
-        /*std::cout << "Welcome to Server Red Oscura\n";
+        printServerConfig(serverFile.getServerConfig());*/
+        std::cout << "Welcome to Server Red Oscura\n";
         Server  server;
         signal(SIGINT, globalSignalHandler);
-        server.initialize(serverFile);*/
+        server.initialize(serverFile);
     }
     catch(const std::exception& e)
     {

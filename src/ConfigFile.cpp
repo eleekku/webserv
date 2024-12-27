@@ -4,7 +4,7 @@
 //  clean code 
 //  vector location need to parsing 
 
-void ConfigFile::printParam()
+void ConfigFile::printParam() //remenber to delete when project is done
 {
     for(size_t i = 0;  i < port.size(); i++)
     {
@@ -16,7 +16,7 @@ void ConfigFile::printParam()
     }
 }
 
-ConfigFile::ConfigFile(std::string file) : _fileName(file), openBracket(0), closeBracket(0) {}
+ConfigFile::ConfigFile(std::string file) : _fileName(file), openBracket(0), closeBracket(0), indexServer(0) {}
 
 ConfigFile::~ConfigFile() {}
 
@@ -30,17 +30,17 @@ std::string ConfigFile::trim(const std::string &str)
     return str.substr(start, end - start + 1);
 }
 
-bool isValIp(const std::string& ip) 
+static bool isValIp(const std::string& ip) 
 {    
     std::regex ipv4Regex(    R"(^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}$)"    );
     return std::regex_match(ip, ipv4Regex);
 }
-bool isValPort(const std::string& port)
+static bool isValPort(const std::string& port)
 {
     std::regex serverPort( "^(0|[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$");
     return std::regex_match(port, serverPort);
 }
-bool isValBZ(const std::string& bodySize)
+static bool isValBZ(const std::string& bodySize)
 {
     std::regex maxBodySize ("^(10|[1-9](?:[.,][0-9])?)M$");
     return std::regex_match(bodySize, maxBodySize);
@@ -150,7 +150,6 @@ void ConfigFile::secondStepParsingCF(std::ifstream& file, std::string& line, int
                 size_t semiCo = line.find(';');
                 if (semiCo != std::string::npos)
                     server_name.push_back(line.substr(spacePos + 1, semiCo - spacePos - 1));
-                ///maybe check error here;
             }
         }
 
@@ -177,7 +176,6 @@ void ConfigFile::secondStepParsingCF(std::ifstream& file, std::string& line, int
                 size_t semiCo = line.find(';');
                 if (semiCo != std::string::npos)
                     errorPage.push_back(line.substr(spacePos + 1, semiCo - spacePos - 1));
-                //check error pag;
             }
         }
 
@@ -214,31 +212,55 @@ void ConfigFile::secondStepParsingCF(std::ifstream& file, std::string& line, int
     indexLocations.push_back(indexL);
 }
 
-bool ConfigFile::parseServerParams(std::ifstream& file, int indexSer) 
+void ConfigFile::finalCheck()
+{
+    if (ip_server.size() !=  indexServer
+        || max_body.size() != indexServer
+        || server_name.size() != indexServer
+        || errorPage.size() != indexServer
+        || port.size() != indexServer )
+    {
+        throw std::runtime_error("\nServer error final check\n");
+    }
+    indexServer--;
+    for (unsigned long  i = 0; i < indexServer; i++ )
+    {
+        for (unsigned long  j = i; j < indexServer; j++)
+        {
+            if (ip_server[i] == ip_server[j + 1] && port[i] == port[j + 1])
+                throw std::runtime_error("\n ip or port are same en diferents servers\n");
+        }
+    }
+}
+
+bool ConfigFile::parseServerParams(std::ifstream& file, unsigned long indexSer) 
 {
     std::string line;
+
+    indexServer += 1;
 
     firstStepParsingCF(file, line);
 
     secondStepParsingCF(file, line, indexSer);
-
+    
     if (insideServerBlock == true)
         throw parseError();
     if (line.find("}") != std::string::npos)
         setLocations(indexSer);
-    if (ip_server.empty() ||  ip_server[indexSer].empty()) //agregar mas check aqui de los parametros 
+    if (ip_server.empty()
+        || max_body.empty()
+        || server_name.empty()
+        || errorPage.empty()) 
     {
         throw std::runtime_error("\nserver error");
     }
     indexSer += 1;
     if (std::getline(file, line))
+    {
         parseServerParams(file, indexSer);
+    }
     return true;
 }
-
-std::vector<int> ConfigFile::getPort() { return port; }
-std::vector<std::string> ConfigFile::getIpServer() { return ip_server; }
-std::string ConfigFile::getServerName(int i) { return server_name[i]; }
 
 std::vector<std::string> ConfigFile::splitIntoLines(const std::string& str) 
 {
@@ -252,9 +274,9 @@ std::vector<std::string> ConfigFile::splitIntoLines(const std::string& str)
     return lines;
 }
 
-bool stringToBool(const std::string& str) { return str == "on" || str == "true"; }
+static bool stringToBool(const std::string& str) { return str == "on" || str == "true"; }
 
-bool isValidLimit(const std::string& example) //maybe check if there are methodo duplicates
+static bool isValidLimit(const std::string& example) //maybe check if there are methodo duplicates
 {
     std::regex validPattern(R"((POST|GET|DELETE)(\s(POST|GET|DELETE))*$)");
     return std::regex_match(example, validPattern);
@@ -267,7 +289,7 @@ void ConfigFile::CheckLocationKey(int indexServer, std::string newKey)
     for (const auto& innerPair : innerMap) 
     {
         if (innerPair.first == newKey)
-            throw std::runtime_error("\nduplicated Location Key\n");
+            throw std::runtime_error("\nDuplicate Location Key\n");
     }
 }
 
@@ -289,7 +311,7 @@ std::vector<std::string> ConfigFile::setLocationBlock(int indexServer)
     return locationBlock;
 }
 
-void ConfigFile::setLocations(int indexServer) //chequea si alguna key se repite debo mostrar un error
+void ConfigFile::setLocations(int indexServer) //set a duoble map with the locations for each server
 {
     std::string currentLocation;
     LocationConfig config;
@@ -364,14 +386,10 @@ void ConfigFile::setLocations(int indexServer) //chequea si alguna key se repite
     
 }
 
-const std::map<int, std::map<std::string, LocationConfig>> ConfigFile::getServerConfig() const 
-{
-    return serverConfig;
-}
-
+const std::map<int, std::map<std::string, LocationConfig>> ConfigFile::getServerConfig() const {   return serverConfig; }
 std::string ConfigFile::getErrorPage(int i) { return errorPage[i]; }
 std::string ConfigFile::getMax_body(int i) { return max_body[i]; }
-int ConfigFile::serverAmount()
-{
-    return port.size();
-}
+int ConfigFile::serverAmount() {  return port.size(); }
+std::vector<int> ConfigFile::getPort() { return port; }
+std::vector<std::string> ConfigFile::getIpServer() { return ip_server; }
+std::string ConfigFile::getServerName(int i) { return server_name[i]; }

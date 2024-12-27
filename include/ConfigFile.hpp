@@ -38,6 +38,7 @@ private:
     int openBracket;
     int closeBracket;
     bool insideServerBlock;
+    unsigned long indexServer;
 
 public:
 
@@ -52,10 +53,11 @@ public:
     ConfigFile(std::string file);
     ~ConfigFile();
 
+    void finalCheck();
     std::string trim(const std::string &str);
     void CheckLocationKey(int indexServer, std::string newKey);
     std::vector<std::string> setLocationBlock(int indexServer);
-    bool parseServerParams(std::ifstream& file, int i);
+    bool parseServerParams(std::ifstream& file, unsigned long i);
     void printParam();
     std::vector<int> getPort();
     std::vector<std::string> getIpServer();
