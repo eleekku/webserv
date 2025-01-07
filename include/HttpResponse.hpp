@@ -5,6 +5,7 @@
 #include <ctime>
 #include <sstream>
 #include <fstream>
+#include <filesystem>
 #include <sys/stat.h>
 #include <dirent.h>
 #include "HttpParser.hpp"

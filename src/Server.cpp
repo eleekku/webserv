@@ -181,7 +181,6 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
 
 void Server::handleClientConnection(int serverIndex, ConfigFile& conf) // fixed to read biger files
 {
-
     // Data available on client socket
      char buffer[BUFFER_SIZE];
     ssize_t bytesRead = 0;
@@ -204,10 +203,17 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf) // fixed 
                 HttpParser request(fullRequest.size());
                 request.parseRequest(fullRequest.c_str());
 
-                //std::cout << "Request method: " << request.getMethodString() << std::endl;
-                //std::cout << "Request body: " << request.getBody() << std::endl;
+                std::cout << "Request method: " << request.getMethodString() << std::endl;
+                std::cout << "Request body: " << request.getBody() << std::endl;
+                std::cout << "Request target: " << request.getTarget() << std::endl;
+                std::unordered_map<std::string_view, std::string_view> headers = request.getHeaders();
+                std::cout << "Request headers:" << std::endl;
+                for (const auto& header : headers) {
+                std::cout << header.first << ": " << header.second << std::endl;
+                }
 
-                std::cout << "\nserver index = " << serverIndex << "\n";
+
+            //    std::cout << "\nserver index = " << serverIndex << "\n";
                 HttpResponse response = receiveRequest(request, conf, serverIndex);
                 std::string body = response.generate();
 

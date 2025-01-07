@@ -12,6 +12,7 @@ const std::map<int, std::string> HttpResponse::m_statusMap = {
 	{401, "Unauthorized"},
 	{403, "Forbidden"},
 	{404, "Not Found"},
+	{405, "Method Not Allowed"},
 	{415, "Unsupported Media Type"},
 	{500, "Internal Server Error"},
 	{501, "Wrong Method"},
@@ -139,13 +140,6 @@ std::string HttpResponse::generate() const {
 	return response.str();
 }
 
-std::string getExtension(const std::string_view& url) {
-	size_t pos = url.find_last_of('.');
-	if (pos == std::string::npos)
-		return ".html";
-	return std::string(url.substr(pos));
-}
-
 LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile) 
 {
 	std::map<int, std::map<std::string, LocationConfig>> locations;
@@ -161,6 +155,59 @@ LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile)
     if (it != mymap.end())
         return it->second;
     throw std::runtime_error("Key not found");
+}
+
+std::string condenceLocation(const std::string_view &input){
+	size_t pos = input.find('/');
+	if (pos == std::string::npos)
+		return "/";
+	size_t pos2 = input.find('/', pos + 1);
+	if (pos2 == std::string::npos)
+		return "/";
+	return (std::string)input.substr(pos, pos2 - pos);
+}
+
+void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+	std::string location = condenceLocation(request.getTarget());
+	LocationConfig locationConfig;
+	try {
+		locationConfig = findKey(location, serverIndex, confile);
+	} catch (std::runtime_error &e) {
+		response.setStatusCode(404);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("Not found");
+		std::cout << "Location not found" << std::endl;
+		return;
+	}
+	std::cout << "location limit except is " << locationConfig.limit_except << std::endl;
+	if (!locationConfig.limit_except.find("DELETE")) {
+		response.setStatusCode(405);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("Method Not Allowed");
+		std::cout << "Method not allowed" << std::endl;
+		return;
+	}
+
+	std::string path = "." + locationConfig.root + (std::string)request.getTarget();
+	if (std::filesystem::remove(path) == 0) {
+		response.setStatusCode(200);
+		response.setMimeType(".txt");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("File deleted");
+	//	std::cout << "File deleted" << std::endl;
+		return;
+	}
+
+
+}
+
+std::string getExtension(const std::string_view& url) {
+	size_t pos = url.find_last_of('.');
+	if (pos == std::string::npos)
+		return ".html";
+	return std::string(url.substr(pos));
 }
 
 std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile, int serverIndex) {
@@ -230,12 +277,12 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 	HttpResponse response;
 	switch (method) {
 		case DELETE:
-			status = 404;
 			mime = ".html";
 			response.setStatusCode(status);
 			response.setMimeType(mime);
 			response.setHeader("Server", confile.getServerName(serverIndex));
-			response.setBody("Not found");
+			handleDelete(request, confile, serverIndex, response);
+		//	response.setBody("Not found");
 			return response;
 		case GET:
 			mime = getExtension(request.getTarget());
