@@ -180,7 +180,6 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
 
 void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
-
     // Data available on client socket
     char buffer[BUFFER_SIZE] = {0};
 
