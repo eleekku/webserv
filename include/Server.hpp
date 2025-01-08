@@ -24,6 +24,7 @@ class Server
     int epollfd;
     int fdClient;
     int fdGeneral;
+    int test;
 
 
     public:

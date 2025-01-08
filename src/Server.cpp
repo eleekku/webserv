@@ -12,7 +12,7 @@
 
 Server* g_serverInstance = nullptr;
 
-Server::Server(){}
+Server::Server(){  test = 0; }
 
 Server::~Server(){}
 
@@ -107,7 +107,7 @@ void Server::run(ConfigFile& conf) //need to spit
     int socketSize = serveSocket.size();
     for (int i = 0; i < socketSize; ++i)
     {
-        event.events = EPOLLIN; // Non-blocking edge-triggered
+        event.events = EPOLLIN; //| EPOLLET; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
         if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
         {
@@ -169,6 +169,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
             else
             {
                 handleClientConnection(serverIndex, conf);
+                close(fdClient);
             }
         }
     }
@@ -179,29 +180,32 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
     }
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf) // fixed to read biger files
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf)
 {
     // Data available on client socket
-     char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE];
     ssize_t bytesRead = 0;
-    std::string fullRequest;
+    //std::string fullRequest;
+
+    //fdGeneral()
     while (true)
     {
-        bytesRead = recv(fdGeneral, buffer, sizeof(buffer) - 1, 0);
+        bytesRead = recv(fdClient, buffer, sizeof(buffer) - 1, 0);
         if (bytesRead <= 0) 
         {
-            close(fdGeneral);
-            epoll_ctl(epollfd, EPOLL_CTL_DEL, fdGeneral, nullptr);
+            close(fdClient);
+            epoll_ctl(epollfd, EPOLL_CTL_DEL, fdClient, nullptr);
         }
         else 
         {
             buffer[bytesRead] = '\0';
             
-            fullRequest.append(buffer, bytesRead);
-            if (isCompleteRequest(fullRequest)) 
-            {
-                HttpParser request(fullRequest.size());
-                request.parseRequest(fullRequest.c_str());
+            std::cout << "\n\n bytesRead =\n"  << bytesRead <<  "\n\n";
+            std::cout << "\n\n before process------------\n\n" << buffer << std::endl << "\n";
+
+            std::cout << "\n\n Request body: \n\n" << buffer << std::endl << "\n";
+            HttpParser request(bytesRead);
+            request.parseRequest(buffer);
 
                 std::cout << "Request method: " << request.getMethodString() << std::endl;
                 std::cout << "Request body: " << request.getBody() << std::endl;
@@ -217,25 +221,14 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf) // fixed 
                 HttpResponse response = receiveRequest(request, conf, serverIndex);
                 std::string body = response.generate();
 
-                ssize_t bytesSent = send(fdGeneral, body.c_str(), body.size(), MSG_NOSIGNAL);
-                if (bytesSent == -1) 
-                {
-                    std::cerr << "Error sending response to cliente.\n";
-                }
-                break;
+            ssize_t bytesSent = send(fdClient, body.c_str(), body.size(), MSG_NOSIGNAL);
+            if (bytesSent == -1) 
+            {
+                std::cerr << "Error sending response to client.\n";
             }
+            break;
         }
     }
-}
-
-bool Server::isCompleteRequest(const std::string& request)
-{
-    size_t headerEndPos = request.find("\r\n\r\n");
-
-    if (headerEndPos != std::string::npos)
-        return true;
-
-    return false;
 }
 
 
