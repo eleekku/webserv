@@ -181,7 +181,7 @@ void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, Htt
 		return;
 	}
 	std::cout << "location limit except is " << locationConfig.limit_except << std::endl;
-	if (!locationConfig.limit_except.find("DELETE")) {
+	if (locationConfig.limit_except.find("DELETE") == std::string::npos) {
 		response.setStatusCode(405);
 		response.setMimeType(".html");
 		response.setHeader("Server", confile.getServerName(serverIndex));
@@ -189,16 +189,64 @@ void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, Htt
 		std::cout << "Method not allowed" << std::endl;
 		return;
 	}
-
 	std::string path = "." + locationConfig.root + (std::string)request.getTarget();
-	if (std::filesystem::remove(path) == 0) {
+	std::cout << "path is " << path << std::endl;
+
+	// Check if the file exists
+    if (!std::filesystem::exists(path)) {
+        response.setStatusCode(404);
+        response.setMimeType(".html");
+        response.setHeader("Server", confile.getServerName(serverIndex));
+        response.setBody("File not found");
+        std::cout << "File not found" << std::endl;
+        return;
+    }
+
+    // Check file status
+    struct stat filestat;
+    if (stat(path.c_str(), &filestat) == -1) {
+        response.setStatusCode(500);
+        response.setMimeType(".html");
+        response.setHeader("Server", confile.getServerName(serverIndex));
+        response.setBody("Internal Server Error");
+        std::cerr << "Error: Unable to stat file " << path << std::endl;
+        return;
+    }
+
+    // Attempt to remove the file
+    std::error_code ec;
+    if (std::filesystem::remove(path, ec)) {
+        response.setStatusCode(200);
+        response.setMimeType(".txt");
+        response.setHeader("Server", confile.getServerName(serverIndex));
+        response.setBody("File deleted");
+        std::cout << "File deleted" << std::endl;
+    } else {
+        if (ec) {
+            response.setStatusCode(403);
+            response.setMimeType(".html");
+            response.setHeader("Server", confile.getServerName(serverIndex));
+            response.setBody("Permission denied");
+            std::cerr << "Error: " << ec.message() << std::endl;
+        } else {
+            response.setStatusCode(500);
+            response.setMimeType(".html");
+            response.setHeader("Server", confile.getServerName(serverIndex));
+            response.setBody("Internal Server Error");
+            std::cerr << "Internal Server Error" << std::endl;
+        }
+    }
+
+	/*
+	if (std::filesystem::remove(path)) {
 		response.setStatusCode(200);
 		response.setMimeType(".txt");
 		response.setHeader("Server", confile.getServerName(serverIndex));
 		response.setBody("File deleted");
+
 	//	std::cout << "File deleted" << std::endl;
 		return;
-	}
+	}*/
 
 
 }
