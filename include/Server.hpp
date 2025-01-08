@@ -21,8 +21,8 @@ class Server
     private:
 
     std::vector<int> serveSocket;
-    int epollfd;
-    int fdClient;
+    //int epollfd;
+    //int fdClient;
     int fdGeneral;
     int test;
 
@@ -36,12 +36,12 @@ class Server
     int createServerSocket(int port, std::string ipServer);
     void run(ConfigFile& conf);
     std::vector<int> getServerSocket();
-    void handleClientConnection(int serverIndex, ConfigFile& conf);
+    void handleClientConnection(int serverIndex, ConfigFile& conf, int fdClient, int epollFd);
     int getEpollFd();
     int getClientFd();
     int getfdGeneral();
     void closeServerFd();
-    void runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event event);
+    void runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event eventint, int epollFd);
     bool isCompleteRequest(const std::string& request);
 };
 
