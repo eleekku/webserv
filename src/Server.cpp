@@ -206,20 +206,20 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf)
             std::cout << "\n\n Request body: \n\n" << buffer << std::endl << "\n";
             HttpParser request(bytesRead);
             request.parseRequest(buffer);
-
-                std::cout << "Request method: " << request.getMethodString() << std::endl;
-                std::cout << "Request body: " << request.getBody() << std::endl;
-                std::cout << "Request target: " << request.getTarget() << std::endl;
-                std::unordered_map<std::string_view, std::string_view> headers = request.getHeaders();
-                std::cout << "Request headers:" << std::endl;
-                for (const auto& header : headers) {
-                std::cout << header.first << ": " << header.second << std::endl;
-                }
-
+/*
+            std::cout << "Request method: " << request.getMethodString() << std::endl;
+            std::cout << "Request body: " << request.getBody() << std::endl;
+            std::cout << "Request target: " << request.getTarget() << std::endl;
+            std::unordered_map<std::string_view, std::string_view> headers = request.getHeaders();
+            std::cout << "Request headers:" << std::endl;
+            for (const auto& header : headers) {
+            std::cout << header.first << ": " << header.second << std::endl;
+            }
+*/
 
             //    std::cout << "\nserver index = " << serverIndex << "\n";
-                HttpResponse response = receiveRequest(request, conf, serverIndex);
-                std::string body = response.generate();
+            HttpResponse response = receiveRequest(request, conf, serverIndex);
+            std::string body = response.generate();
 
             ssize_t bytesSent = send(fdClient, body.c_str(), body.size(), MSG_NOSIGNAL);
             if (bytesSent == -1) 
