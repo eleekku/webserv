@@ -157,6 +157,47 @@ LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile)
     throw std::runtime_error("Key not found");
 }
 
+std::string formPath(std::string_view target, int serverIndex, ConfigFile &confile, HttpResponse &response) {
+	std::string location;
+	std::string targetStr;// (target);
+	std::string path;
+	LocationConfig locationConfig;
+	size_t pos = target.find('/');
+	if (pos == std::string::npos)
+		location = "/";
+	size_t pos2 = target.find('/', pos + 1);
+	if (pos2 == std::string::npos)
+	{
+		location = "/";
+		targetStr = (std::string)target;
+	}
+	else
+	{
+	location = (std::string)target.substr(pos, pos2 - pos);
+	targetStr = (std::string)target.substr(pos2);
+	}
+	try {
+	locationConfig = findKey(location, serverIndex, confile);
+	} catch (std::runtime_error &e) {
+		response.setStatusCode(404);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("Not found");
+		std::cout << "Location not found" << std::endl;
+		return "";
+	}
+	if (locationConfig.limit_except.find("DELETE") == std::string::npos) {
+		response.setStatusCode(405);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("Method Not Allowed");
+		std::cout << "Method not allowed" << std::endl;
+		return "";
+	}
+	path = "." + locationConfig.root + targetStr;
+	return path;
+}
+
 std::string condenceLocation(const std::string_view &input){
 	size_t pos = input.find('/');
 	if (pos == std::string::npos)
@@ -168,9 +209,12 @@ std::string condenceLocation(const std::string_view &input){
 }
 
 void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+	/*
 	std::string location = condenceLocation(request.getTarget());
+	std::cout << "target is " << request.getTarget() << std::endl;
 	LocationConfig locationConfig;
 	try {
+		std::cout <<  "location is " << location << std::endl;
 		locationConfig = findKey(location, serverIndex, confile);
 	} catch (std::runtime_error &e) {
 		response.setStatusCode(404);
@@ -190,6 +234,9 @@ void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, Htt
 		return;
 	}
 	std::string path = "." + locationConfig.root + (std::string)request.getTarget();
+	std::cout << "path is " << path << std::endl;
+	*/
+	std::string path = formPath(request.getTarget(), serverIndex, confile, response);
 	std::cout << "path is " << path << std::endl;
 
 	// Check if the file exists
