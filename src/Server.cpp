@@ -11,7 +11,7 @@
 
 Server* g_serverInstance = nullptr;
 
-Server::Server(){  test = 0; }
+Server::Server(){ }
 
 Server::~Server(){}
 
@@ -94,7 +94,7 @@ void Server::run(ConfigFile& conf) //need to spit
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
-    struct epoll_event event, events[MAX_EVENTS];//MAX_EVENTS depende de cuanta carga tendra el servidor pero mas grande sea este numero mas recurso tomara del sistema 
+    struct epoll_event event, events[MAX_EVENTS];
     int epollFd = epoll_create1(0);
     if (epollFd == -1)
     {
@@ -133,15 +133,15 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
         {
             int currentData = events[i].data.u32;
             int serverIndex = currentData >> 16;
-            int fdCurrentData = currentData & 0xFFFF;
+            int fdCurrentClient = currentData & 0xFFFF;
 
-            if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
+            if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentClient) != serveSocket.end())
             {
                 // New connection on server socket
                 int clientFd;
                 sockaddr_in clientAddr{};
                 socklen_t clientLen = sizeof(clientAddr);
-                clientFd = accept(fdCurrentData, (sockaddr*)&clientAddr, &clientLen);
+                clientFd = accept(fdCurrentClient, (sockaddr*)&clientAddr, &clientLen);
                 if (clientFd == -1) 
                 {
                     std::cerr << "Accept failed\n";
@@ -167,7 +167,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
             }
             else
             {
-                handleClientConnection(serverIndex, conf, fdCurrentData, epollFd);
+                handleClientConnection(serverIndex, conf, fdCurrentClient, epollFd, event);
             }
         }
     }
@@ -178,25 +178,25 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
     }
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int socketClient, int epollFd, struct epoll_event event)
 {
     // Data available on client socket
-    char buffer[BUFFER_SIZE] = {0};
+    char buffer[BUFFER_SIZE] = {0};//esto se necesita hacer mejor asegurar que se procesa todo lo que envia el client 
 
     while (true)
     {
         long bytesRead = 0;
-        bytesRead = recv(serverSocket, buffer, sizeof(buffer) - 1, 0); // si intento leer del mismo socker dos veces cuando a la primera ya se lee todo da un numero raro.
+        bytesRead = recv(socketClient, buffer, sizeof(buffer) - 1, 0); // si intento leer del mismo socker dos veces cuando a la primera ya se lee todo da un numero raro.
         buffer[bytesRead] = '\0'; //hay que trabajar leer todo lo que hay en el tener toda la data antes de procesar request y responder.
-        std::cout << "\n\n bytesRead =\n" << serverSocket << "\n"  << bytesRead <<  "\n\n";
+        std::cout << "\n\n bytesRead =\n" << socketClient << "\n"  << bytesRead <<  "\n\n";
         if (bytesRead <= 0) 
         {
             if (bytesRead < 0)
             {
                  throw (std::runtime_error("error en recv\n"));
             }
-            epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
-            close(serverSocket);
+            epoll_ctl(epollFd, EPOLL_CTL_DEL, socketClient, nullptr);
+            close(socketClient);
             return ;
         }
         else 
@@ -205,15 +205,48 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
             HttpParser request(bytesRead);
             request.parseRequest(buffer);
             std::cout << "\nserver index = " << serverIndex << "\n";
+            //response solo debe hacerse cuando PROCESE toda la data del client 
             HttpResponse response = receiveRequest(request, conf, serverIndex);
-            std::string body = response.generate(); 
-            ssize_t bytesSent = send(serverSocket, body.c_str(), body.size(), MSG_NOSIGNAL);
-            if (bytesSent == -1) 
+
+            std::string body = response.generate();
+            size_t totalBytesSent = 0;
+            size_t bodySize = body.size();
+
+            while (totalBytesSent < bodySize) 
             {
-                std::cerr << "Error sending response to client.\n";
+                ssize_t bytesSent = send(socketClient, body.c_str() + totalBytesSent, bodySize - totalBytesSent, MSG_NOSIGNAL);
+                if (bytesSent == -1) 
+                {
+                    epoll_ctl(epollFd, EPOLL_CTL_DEL, socketClient, nullptr);
+                    close(socketClient);
+                    throw std::runtime_error ("Error sending response to client.\n");
+                    return;
+                }
+                totalBytesSent += bytesSent;
+
+                if (totalBytesSent < bodySize)
+                {
+                    //esto pasa cuando no se puede enviar la respuesta en un solo intento, se debe testear y mejorar.
+                    event.events = EPOLLOUT;
+                    event.data.fd = socketClient;
+                    if (epoll_ctl(epollFd, EPOLL_CTL_MOD, socketClient, &event) == -1)
+                    {   
+                        //hacer la limpieza;
+                        throw std::runtime_error("\nERROR EPOLLOUT\n");
+                    }
+                    return;
+                }
             }
-            epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
-            close(serverSocket);
+            event.events = EPOLLIN;
+            event.data.fd = socketClient;
+            if (epoll_ctl(epollFd, EPOLL_CTL_MOD, socketClient, &event) == -1)
+            {   
+                //hacer la limpieza;
+                throw std::runtime_error("\nERROR EPOLLOUT\n");
+            }
+
+            epoll_ctl(epollFd, EPOLL_CTL_DEL, socketClient, nullptr);
+            close(socketClient);
             return ;
         }
     }
