@@ -28,7 +28,7 @@ public:
 	std::string generate() const;
 
 	void	setStatus(bool status);
-	bool	getStatus();
+	int		getStatus();
 	std::string getMimeType(const std::string& extension) const;
 	std::string getMimeKey() const;
 
