@@ -52,4 +52,9 @@ std::string getExtension(const std::string_view& url);
 
 LocationConfig findKey(std::string key, std::string mainKey, ConfigFile &confile);
 HttpResponse	receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex);
+void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response);
+std::string formPath(std::string_view url, int serverIndex, ConfigFile &confile, HttpResponse &response, std::string method);
+std::string convertMethod(int method);
+
+
 
