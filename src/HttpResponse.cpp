@@ -174,11 +174,10 @@ std::string convertMethod(int method) {
 	}
 }
 
-std::string formPath(std::string_view target, int serverIndex, ConfigFile &confile, HttpResponse &response, std::string method) {
+std::string formPath(std::string_view target, LocationConfig &locationConfig) {
 	std::string location;
 	std::string targetStr;// (target);
 	std::string path;
-	LocationConfig locationConfig;
 	size_t pos = target.find('/');
 	if (pos == std::string::npos)
 		location = "/";
@@ -193,8 +192,8 @@ std::string formPath(std::string_view target, int serverIndex, ConfigFile &confi
 	location = (std::string)target.substr(pos, pos2 - pos);
 	targetStr = (std::string)target.substr(pos2);
 	}
+	/*
 	try {
-	locationConfig = findKey(location, serverIndex, confile);
 	} catch (std::runtime_error &e) {
 		response.setStatusCode(404);
 		response.setMimeType(".html");
@@ -210,7 +209,7 @@ std::string formPath(std::string_view target, int serverIndex, ConfigFile &confi
 		response.setBody("Method Not Allowed");
 		std::cout << "Method not allowed" << std::endl;
 		return "";
-	}
+	}*/
 	path = "." + locationConfig.root + targetStr;
 	return path;
 }
@@ -225,8 +224,40 @@ std::string condenceLocation(const std::string_view &input){
 	return (std::string)input.substr(pos, pos2 - pos);
 }
 
+bool	validateFile(std::string path, HttpResponse &response, LocationConfig &config, int serverIndex, int method, ConfigFile &confile) {
+	// Check if the file exists
+	if (!std::filesystem::exists(path)) {
+		response.setStatusCode(404);
+		response.setMimeType(".html");
+		response.setHeader("Server", config.root);
+		response.setBody("File not found");
+		std::cout << "File not found" << std::endl;
+		return false;
+	}
+
+	// Check file status
+	struct stat filestat;
+	if (stat(path.c_str(), &filestat) == -1) {
+		response.setStatusCode(500);
+		response.setMimeType(".html");
+		response.setHeader("Server", config.root);
+		response.setBody("Internal Server Error");
+		std::cerr << "Error: Unable to stat file " << path << std::endl;
+		return false;
+	}
+	if (config.limit_except.find(convertMethod(method)) == std::string::npos) {
+		response.setStatusCode(405);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("Method Not Allowed");
+		std::cout << "Method not allowed" << std::endl;
+		return false;
+	}
+}
+
 void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
-	std::string path = formPath(request.getTarget(), serverIndex, confile, response, convertMethod(request.getMethod()));
+	LocationConfig locationConfig = findKey(condenceLocation(request.getTarget()), serverIndex, confile);
+	std::string path = formPath(request.getTarget(), locationConfig);
 //	std::cout << "path is " << path << std::endl;
 	if (response.getStatus() == 404 || response.getStatus() == 405)
 		return;
@@ -285,11 +316,21 @@ std::string getExtension(const std::string_view& url) {
 }
 
 std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+	(void)response;
 	LocationConfig location;
+	try {
 	location = findKey("/", serverIndex, confile);
+	}	catch (std::runtime_error &e) {
+		response.setStatusCode(404);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("Not found");
+		std::cout << "Location not found" << std::endl; // oerhaps replace this with status code and file or at least return it
+		}
 	std::string path;       // = "." + location.root;
-	path = formPath(target, serverIndex, confile, response, convertMethod(GET));
+	path = formPath(target, location);
 	std::string error = confile.getErrorPage(0);
+	// VALIDATE FILE!!!
 	if (target == "/")
 		path += location.index;
 //	std::cout << "path is " << path << std::endl;
@@ -364,7 +405,6 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody(file.second);
 			return response;
-
 		case POST:
 			status = 404;
 			mime = ".html";
