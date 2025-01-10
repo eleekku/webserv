@@ -43,7 +43,7 @@ int Server::createServerSocket(int port, std::string ipServer)
         throw std::runtime_error("createServerSocket = setNonBlocking");
     }
     int opt = 1;
-    if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) 
+    if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
         close(fds);
         throw std::runtime_error("createServerSocket = error setting SO_REUSEADDR");
@@ -51,12 +51,12 @@ int Server::createServerSocket(int port, std::string ipServer)
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
-    serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());    
-    if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) 
+    serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());
+    if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
     {
         throw std::runtime_error(" CreateServerSocket bind fail");
     }
-    if (listen(fds, 10) < 0) 
+    if (listen(fds, 10) < 0)
     {
         throw std::runtime_error("createServerSocket = listen fail");
     }
@@ -64,9 +64,9 @@ int Server::createServerSocket(int port, std::string ipServer)
 }
 void Server::closeServerFd()
 {
-    for (int socket : getServerSocket()) 
+    for (int socket : getServerSocket())
     {
-        if (socket >= 0) 
+        if (socket >= 0)
             close(socket);
     }
 }
@@ -90,11 +90,11 @@ void Server::initialize(ConfigFile& conf)
     run(conf);
 }
 
-void Server::run(ConfigFile& conf) //need to spit 
+void Server::run(ConfigFile& conf) //need to spit
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
-    struct epoll_event event, events[MAX_EVENTS];//MAX_EVENTS depende de cuanta carga tendra el servidor pero mas grande sea este numero mas recurso tomara del sistema 
+    struct epoll_event event, events[MAX_EVENTS];//MAX_EVENTS depende de cuanta carga tendra el servidor pero mas grande sea este numero mas recurso tomara del sistema
     int epollFd = epoll_create1(0);
     if (epollFd == -1)
     {
@@ -108,7 +108,7 @@ void Server::run(ConfigFile& conf) //need to spit
     {
         event.events = EPOLLIN | EPOLLET; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
-        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
+        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1)
         {
             closeServerFd();
             close(epollFd);
@@ -120,7 +120,7 @@ void Server::run(ConfigFile& conf) //need to spit
 
 void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event event, int epollFd)
 {
-    while (true) 
+    while (true)
     {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
         if (nfds == -1) 
@@ -129,7 +129,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
             close(epollFd);
             throw std::runtime_error("run = Error in epoll_wait");
         }
-        for (int i = 0; i < nfds; ++i) 
+        for (int i = 0; i < nfds; ++i)
         {
             int currentData = events[i].data.u32;
             int serverIndex = currentData >> 16;
@@ -149,7 +149,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 }
                 //fdClient = clientFd;
                 g_serverInstance = this;
-                if (setNonBlocking(clientFd) == -1) 
+                if (setNonBlocking(clientFd) == -1)
                 {
                     close(clientFd);
                     continue;
@@ -199,7 +199,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
             close(serverSocket);
             return ;
         }
-        else 
+        else
         {
 
             HttpParser request(bytesRead);

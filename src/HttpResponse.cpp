@@ -40,7 +40,7 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 	if (it != m_statusMap.end()) {
 		m_reasonPhrase = it->second;
 	}
-	else 
+	else
 		m_reasonPhrase = "Unknown";
 }
 
@@ -107,7 +107,7 @@ void HttpResponse::setStatusCode(int code)
 	if (it != m_statusMap.end()) {
 		m_reasonPhrase = it->second;
 	}
-	else 
+	else
 		m_reasonPhrase = "Unknown";
 }
 
@@ -149,7 +149,7 @@ LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile)
     if (mainIt == locations.end()) {
         throw std::runtime_error("Main key not found");
     }
-    
+
     std::map<std::string, LocationConfig> &mymap = mainIt->second;
     auto it = mymap.find(key);
     if (it != mymap.end())
@@ -302,7 +302,7 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 	std::ifstream file(path, std::ios::binary);
 	if (!file)
 		return {500, "Failed to open file"};
-	
+
 	std::ostringstream buffer;
 	buffer << file.rdbuf();
 	return {200, buffer.str()};
@@ -333,8 +333,8 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 		//	response.setBody("Not found");
 			return response;
 		case GET:
-			mime = getExtension(request.getTarget());
-			file = locateAndReadFile(request.getTarget(), mime, confile, serverIndex);
+		//	mime = getExtension(request.getTarget());
+		//	file = locateAndReadFile(request.getTarget(), mime, confile, serverIndex);
 			response.setStatusCode(file.first);
 			response.setMimeType(mime);
 			response.setHeader("Server", confile.getServerName(serverIndex));
