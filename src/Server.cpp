@@ -36,16 +36,18 @@ int Server::createServerSocket(int port, std::string ipServer)
     int fds = socket(AF_INET, SOCK_STREAM, 0);
     if (fds < 0)
     {
+        cleaningServerFd();
         throw std::runtime_error("createServerSocket = Error open a socket server");
     }
     if (setNonBlocking(fds) == -1)
     {
+        cleaningServerFd();
         throw std::runtime_error("createServerSocket = setNonBlocking");
     }
     int opt = 1;
     if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) 
     {
-        close(fds);
+        cleaningServerFd();
         throw std::runtime_error("createServerSocket = error setting SO_REUSEADDR");
     }
     sockaddr_in serverAddr{};
@@ -54,10 +56,12 @@ int Server::createServerSocket(int port, std::string ipServer)
     serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());    
     if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) 
     {
+        cleaningServerFd();
         throw std::runtime_error(" CreateServerSocket bind fail");
     }
     if (listen(fds, 10) < 0) 
     {
+        cleaningServerFd();
         throw std::runtime_error("createServerSocket = listen fail");
     }
     return fds;
@@ -90,7 +94,7 @@ void Server::initialize(ConfigFile& conf)
     run(conf);
 }
 
-void Server::run(ConfigFile& conf) //need to spit 
+void Server::run(ConfigFile& conf)
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
@@ -98,10 +102,10 @@ void Server::run(ConfigFile& conf) //need to spit
     int epollFd = epoll_create1(0);
     if (epollFd == -1)
     {
-        closeServerFd();
+        cleaningServerFd();
         throw std::runtime_error("run = Error creating epoll instance");
     }
-    //epollfd = epollFd;
+    epollfd = epollFd;
     g_serverInstance = this;
     int socketSize = serveSocket.size();
     for (int i = 0; i < socketSize; ++i)
@@ -110,14 +114,14 @@ void Server::run(ConfigFile& conf) //need to spit
         event.data.u32 = (i << 16) | serveSocket[i];
         if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
         {
-            closeServerFd();
-            close(epollFd);
+            cleaningServerFd();
             throw std::runtime_error("run = Error adding server socket to epoll");
         }
     }
     runLoop(conf, &events[MAX_EVENTS], event, epollFd);
 }
-
+// In this function, fdCurrentClient can be the server's socket or the client's file descriptor since it comes 
+// from int currentData = events[i].data.u32 (the first 16 bits contain the file descriptor, and the other 16 bits contain the index of the associated server).
 void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event event, int epollFd)
 {
     while (true) 
@@ -125,8 +129,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
         if (nfds == -1) 
         {
-            closeServerFd();
-            close(epollFd);
+            cleaningServerFd();
             throw std::runtime_error("run = Error in epoll_wait");
         }
         for (int i = 0; i < nfds; ++i) 
@@ -135,7 +138,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
             int serverIndex = currentData >> 16;
             int fdCurrentClient = currentData & 0xFFFF;
 
-            if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentClient) != serveSocket.end())
+            if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentClient) != serveSocket.end()) // If fdCurrentClient is the server's socket, then there is a new connection to accept; otherwise, fdCurrentClient is the client's file descriptor that needs to be processed.
             {
                 // New connection on server socket
                 int clientFd;
@@ -144,14 +147,16 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 clientFd = accept(fdCurrentClient, (sockaddr*)&clientAddr, &clientLen);
                 if (clientFd == -1) 
                 {
-                    std::cerr << "Accept failed\n";
+                    cleaningServerFd();
+                    throw std::runtime_error ("Accept failed\n");
                     continue;
                 }
-                //fdClient = clientFd;
+                fdClient = clientFd;
                 g_serverInstance = this;
                 if (setNonBlocking(clientFd) == -1) 
                 {
-                    close(clientFd);
+                    cleaningServerFd();
+                    throw std::runtime_error("Fail setNonBlocking() in runLoop\n");
                     continue;
                 }
                 // Associate client with server index
@@ -159,8 +164,8 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 event.data.u32 = (serverIndex << 16) | clientFd;
                 if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1) 
                 {
-                    std::cerr << "Failed to add client to epoll\n";
-                    close(clientFd);
+                    cleaningServerFd();
+                    throw std::runtime_error ("Failed to add client to epoll\n");
                     continue;
                 }
                 std::cout << "Accepted connection on server " << serverIndex << "\n";
@@ -181,18 +186,19 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
 void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int socketClient, int epollFd, struct epoll_event event)
 {
     // Data available on client socket
-    char buffer[BUFFER_SIZE] = {0};//esto se necesita hacer mejor asegurar que se procesa todo lo que envia el client 
+    char buffer[BUFFER_SIZE] = {0};// This needs to be improved to ensure that everything sent by the client is fully processed.
 
     while (true)
     {
         long bytesRead = 0;
-        bytesRead = recv(socketClient, buffer, sizeof(buffer) - 1, 0); // si intento leer del mismo socker dos veces cuando a la primera ya se lee todo da un numero raro.
-        buffer[bytesRead] = '\0'; //hay que trabajar leer todo lo que hay en el tener toda la data antes de procesar request y responder.
+        bytesRead = recv(socketClient, buffer, sizeof(buffer) - 1, 0); 
+        buffer[bytesRead] = '\0'; // We need to work on reading everything available to gather all the data before processing the request and responding.
         std::cout << "\n\n bytesRead =\n" << socketClient << "\n"  << bytesRead <<  "\n\n";
         if (bytesRead <= 0) 
         {
             if (bytesRead < 0)
             {
+                cleaningServerFd();
                  throw (std::runtime_error("error en recv\n"));
             }
             epoll_ctl(epollFd, EPOLL_CTL_DEL, socketClient, nullptr);
@@ -205,7 +211,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int socke
             HttpParser request(bytesRead);
             request.parseRequest(buffer);
             std::cout << "\nserver index = " << serverIndex << "\n";
-            //response solo debe hacerse cuando PROCESE toda la data del client 
+            // The response should only be sent after processing all the client's data.
             HttpResponse response = receiveRequest(request, conf, serverIndex);
 
             std::string body = response.generate();
@@ -218,7 +224,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int socke
                 if (bytesSent == -1) 
                 {
                     epoll_ctl(epollFd, EPOLL_CTL_DEL, socketClient, nullptr);
-                    close(socketClient);
+                    cleaningServerFd();
                     throw std::runtime_error ("Error sending response to client.\n");
                     return;
                 }
@@ -226,12 +232,12 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int socke
 
                 if (totalBytesSent < bodySize)
                 {
-                    //esto pasa cuando no se puede enviar la respuesta en un solo intento, se debe testear y mejorar.
+                    // This happens when the response cannot be sent in a single attempt; it needs to be tested and improved.
                     event.events = EPOLLOUT;
                     event.data.fd = socketClient;
                     if (epoll_ctl(epollFd, EPOLL_CTL_MOD, socketClient, &event) == -1)
                     {   
-                        //hacer la limpieza;
+                        cleaningServerFd();
                         throw std::runtime_error("\nERROR EPOLLOUT\n");
                     }
                     return;
@@ -241,7 +247,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int socke
             event.data.fd = socketClient;
             if (epoll_ctl(epollFd, EPOLL_CTL_MOD, socketClient, &event) == -1)
             {   
-                //hacer la limpieza;
+                cleaningServerFd();
                 throw std::runtime_error("\nERROR EPOLLOUT\n");
             }
 
@@ -255,4 +261,16 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int socke
 
 std::vector<int>  Server::getServerSocket() { return serveSocket; }
 
-int Server::getfdGeneral() { return fdGeneral; }
+int Server::getEpollFd() { return epollfd; }
+
+
+int Server::getClientFd() { return fdClient; }
+
+void Server::cleaningServerFd() 
+{
+
+    for (int fd : serveSocket) 
+        close(fd);
+    close(fdClient);
+    close(epollfd);
+}

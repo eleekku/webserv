@@ -12,10 +12,6 @@ void globalSignalHandler(int signum)
                 close(socket);
             }
         }
-        /*if (g_serverInstance->getfdGeneral() >= 0) 
-        {
-            close(g_serverInstance->getfdGeneral());
-        }
         if (g_serverInstance->getClientFd() >= 0) 
         {
             close(g_serverInstance->getClientFd());
@@ -23,7 +19,7 @@ void globalSignalHandler(int signum)
         if (g_serverInstance->getEpollFd() >= 0) 
         {
             close(g_serverInstance->getEpollFd());
-        }*/
+        }
     }
 
     std::cout << "\nServer shut down.\n" << std::endl;
