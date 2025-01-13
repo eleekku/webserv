@@ -27,7 +27,7 @@ public:
 	void setMimeType(const std::string& mime);
 	std::string generate() const;
 
-	void	setStatus(bool status);
+	std::string getBody() const;
 	int		getStatus();
 	std::string getMimeType(const std::string& extension) const;
 	std::string getMimeKey() const;

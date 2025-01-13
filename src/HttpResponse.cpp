@@ -100,6 +100,11 @@ void HttpResponse::setBody(const std::string& body)
 	m_body = body;
 }
 
+std::string HttpResponse::getBody() const
+{
+	return m_body;
+}
+
 void HttpResponse::setStatusCode(int code)
 {
 	m_statusCode = code;
@@ -253,6 +258,7 @@ bool	validateFile(std::string path, HttpResponse &response, LocationConfig &conf
 		std::cout << "Method not allowed" << std::endl;
 		return false;
 	}
+	return true;
 }
 
 void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
@@ -321,18 +327,16 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 	try {
 	location = findKey("/", serverIndex, confile);
 	}	catch (std::runtime_error &e) {
-		response.setStatusCode(404);
-		response.setMimeType(".html");
-		response.setHeader("Server", confile.getServerName(serverIndex));
-		response.setBody("Not found");
-		std::cout << "Location not found" << std::endl; // oerhaps replace this with status code and file or at least return it
+		mime = ".html";
+		return {500, "Location not found"};
 		}
 	std::string path;       // = "." + location.root;
 	path = formPath(target, location);
-	std::string error = confile.getErrorPage(0);
-	// VALIDATE FILE!!!
+	std::string error = confile.getErrorPage(serverIndex);
 	if (target == "/")
 		path += location.index;
+	if (!validateFile(path, response, location, serverIndex, GET, confile))
+		return {response.getStatus(), response.getBody()};
 //	std::cout << "path is " << path << std::endl;
 	struct stat fileStat;
 	mime = getExtension(path);
