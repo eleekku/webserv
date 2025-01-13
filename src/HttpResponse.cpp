@@ -140,7 +140,7 @@ std::string HttpResponse::generate() const {
 	return response.str();
 }
 
-LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile) 
+LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile)
 {
 	std::map<int, std::map<std::string, LocationConfig>> locations;
 	locations = confile.getServerConfig();
@@ -333,8 +333,8 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 		//	response.setBody("Not found");
 			return response;
 		case GET:
-		//	mime = getExtension(request.getTarget());
-		//	file = locateAndReadFile(request.getTarget(), mime, confile, serverIndex);
+			mime = getExtension(request.getTarget());
+			file = locateAndReadFile(request.getTarget(), mime, confile, serverIndex);
 			response.setStatusCode(file.first);
 			response.setMimeType(mime);
 			response.setHeader("Server", confile.getServerName(serverIndex));

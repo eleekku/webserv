@@ -1,8 +1,10 @@
 #include "../include/Server.hpp"
 #include "../include/HttpResponse.hpp"
+#include <cstddef>
+#include <sstream>
 
 #define MAX_EVENTS 10
-#define BUFFER_SIZE 10000
+#define BUFFER_SIZE 4096
 
 
 
@@ -123,7 +125,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
     while (true)
     {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
-        if (nfds == -1) 
+        if (nfds == -1)
         {
             closeServerFd();
             close(epollFd);
@@ -142,7 +144,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 sockaddr_in clientAddr{};
                 socklen_t clientLen = sizeof(clientAddr);
                 clientFd = accept(fdCurrentData, (sockaddr*)&clientAddr, &clientLen);
-                if (clientFd == -1) 
+                if (clientFd == -1)
                 {
                     std::cerr << "Accept failed\n";
                     continue;
@@ -157,7 +159,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 // Associate client with server index
                 event.events = EPOLLIN;
                 event.data.u32 = (serverIndex << 16) | clientFd;
-                if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1) 
+                if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1)
                 {
                     std::cerr << "Failed to add client to epoll\n";
                     close(clientFd);
@@ -172,51 +174,57 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
         }
     }
     close(epollFd);
-    for (int fd : serveSocket) 
+    for (int fd : serveSocket)
     {
         close(fd);
     }
 }
 
+std::vector<char> getRequest(int serverSocket)
+{
+	int	bytesRead;
+	std::vector<char> rawrequest;
+	char buffer[BUFFER_SIZE] = {0};
+
+	while (true)
+	{
+		bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
+		if (bytesRead == -1)
+			break;
+		// 	throw std::runtime_error("Error reading from client socket");
+		// if (bytesRead == 0)
+		// 	break;
+		rawrequest.insert(rawrequest.end(), buffer, buffer + bytesRead);
+		// if (bytesRead < BUFFER_SIZE)
+			// break;
+	}
+	for (char i: rawrequest)
+		std::cout << i;
+	return rawrequest;
+}
+
 void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
-    // Data available on client socket
-    char buffer[BUFFER_SIZE] = {0};
+    std::vector<char> rawrequest;
 
-    while (true)
+    rawrequest = getRequest(serverSocket);
+    HttpParser request;
+    try {
+    request.startParsing(rawrequest, serverSocket);
+    } catch (std::runtime_error &e) {
+		std::cerr << "Error parsing request\n";
+	}
+    std::cout << "\nserver index = " << serverIndex << "\n";
+    HttpResponse response = receiveRequest(request, conf, serverIndex);
+    std::string body = response.generate();
+    ssize_t bytesSent = send(serverSocket, body.c_str(), body.size(), MSG_NOSIGNAL);
+    if (bytesSent == -1)
     {
-        long bytesRead = 0;
-        bytesRead = recv(serverSocket, buffer, sizeof(buffer) - 1, 0); // si intento leer del mismo socker dos veces cuando a la primera ya se lee todo da un numero raro.
-        buffer[bytesRead] = '\0'; //hay que trabajar leer todo lo que hay en el tener toda la data antes de procesar request y responder.
-        std::cout << "\n\n bytesRead =\n" << serverSocket << "\n"  << bytesRead <<  "\n\n";
-        if (bytesRead <= 0) 
-        {
-            if (bytesRead < 0)
-            {
-                 throw (std::runtime_error("error en recv\n"));
-            }
-            epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
-            close(serverSocket);
-            return ;
-        }
-        else
-        {
-
-            HttpParser request(bytesRead);
-            request.parseRequest(buffer);
-            std::cout << "\nserver index = " << serverIndex << "\n";
-            HttpResponse response = receiveRequest(request, conf, serverIndex);
-            std::string body = response.generate(); 
-            ssize_t bytesSent = send(serverSocket, body.c_str(), body.size(), MSG_NOSIGNAL);
-            if (bytesSent == -1) 
-            {
-                std::cerr << "Error sending response to client.\n";
-            }
-            epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
-            close(serverSocket);
-            return ;
-        }
+        std::cerr << "Error sending response to client.\n";
     }
+    epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
+    close(serverSocket);
+    return ;
 }
 
 
