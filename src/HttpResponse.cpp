@@ -324,8 +324,9 @@ std::string getExtension(const std::string_view& url) {
 std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile, int serverIndex, HttpResponse &response) {
 	(void)response;
 	LocationConfig location;
+	std::string locationStr = condenceLocation(target);
 	try {
-	location = findKey("/", serverIndex, confile);
+	location = findKey(locationStr, serverIndex, confile);
 	}	catch (std::runtime_error &e) {
 		mime = ".html";
 		return {500, "Location not found"};
