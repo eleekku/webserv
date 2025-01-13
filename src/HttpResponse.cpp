@@ -1,4 +1,5 @@
 #include "../include/HttpResponse.hpp"
+#include "../include/CgiHandler.hpp"
 
 /*To use the HttpResponse declare HttpResponse object and define it with receiveRequest funciton which takes HttpParser object.
 Then call HttpParser member function generate which will return the response as string.*/
@@ -267,27 +268,9 @@ void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, Htt
 //	std::cout << "path is " << path << std::endl;
 	if (response.getStatus() == 404 || response.getStatus() == 405)
 		return;
-
-	// Check if the file exists
-    if (!std::filesystem::exists(path)) {
-        response.setStatusCode(404);
-        response.setMimeType(".html");
-        response.setHeader("Server", confile.getServerName(serverIndex));
-        response.setBody("File not found");
-        std::cout << "File not found" << std::endl;
-        return;
-    }
-
-    // Check file status
-    struct stat filestat;
-    if (stat(path.c_str(), &filestat) == -1) {
-        response.setStatusCode(500);
-        response.setMimeType(".html");
-        response.setHeader("Server", confile.getServerName(serverIndex));
-        response.setBody("Internal Server Error");
-        std::cerr << "Error: Unable to stat file " << path << std::endl;
-        return;
-    }
+	
+	if (!validateFile(path, response, locationConfig, serverIndex, DELETE, confile))
+		return;
 
     // Attempt to remove the file
     std::error_code ec;
@@ -338,7 +321,13 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 		path += location.index;
 	if (!validateFile(path, response, location, serverIndex, GET, confile))
 		return {response.getStatus(), response.getBody()};
+//	std::cout << "locationstr is " << locationStr << std::endl;
 //	std::cout << "path is " << path << std::endl;
+	if (locationStr == "/cgi-bin") {
+		CgiHandler cgi;
+		std::string body = cgi.executeCGI(path, "", "", GET);
+		return {200, "hello"};
+	}
 	struct stat fileStat;
 	mime = getExtension(path);
 	if (stat(path.c_str(), &fileStat) == -1)
@@ -380,15 +369,15 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 
 HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
 	unsigned int status = request.getStatus();
-//	if (status != 200)
-//	{
-//		HttpResponse response;
-//		response.setStatusCode(status);
-//		response.setMimeType(".html");
-//		response.setHeader("Server", confile.getServerName(0));
-//		response.setBody("Bad Request");
-//		return response;
-//	}
+	if (status != 200)
+	{
+		HttpResponse response;
+		response.setStatusCode(status);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(0));
+		response.setBody("Bad Request");
+		return response;
+	}
 	int	method = request.getMethod();
 	std::string	mime;
 	std::pair<int, std::string> file;
