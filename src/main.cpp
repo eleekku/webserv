@@ -1,5 +1,6 @@
 #include "../include/ConfigFile.hpp"
 #include "../include/Server.hpp"
+#include "../include/CgiHandler.hpp"
 
 void globalSignalHandler(int signum) 
 {
@@ -67,6 +68,8 @@ int main(int ac, char **av)
         std::cout << "\n-------------------\n";
         printServerConfig(serverFile.getServerConfig());*/
         std::cout << "Welcome to Server Red Oscura\n";
+        CgiHandler cgi;
+        cgi.executeCGI("cgi-bin/script.py", "", "", 1);
         Server  server;
         signal(SIGINT, globalSignalHandler);
         server.initialize(serverFile);
