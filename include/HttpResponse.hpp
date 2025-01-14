@@ -27,8 +27,8 @@ public:
 	void setMimeType(const std::string& mime);
 	std::string generate() const;
 
-	void	setStatus(bool status);
-	bool	getStatus();
+	std::string getBody() const;
+	int		getStatus();
 	std::string getMimeType(const std::string& extension) const;
 	std::string getMimeKey() const;
 
@@ -52,4 +52,9 @@ std::string getExtension(const std::string_view& url);
 
 LocationConfig findKey(std::string key, std::string mainKey, ConfigFile &confile);
 HttpResponse	receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex);
+void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response);
+std::string formPath(std::string_view target, LocationConfig &locationConfig);
+std::string convertMethod(int method);
+
+
 

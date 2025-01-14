@@ -1,5 +1,6 @@
 #include "../include/ConfigFile.hpp"
 #include "../include/Server.hpp"
+#include "../include/CgiHandler.hpp"
 
 void globalSignalHandler(int signum) 
 {
@@ -12,10 +13,6 @@ void globalSignalHandler(int signum)
                 close(socket);
             }
         }
-        /*if (g_serverInstance->getfdGeneral() >= 0) 
-        {
-            close(g_serverInstance->getfdGeneral());
-        }
         if (g_serverInstance->getClientFd() >= 0) 
         {
             close(g_serverInstance->getClientFd());
@@ -23,7 +20,7 @@ void globalSignalHandler(int signum)
         if (g_serverInstance->getEpollFd() >= 0) 
         {
             close(g_serverInstance->getEpollFd());
-        }*/
+        }
     }
 
     std::cout << "\nServer shut down.\n" << std::endl;
@@ -71,6 +68,8 @@ int main(int ac, char **av)
         std::cout << "\n-------------------\n";
         printServerConfig(serverFile.getServerConfig());*/
         std::cout << "Welcome to Server Red Oscura\n";
+        CgiHandler cgi;
+        cgi.executeCGI("cgi-bin/script.py", "", "", 1);
         Server  server;
         signal(SIGINT, globalSignalHandler);
         server.initialize(serverFile);

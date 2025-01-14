@@ -1,4 +1,5 @@
 #include "../include/HttpResponse.hpp"
+#include "../include/CgiHandler.hpp"
 
 /*To use the HttpResponse declare HttpResponse object and define it with receiveRequest funciton which takes HttpParser object.
 Then call HttpParser member function generate which will return the response as string.*/
@@ -100,6 +101,11 @@ void HttpResponse::setBody(const std::string& body)
 	m_body = body;
 }
 
+std::string HttpResponse::getBody() const
+{
+	return m_body;
+}
+
 void HttpResponse::setStatusCode(int code)
 {
 	m_statusCode = code;
@@ -109,6 +115,10 @@ void HttpResponse::setStatusCode(int code)
 	}
 	else
 		m_reasonPhrase = "Unknown";
+}
+
+int HttpResponse::getStatus() {
+	return m_statusCode;
 }
 
 void HttpResponse::setMimeType(const std::string& mime)
@@ -157,6 +167,59 @@ LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile)
     throw std::runtime_error("Key not found");
 }
 
+std::string convertMethod(int method) {
+	switch (method) {
+		case GET:
+			return "GET";
+		case POST:
+			return "POST";
+		case DELETE:
+			return "DELETE";
+		default:
+			return "GET";
+	}
+}
+
+std::string formPath(std::string_view target, LocationConfig &locationConfig) {
+	std::string location;
+	std::string targetStr;// (target);
+	std::string path;
+	size_t pos = target.find('/');
+	if (pos == std::string::npos)
+		location = "/";
+	size_t pos2 = target.find('/', pos + 1);
+	if (pos2 == std::string::npos)
+	{
+		location = "/";
+		targetStr = (std::string)target;
+	}
+	else
+	{
+	location = (std::string)target.substr(pos, pos2 - pos);
+	targetStr = (std::string)target.substr(pos2);
+	}
+	/*
+	try {
+	} catch (std::runtime_error &e) {
+		response.setStatusCode(404);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("Not found");
+		std::cout << "Location not found" << std::endl;
+		return "";
+	}
+	if (locationConfig.limit_except.find(method) == std::string::npos) {
+		response.setStatusCode(405);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("Method Not Allowed");
+		std::cout << "Method not allowed" << std::endl;
+		return "";
+	}*/
+	path = "." + locationConfig.root + targetStr;
+	return path;
+}
+
 std::string condenceLocation(const std::string_view &input){
 	size_t pos = input.find('/');
 	if (pos == std::string::npos)
@@ -167,51 +230,47 @@ std::string condenceLocation(const std::string_view &input){
 	return (std::string)input.substr(pos, pos2 - pos);
 }
 
-void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
-	std::string location = condenceLocation(request.getTarget());
-	LocationConfig locationConfig;
-	try {
-		locationConfig = findKey(location, serverIndex, confile);
-	} catch (std::runtime_error &e) {
+bool	validateFile(std::string path, HttpResponse &response, LocationConfig &config, int serverIndex, int method, ConfigFile &confile) {
+	// Check if the file exists
+	if (!std::filesystem::exists(path)) {
 		response.setStatusCode(404);
 		response.setMimeType(".html");
-		response.setHeader("Server", confile.getServerName(serverIndex));
-		response.setBody("Not found");
-		std::cout << "Location not found" << std::endl;
-		return;
+		response.setHeader("Server", config.root);
+		response.setBody("File not found");
+		std::cout << "File not found" << std::endl;
+		return false;
 	}
-	std::cout << "location limit except is " << locationConfig.limit_except << std::endl;
-	if (locationConfig.limit_except.find("DELETE") == std::string::npos) {
+
+	// Check file status
+	struct stat filestat;
+	if (stat(path.c_str(), &filestat) == -1) {
+		response.setStatusCode(500);
+		response.setMimeType(".html");
+		response.setHeader("Server", config.root);
+		response.setBody("Internal Server Error");
+		std::cerr << "Error: Unable to stat file " << path << std::endl;
+		return false;
+	}
+	if (config.limit_except.find(convertMethod(method)) == std::string::npos) {
 		response.setStatusCode(405);
 		response.setMimeType(".html");
 		response.setHeader("Server", confile.getServerName(serverIndex));
 		response.setBody("Method Not Allowed");
 		std::cout << "Method not allowed" << std::endl;
-		return;
+		return false;
 	}
-	std::string path = "." + locationConfig.root + (std::string)request.getTarget();
-	std::cout << "path is " << path << std::endl;
+	return true;
+}
 
-	// Check if the file exists
-    if (!std::filesystem::exists(path)) {
-        response.setStatusCode(404);
-        response.setMimeType(".html");
-        response.setHeader("Server", confile.getServerName(serverIndex));
-        response.setBody("File not found");
-        std::cout << "File not found" << std::endl;
-        return;
-    }
-
-    // Check file status
-    struct stat filestat;
-    if (stat(path.c_str(), &filestat) == -1) {
-        response.setStatusCode(500);
-        response.setMimeType(".html");
-        response.setHeader("Server", confile.getServerName(serverIndex));
-        response.setBody("Internal Server Error");
-        std::cerr << "Error: Unable to stat file " << path << std::endl;
-        return;
-    }
+void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+	LocationConfig locationConfig = findKey(condenceLocation(request.getTarget()), serverIndex, confile);
+	std::string path = formPath(request.getTarget(), locationConfig);
+//	std::cout << "path is " << path << std::endl;
+	if (response.getStatus() == 404 || response.getStatus() == 405)
+		return;
+	
+	if (!validateFile(path, response, locationConfig, serverIndex, DELETE, confile))
+		return;
 
     // Attempt to remove the file
     std::error_code ec;
@@ -236,19 +295,6 @@ void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, Htt
             std::cerr << "Internal Server Error" << std::endl;
         }
     }
-
-	/*
-	if (std::filesystem::remove(path)) {
-		response.setStatusCode(200);
-		response.setMimeType(".txt");
-		response.setHeader("Server", confile.getServerName(serverIndex));
-		response.setBody("File deleted");
-
-	//	std::cout << "File deleted" << std::endl;
-		return;
-	}*/
-
-
 }
 
 std::string getExtension(const std::string_view& url) {
@@ -258,22 +304,35 @@ std::string getExtension(const std::string_view& url) {
 	return std::string(url.substr(pos));
 }
 
-std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile, int serverIndex) {
+std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+	(void)response;
 	LocationConfig location;
-	location = findKey("/", serverIndex, confile);
-	std::string path = "." + location.root;
-	std::string error = confile.getErrorPage(0);
+	std::string locationStr = condenceLocation(target);
+	try {
+	location = findKey(locationStr, serverIndex, confile);
+	}	catch (std::runtime_error &e) {
+		mime = ".html";
+		return {500, "Location not found"};
+		}
+	std::string path;       // = "." + location.root;
+	path = formPath(target, location);
+	std::string error = confile.getErrorPage(serverIndex);
 	if (target == "/")
 		path += location.index;
-	else
-		path += target;
+	if (!validateFile(path, response, location, serverIndex, GET, confile))
+		return {response.getStatus(), response.getBody()};
+//	std::cout << "locationstr is " << locationStr << std::endl;
 //	std::cout << "path is " << path << std::endl;
+	if (locationStr == "/cgi-bin") {
+		CgiHandler cgi;
+		std::string body = cgi.executeCGI(path, "", "", GET);
+		return {200, "hello"};
+	}
 	struct stat fileStat;
 	mime = getExtension(path);
 	if (stat(path.c_str(), &fileStat) == -1)
 	{
 		std::ifstream file("." + error, std::ios::binary);
-//		std::cout << "error url is " << error << std::endl;
 		std::ostringstream buffer;
 		buffer << file.rdbuf();
 		mime = ".html";
@@ -310,15 +369,15 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 
 HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
 	unsigned int status = request.getStatus();
-//	if (status != 200)
-//	{
-//		HttpResponse response;
-//		response.setStatusCode(status);
-//		response.setMimeType(".html");
-//		response.setHeader("Server", confile.getServerName(0));
-//		response.setBody("Bad Request");
-//		return response;
-//	}
+	if (status != 200)
+	{
+		HttpResponse response;
+		response.setStatusCode(status);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(0));
+		response.setBody("Bad Request");
+		return response;
+	}
 	int	method = request.getMethod();
 	std::string	mime;
 	std::pair<int, std::string> file;
@@ -334,13 +393,12 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			return response;
 		case GET:
 			mime = getExtension(request.getTarget());
-			file = locateAndReadFile(request.getTarget(), mime, confile, serverIndex);
+			file = locateAndReadFile(request.getTarget(), mime, confile, serverIndex, response);
 			response.setStatusCode(file.first);
 			response.setMimeType(mime);
 			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody(file.second);
 			return response;
-
 		case POST:
 			status = 404;
 			mime = ".html";
