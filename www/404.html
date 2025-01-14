@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 Not Found</title>
+    <title>Error</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -45,9 +45,17 @@
 </head>
 <body>
     <div class="container">
-        <h1>404</h1>
-        <p>Oops! The page you're looking for doesn't exist.</p>
+        <h1 id="error-code">Error</h1>
+        <p id="error-message">An unexpected error has occurred.</p>
         <p><a href="/">Return to Home</a></p>
     </div>
+    <script>
+        // Example script to dynamically set error code and message
+        const errorCode = '500'; // Replace with dynamic error code
+        const errorMessage = 'Internal Server Error'; // Replace with dynamic error message
+
+        document.getElementById('error-code').textContent = errorCode;
+        document.getElementById('error-message').textContent = errorMessage;
+    </script>
 </body>
 </html>

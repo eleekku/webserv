@@ -319,7 +319,16 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& 
 	if (request.getTarget() == "/")
 		path += location.index;
 	if (!validateFile(path, response, location, serverIndex, GET, confile))
+	{
+		std::cout << "error is " << error << std::endl;
+	//	path = "." + error;
+		std::ifstream file("." + error, std::ios::binary);
+		std::ostringstream buffer;
+		buffer << file.rdbuf();
+		response.setBody(buffer.str());
+		mime = ".html";
 		return {response.getStatus(), response.getBody()};
+	}
 //	std::cout << "locationstr is " << locationStr << std::endl;
 //	std::cout << "path is " << path << std::endl;
 	if (locationStr == "/cgi-bin") {
@@ -335,12 +344,13 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& 
 		std::ostringstream buffer;
 		buffer << file.rdbuf();
 		mime = ".html";
+		path = "." + error;
 		return {404, buffer.str()};
 	}
 	if (S_ISDIR(fileStat.st_mode)) {
 		if (location.autoindex) {
 			std::ostringstream buffer;
-			buffer << "<!DOCTYPE html>\n<html><head><title>Index of " << target << "</title></head><body><h1>Index of " << target << "</h1><hr><pre>";
+			buffer << "<!DOCTYPE html>\n<html><head><title>Index of " << request.getTarget() << "</title></head><body><h1>Index of " << request.getTarget() << "</h1><hr><pre>";
 			DIR *dir;
 			struct dirent *ent;
 			if ((dir = opendir(path.c_str())) != NULL) {
