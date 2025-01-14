@@ -25,6 +25,7 @@ class HttpParser
 		int									_status;
 		std::string							_method;
 		std::string							_target;
+		std::string							_query;
 		std::string							_version;
 		std::map<std::string, std::string>	_headers;
 		std::string							_boundary;
@@ -34,6 +35,7 @@ class HttpParser
 		// Parsing
 		std::stringstream	getVectorLine();
 		void				extractReqLine();
+		void				parseQuery();
 		void				extractHeaders();
 
 		// Body processing
@@ -54,6 +56,7 @@ class HttpParser
 		std::map<std::string, std::string>	getHeaders();
 		std::string							getMethodString();
 		std::string							getTarget();
+		std::string							getQuery();
 		uint8_t								getMethod();
 		int									getStatus();
 

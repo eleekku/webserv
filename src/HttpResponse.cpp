@@ -304,10 +304,9 @@ std::string getExtension(const std::string_view& url) {
 	return std::string(url.substr(pos));
 }
 
-std::pair<int, std::string> locateAndReadFile(std::string_view target, std::string& mime, ConfigFile &confile, int serverIndex, HttpResponse &response) {
-	(void)response;
+std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& mime, ConfigFile &confile, int serverIndex, HttpResponse &response) {
 	LocationConfig location;
-	std::string locationStr = condenceLocation(target);
+	std::string locationStr = condenceLocation(request.getTarget());
 	try {
 	location = findKey(locationStr, serverIndex, confile);
 	}	catch (std::runtime_error &e) {
@@ -315,9 +314,9 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 		return {500, "Location not found"};
 		}
 	std::string path;       // = "." + location.root;
-	path = formPath(target, location);
+	path = formPath(request.getTarget(), location);
 	std::string error = confile.getErrorPage(serverIndex);
-	if (target == "/")
+	if (request.getTarget() == "/")
 		path += location.index;
 	if (!validateFile(path, response, location, serverIndex, GET, confile))
 		return {response.getStatus(), response.getBody()};
@@ -325,7 +324,7 @@ std::pair<int, std::string> locateAndReadFile(std::string_view target, std::stri
 //	std::cout << "path is " << path << std::endl;
 	if (locationStr == "/cgi-bin") {
 		CgiHandler cgi;
-		std::string body = cgi.executeCGI(path, "", "", GET);
+		std::string body = cgi.executeCGI(path, request.getQuery(), "", GET);
 		return {200, "hello"};
 	}
 	struct stat fileStat;
@@ -393,7 +392,7 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			return response;
 		case GET:
 			mime = getExtension(request.getTarget());
-			file = locateAndReadFile(request.getTarget(), mime, confile, serverIndex, response);
+			file = locateAndReadFile(request, mime, confile, serverIndex, response);
 			response.setStatusCode(file.first);
 			response.setMimeType(mime);
 			response.setHeader("Server", confile.getServerName(serverIndex));

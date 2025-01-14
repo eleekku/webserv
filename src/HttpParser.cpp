@@ -16,6 +16,7 @@ HttpParser::HttpParser() : _pos(0), _method_enum(UNKNOWN), _status(0), _contentL
 std::map<std::string, std::string>	HttpParser::getHeaders() { return _headers;}
 std::string							HttpParser::getMethodString() { return _method;}
 std::string							HttpParser::getTarget() { return _target;}
+std::string							HttpParser::getQuery() { return _query;}
 uint8_t								HttpParser::getMethod() { return _method_enum;}
 int									HttpParser::getStatus() { return _status;}
 
@@ -45,6 +46,19 @@ void	HttpParser::extractReqLine()
 		_method_enum = DELETE;
 	else
 		_status = 405;
+}
+
+void	HttpParser::parseQuery()
+{
+	size_t	pos = _target.find('?');
+
+	if (pos != std::string::npos)
+	{
+		_query = _target.substr(pos + 1);
+		_target = _target.substr(0, pos);
+	}
+	else
+		_query = "";
 }
 
 void checkHeaders(std::string key, std::string value)
@@ -285,6 +299,7 @@ void	HttpParser::startParsing(std::vector<char>& request, int serverSocket)
 {
 	_request = request;
 	extractReqLine();
+	parseQuery();
 	extractHeaders();
 	std::cout << _method << " " << _target << " " << _version << std::endl;
 	for (const auto& pair : _headers)
