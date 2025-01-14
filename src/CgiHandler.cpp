@@ -43,7 +43,7 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
     if (scriptPath.size() == 0)
      return NULL;
     std::string strtest = getPythonName(scriptPath);
-    if(isValidPythonFilename(strtest))
+    if(!isValidPythonFilename(strtest))
         throw std::runtime_error("invalid file name\n");;
     std::string strMethod = "";
     if (method == GET)
