@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <iostream>
 #include <sys/wait.h>
+#include <regex>
+#include <string>
+#include <set>
 
 class CgiHandler
 {

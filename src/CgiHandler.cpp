@@ -5,11 +5,46 @@ CgiHandler::CgiHandler() {}
 
 CgiHandler::~CgiHandler() {}
 
+std::set<std::string> pythonKeywords = {
+    "False", "None", "True", "and", "as", "assert", "async", "await", "break",
+    "class", "continue", "def", "del", "elif", "else", "except", "finally",
+    "for", "from", "global", "if", "import", "in", "is", "lambda", "nonlocal",
+    "not", "or", "pass", "raise", "return", "try", "while", "with", "yield"
+};
+
+bool isValidPythonFilename(std::string& filename) 
+{
+
+    std::regex pattern(R"(^[a-zA-Z_][a-zA-Z0-9_]*\.py$)");
+
+    if (!std::regex_match(filename, pattern)) 
+        return false;
+
+    std::string nameWithoutExtension = filename.substr(0, filename.size() - 3);
+
+    if (pythonKeywords.find(nameWithoutExtension) != pythonKeywords.end()) 
+        return false;
+
+    return true;
+}
+
+std::string getPythonName(std::string& path) 
+{
+    size_t pos = path.find_last_of("/");
+
+    if (pos == std::string::npos) {
+        return path;
+    }
+    return path.substr(pos + 1);
+}
+
 std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method)
 {
     if (scriptPath.size() == 0)
      return NULL;
-
+    std::string strtest = getPythonName(scriptPath);
+    if(isValidPythonFilename(strtest))
+        throw std::runtime_error("invalid file name\n");;
     std::string strMethod = "";
     if (method == GET)
         strMethod = "GET";
@@ -57,7 +92,7 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
     {
         close(fdPipe[1]);
         char buffer[1000];
-        std::string strOut;
+        std::string strOut = "";
         int bitesRead;
         while ((bitesRead = read(fdPipe[0], buffer, sizeof(buffer) - 1)) > 0)
         {
@@ -73,6 +108,6 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
             return strOut;
         }
         else
-            return NULL;
+            throw std::runtime_error("script can not execute\n");;
     }
 }
