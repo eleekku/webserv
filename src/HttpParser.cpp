@@ -1,314 +1,301 @@
 #include "HttpParser.hpp"
-#include <exception>
-#include <stdexcept>
+#include <cerrno>
+#include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <sstream>
+#include <fstream>
+#include <stdexcept>
+#include <string>
+#include <filesystem>
+#include <sys/socket.h>
 
-// Constructor
-HttpParser::HttpParser(size_t size) : _max_body_size(size), _status(200) {}
+HttpParser::HttpParser() : _pos(0), _method_enum(UNKNOWN), _status(0), _contentLength(0) {}
 
-//Getters
-e_http_method HttpParser::getMethod() { return _method;}
-std::string_view HttpParser::getMethodString() {return _method_string;}
-std::string_view HttpParser::getTarget() { return _target;}
-unsigned int	HttpParser::getStatus() { return _status;}
-bool HttpParser::isValidHttp() { return _valid_http;}
-std::unordered_map<std::string_view, std::string_view> HttpParser::getHeaders() { return _headers;}
-std::string HttpParser::getBody() { return _body;}
+// Getters
+std::map<std::string, std::string>	HttpParser::getHeaders() { return _headers;}
+std::string							HttpParser::getMethodString() { return _method;}
+std::string							HttpParser::getTarget() { return _target;}
+uint8_t								HttpParser::getMethod() { return _method_enum;}
+int									HttpParser::getStatus() { return _status;}
 
-void	HttpParser::checkReqLineErrors()
+std::stringstream HttpParser::getVectorLine()
 {
-	if (_request.size() > MAX_REQ_LINE_SIZE)
+	std::stringstream line;
+
+	while (_pos < _request.size() && _request[_pos] != '\n')
 	{
-		_status = 400;
-		throw std::invalid_argument("Bad request. Request line too long.");
+		line << _request[_pos];
+		++_pos;
 	}
+	++_pos;
+	return line;
 }
 
-size_t HttpParser::parseMethod()
+void	HttpParser::extractReqLine()
 {
-	size_t index = _request.find(' ');
-	if (index == std::string_view::npos)
-	{
-		_status = 400;
-		throw std::invalid_argument("Bad Request. Missing space after method.");
-	}
-	_method_string = _request.substr(0, index);
-	if (_method_string == "GET")
-		_method = GET;
-	else if (_method_string == "POST")
-		_method = POST;
-	else if (_method_string == "DELETE")
-		_method = DELETE;
+	getVectorLine() >> _method >> _target >> _version;
+	if (_version.back() == '\r')
+		_version.pop_back();
+	if (_method == "GET")
+		_method_enum = GET;
+	else if (_method == "POST")
+		_method_enum = POST;
+	else if (_method == "DELETE")
+		_method_enum = DELETE;
 	else
-		_method = UNKNOWN;
-	return index;
+		_status = 405;
 }
 
-size_t HttpParser::parseTarget(size_t index)
+void checkHeaders(std::string key, std::string value)
 {
-	while (index < _request.size() && std::isspace(_request[index]))
-		index++;
-	size_t new_index = _request.find(' ', index);
-	if (new_index == std::string_view::npos)
-	{
-		_status = 400;
-		throw std::invalid_argument("Bad Request. Missing space after target.");
-	}
-	_target = _request.substr(index, new_index - (index));
-	return new_index;
+	if (key.empty() || value.empty())
+		throw std::invalid_argument("Empty header key or value.");
+	if (key.back() != ':')
+		throw std::invalid_argument("Header key does not end with a colon.");
+	if (key.back() == ' ')
+		throw std::invalid_argument("Header key ends with a space.");
 }
 
-size_t HttpParser::parseHttp(size_t index)
+void	HttpParser::extractHeaders()
 {
-	while (index < _request.size() && std::isspace(_request[index]))
-		index++;
-	size_t new_index = _request.find("\r\n", index);
-	if (new_index == std::string_view::npos)
-	{
-		_status = 400;
-		throw std::invalid_argument("Bad Request. Missing CRLF after HTTP version.");
-	}
-	std::string_view sv = _request.substr(index, new_index - (index));
-	if (sv == "HTTP/1.1")
-		_valid_http = true;
-	else
-		_valid_http = false;
-	return new_index;
-}
+	std::stringstream	line;
+	std::string			word;
+	std::string 		key;
+	std::string 		value;
 
-size_t HttpParser::parseHeaders(size_t index)
-{
-	size_t iter, end_line;
-	index += 2;
-	size_t end_headers = _request.find("\r\n\r\n", index);
-	if (end_headers == std::string_view::npos)
+	while (true)
 	{
-		_status = 400;
-		throw std::invalid_argument("Bad Request. Missing CRLFCRLF after headers.");
-	}
-	while (index < end_headers)
-	{
-		iter = index;
-		end_line = _request.find("\r\n", index);
-		if (end_line == std::string_view::npos)
-		{
-			_status = 400;
-			throw std::invalid_argument("Bad Request. Missing CRLF after header.");
-		}
-		while (iter < end_line && _request[iter] != ':')
-			iter++;
-		if (_request[iter - 1] == ' ')
-		{
-			_status = 400;
-			throw std::invalid_argument("Bad request. Wrong header format.");
-		}
-		std::string_view key = _request.substr(index, iter - index);
-		checkKey(key);
-		iter++;
-		while (iter < end_line && _request[iter] == ' ')
-			iter++;
-		index = iter;
-		std::string_view value = _request.substr(index, end_line - index);
-		checkValue(value);
-		if (_request[end_line - 1] == ' ')
-		{
-			iter = 1;
-			while (_request[end_line - iter - 1] == ' ')
-				iter++;
-			value.remove_suffix(iter);
-		}
+		line = getVectorLine();
+		if (line.str() == "\r")
+			break;
+		line >> key;
+		while (line >> word)
+			value += word + ' ';
+		value.pop_back();
+		checkHeaders(key, value);
+		key.pop_back();
+		if (value.back() == '\r')
+			value.pop_back();
 		_headers.emplace(key, value);
-		index = end_line + 2;
+		value.clear();
 	}
-	return end_headers + 4;
 }
 
-void	HttpParser::parseChunkedBody(size_t index)
+void	HttpParser::extractContentLength()
 {
-	size_t		pos = index;
+	if (_headers.contains("Content-Length"))
+	{
+		std::stringstream ss(_headers["Content-Length"]);
+		ss >> _contentLength;
+	}
+}
 
-	try {
-		while (true)
+void	HttpParser::extractBody()
+{
+	std::cout << "EXTRACTING BODY\n";
+	if (_headers.contains("Content-Type"))
+	{
+		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
+			 extractMultipartFormData();
+	}
+	else if (_headers.contains("Transfer-Encoding") &&
+		_headers["Transfer-Encoding"] == "chunked")
+	{
+		std::cout << "WE ARE CHUNKEDDDDDDDDDDD\n";
+		// extractChunkedBody(request);
+	}
+	else if (_contentLength > 0)
+	{
+		std::vector<char> content(_contentLength);
+		// _ssrequest.read(content.data(), _contentLength);
+		// if (static_cast<size_t>(_ssrequest.gcount()) != _contentLength)
+		// {
+		// 	throw std::runtime_error("Failed to read complete body");
+		// }
+	}
+}
+
+// void	HttpParser::extractChunkedBody(std::vector<char>& request)
+// {
+// 	std::string	line;
+// 	int chunkSize;
+
+// 	while (true)
+// 	{
+// 		std::getline(request, line);
+// 		if (line.back() == '\r')
+// 			line.pop_back();
+// 		std::vector<char> ss;
+// 		ss << std::hex << line;
+// 		ss >> chunkSize;
+// 		if (chunkSize == 0)
+// 			break;
+// 		std::string chunk;
+// 		chunk.resize(chunkSize);
+// 		request.read(&chunk[0], chunkSize);
+// 		_body += chunk;
+// 		std::getline(request, line);
+// 	}
+// 	std::getline(request, line);
+// }
+
+void	HttpParser::readBody(int serverSocket)
+{
+	int	bytesRead = 0;
+	char buffer[BUFFER_SIZE] = {0};
+
+	std::cout << "Server Socket: " << serverSocket << std::endl;
+
+	_request.clear();
+	_pos = 0;
+	while (true)
+	{
+		bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
+		 if (bytesRead == -1)
 		{
-			size_t chunk_size_end = _request.find("\r\n", pos);
-			if (chunk_size_end == std::string::npos)
-				throw std::invalid_argument("Incomplete chunk size line");
-			std::string_view chunk_size_sv = _request.substr(pos, chunk_size_end - pos);
-			size_t semicolon_pos = chunk_size_sv.find(";");
-			if (semicolon_pos != std::string::npos)
-				chunk_size_sv = chunk_size_sv.substr(0, semicolon_pos);
-
-			size_t chunk_size;
-
-			std::string chunk_size_str(chunk_size_sv);
-			std::istringstream iss(chunk_size_str);
-			if (!(iss >> std::hex >> chunk_size))
-				throw std::invalid_argument("Invalid chunk size format");
-
-			if (chunk_size == 0)
-			{
-				pos = chunk_size_end + 2;
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
 				break;
+			perror("Error reading from client socket");
+			throw std::runtime_error("Error reading from client socket");
+		}
+		_request.insert(_request.end(), buffer, buffer + bytesRead);
+	}
+}
+
+void	HttpParser::extractBoundary()
+{
+	if (_headers.contains("Content-Type"))
+	{
+		std::string	contentType = _headers["Content-Type"];
+		size_t	pos = contentType.find("boundary=");
+		if (pos != std::string::npos)
+		{
+			_boundary = "--" + contentType.substr(pos + 9);
+			if (_boundary.back() == '\r')
+				_boundary.pop_back();
+		}
+	}
+}
+
+std::map<std::string, std::string>	HttpParser::extractBodyHeaders()
+{
+	std::stringstream	line;
+	std::string 		word;
+	std::string 		key;
+	std::string 		value;
+	std::map<std::string, std::string> bodyHeaders;
+
+	while (true)
+	{
+		line = getVectorLine();
+		if (line.str() == "\r")
+			break;
+		line >> key;
+		while (line >> word)
+			value += word + ' ';
+		value.pop_back();
+		checkHeaders(key, value);
+		key.pop_back();
+		bodyHeaders.emplace(key, value);
+		value.clear();
+	}
+	for (const auto& pair : bodyHeaders)
+	{
+		std::cout << pair.first << " : " << pair.second << std::endl;
+	}
+	return bodyHeaders;
+}
+
+std::string	extractFilename(std::map<std::string, std::string>& bodyHeaders)
+{
+	std::string	filename;
+	std::string	disposition;
+	size_t		filenamePos;
+	size_t		start;
+	size_t		end;
+
+	if (bodyHeaders.contains("Content-Disposition"))
+	{
+		disposition = bodyHeaders["Content-Disposition"];
+		filenamePos = disposition.find("filename=\"");
+		if (filenamePos != std::string::npos)
+		{
+			start = filenamePos + 10;
+			end = disposition.find("\"", start);
+			filename = disposition.substr(start, end - start);
+		}
+	}
+	return filename;
+}
+
+void	HttpParser::extractMultipartFormData()
+{
+	std::map<std::string, std::string>	bodyHeaders;
+	std::string	filename;
+	std::stringstream line;
+	std::vector<char> content;
+	std::string		lineStr;
+
+	if (!std::filesystem::exists("www/uploads"))
+		std::filesystem::create_directory("www/uploads");
+	extractBoundary();
+	if (_boundary.empty())
+		throw std::runtime_error("No boundary found in multipart/form-data");
+	while (true)
+	{
+		line = getVectorLine();
+		lineStr = line.str();
+		if (lineStr.back() == '\r')
+			lineStr.pop_back();
+		if ( lineStr == _boundary)
+		{
+			std::cout << "Extracting body headers\n";
+			bodyHeaders = extractBodyHeaders();
+			filename = extractFilename(bodyHeaders);
+			while (true)
+			{
+				line = getVectorLine();
+				lineStr = line.str();
+				if (lineStr.back() == '\r')
+					lineStr.pop_back();
+				if (lineStr == _boundary || lineStr == _boundary + "--")
+					break;
+				content.insert(content.end(), lineStr.begin(), lineStr.end());
+				content.push_back('\n');
 			}
-
-			pos = chunk_size_end + 2;
-			if (pos + chunk_size + 2 > _request.length())
-				throw std::invalid_argument("Incomplete chunk data");
-
-			_body.append(_request.substr(pos, chunk_size));
-			pos += chunk_size + 2;
+			content.pop_back();
+			if (!filename.empty())
+			{
+				std::ofstream outFile("www/uploads/" + filename, std::ios::binary);
+				if (!outFile)
+					throw std::runtime_error("Failed to open file for writing: " + filename);
+				outFile.write(content.data(), content.size());
+				outFile.close();
+			} else {
+				_formFields[bodyHeaders["name"]] = content.data();
+			}
 		}
-	} catch (const std::exception& e) {
-		_status = 400;
-		throw;
+		if (lineStr == _boundary + "--")
+			break;
 	}
 }
 
-void	HttpParser::parseBody(size_t index)
-{
-	if (_headers.contains("Transfer-Encoding"))
-		parseChunkedBody(index);
-	else if (_headers.contains("Content-Length"))
-	{
-		std::string content_length(_headers["Content-Length"]);
-		_body_size = std::stoi(content_length);
-		if (_body_size > _max_body_size)
-		{
-			_status = 413	;
-			throw std::invalid_argument("Payload Too Large");
-		}
-		_body = _request.substr(index, _body_size);
-	}
-}
-
-void HttpParser::checkMethod()
-{
-	unsigned int i = 0;
-
-	while (i < _method_string.size())
-	{
-		if (!isToken(_method_string[i]))
-		{
-			_status = 400;
-			throw std::invalid_argument("Bad Request.");
-		}
-		i++;
-	}
-	if (_method == UNKNOWN)
-	{
-		_status = 501;
-		throw std::invalid_argument("Not Immplemented.");
-	}
-}
-
-void HttpParser::checkKey(std::string_view sv)
-{
-	for (unsigned int i = 0; i < sv.size(); i++)
-	{
-		if (!isHeader(sv[i]))
-		{
-			_status = 400;
-			throw std::invalid_argument("Bad request.");
-		}
-	}
-}
-
-void HttpParser::checkValue(std::string_view sv)
-{
-	for (unsigned int i = 0; i < sv.size(); i++)
-	{
-		if (!isValue(sv[i]))
-		{
-			_status = 400;
-			throw std::invalid_argument("Bad request.");
-		}
-	}
-}
-
-void HttpParser::checkHeaders()
-{
-	if (_headers.count("Host") != 1)
-	{
-		_status = 400;
-		throw std::invalid_argument("Bad Request.");
-	}
-}
-
-void HttpParser::checkTarget()
-{
-	unsigned int i = 0;
-
-	if (_target.size() > MAX_URI_SIZE)
-	{
-		_status = 414;
-		throw std::invalid_argument("URI Too Long.");
-	}
-	while(i < _target.size())
-	{
-		if (!isUri(_target[i]))
-		{
-			_status = 400;
-			throw std::invalid_argument("Bad Request.");
-		}
-		i++;
-	}
-}
-
-void HttpParser::parseRequest(std::string_view request)
+void	HttpParser::startParsing(std::vector<char>& request, int serverSocket)
 {
 	_request = request;
-	size_t index;
-	try {
-		index = parseMethod();
-		checkMethod();
-		index = parseTarget(index);
-		checkTarget();
-		index = parseHttp(index);
-		if (_valid_http == false)
-		{
-			_status = 505;
-			throw std::invalid_argument("HTTP Version Not Supported.");
-		}
-		index = parseHeaders(index);
-		checkHeaders();
-		parseBody(index);
-	} catch (std::invalid_argument &e) {
-		std::cerr << e.what() << std::endl;
+	extractReqLine();
+	extractHeaders();
+	std::cout << _method << " " << _target << " " << _version << std::endl;
+	for (const auto& pair : _headers)
+	{
+		std::cout << pair.first << " : " << pair.second << std::endl;
 	}
-}
-
-bool HttpParser::isToken(unsigned char c)
-{
-	return _TABLE[c] & TOKEN;
-}
-
-bool HttpParser::isWhitespace(unsigned char c)
-{
-	return _TABLE[c] & WHITESPACE;
-}
-
-bool HttpParser::isUri(unsigned char c)
-{
-	return _TABLE[c] & URI;
-}
-
-bool HttpParser::isHeader(unsigned char c)
-{
-	return _TABLE[c] & HEADER;
-}
-
-bool HttpParser::isValue(unsigned char c)
-{
-	return _TABLE[c] & VALUE;
-}
-
-bool HttpParser::isHex(unsigned char c)
-{
-	return _TABLE[c] & HEX;
-}
-
-bool HttpParser::isDigit(unsigned char c)
-{
-	return _TABLE[c] & DIGIT;
+	if (_method == "POST")
+	{
+		extractContentLength();
+		readBody(serverSocket);
+		if (_request.size() > 0)
+			extractBody();
+	}
 }

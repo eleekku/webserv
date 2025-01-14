@@ -1,8 +1,10 @@
 #include "../include/Server.hpp"
 #include "../include/HttpResponse.hpp"
+#include <cstddef>
+#include <sstream>
 
 #define MAX_EVENTS 10
-#define BUFFER_SIZE 10000
+#define BUFFER_SIZE 4096
 
 
 
@@ -45,7 +47,7 @@ int Server::createServerSocket(int port, std::string ipServer)
         throw std::runtime_error("createServerSocket = setNonBlocking");
     }
     int opt = 1;
-    if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) 
+    if (setsockopt(fds, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
         cleaningServerFd();
         throw std::runtime_error("createServerSocket = error setting SO_REUSEADDR");
@@ -53,13 +55,13 @@ int Server::createServerSocket(int port, std::string ipServer)
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
-    serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());    
-    if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) 
+    serverAddr.sin_addr.s_addr = inet_addr(ipServer.c_str());
+    if (bind(fds, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
     {
         cleaningServerFd();
         throw std::runtime_error(" CreateServerSocket bind fail");
     }
-    if (listen(fds, 10) < 0) 
+    if (listen(fds, 10) < 0)
     {
         cleaningServerFd();
         throw std::runtime_error("createServerSocket = listen fail");
@@ -68,9 +70,9 @@ int Server::createServerSocket(int port, std::string ipServer)
 }
 void Server::closeServerFd()
 {
-    for (int socket : getServerSocket()) 
+    for (int socket : getServerSocket())
     {
-        if (socket >= 0) 
+        if (socket >= 0)
             close(socket);
     }
 }
@@ -112,7 +114,7 @@ void Server::run(ConfigFile& conf)
     {
         event.events = EPOLLIN | EPOLLET; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
-        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1) 
+        if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1)
         {
             cleaningServerFd();
             throw std::runtime_error("run = Error adding server socket to epoll");
@@ -124,15 +126,15 @@ void Server::run(ConfigFile& conf)
 // from int currentData = events[i].data.u32 (the first 16 bits contain the file descriptor, and the other 16 bits contain the index of the associated server).
 void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event event, int epollFd)
 {
-    while (true) 
+    while (true)
     {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
-        if (nfds == -1) 
+        if (nfds == -1)
         {
             cleaningServerFd();
             throw std::runtime_error("run = Error in epoll_wait");
         }
-        for (int i = 0; i < nfds; ++i) 
+        for (int i = 0; i < nfds; ++i)
         {
             int currentData = events[i].data.u32;
             int serverIndex = currentData >> 16;
@@ -153,7 +155,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 }
                 fdClient = clientFd;
                 g_serverInstance = this;
-                if (setNonBlocking(clientFd) == -1) 
+                if (setNonBlocking(clientFd) == -1)
                 {
                     cleaningServerFd();
                     throw std::runtime_error("Fail setNonBlocking() in runLoop\n");
@@ -162,7 +164,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 // Associate client with server index
                 event.events = EPOLLIN;
                 event.data.u32 = (serverIndex << 16) | clientFd;
-                if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1) 
+                if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1)
                 {
                     cleaningServerFd();
                     throw std::runtime_error ("Failed to add client to epoll\n");
@@ -177,24 +179,53 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
         }
     }
     close(epollFd);
-    for (int fd : serveSocket) 
+    for (int fd : serveSocket)
     {
         close(fd);
     }
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int socketClient, int epollFd, struct epoll_event event)
+std::vector<char> getRequest(int serverSocket)
 {
-    // Data available on client socket
-    char buffer[BUFFER_SIZE] = {0};// This needs to be improved to ensure that everything sent by the client is fully processed.
+	int	bytesRead;
+	std::vector<char> rawrequest;
+	char buffer[BUFFER_SIZE] = {0};
 
-    while (true)
+	while (true)
+	{
+		bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
+		if (bytesRead == -1)
+			break;
+		// 	throw std::runtime_error("Error reading from client socket");
+		// if (bytesRead == 0)
+		// 	break;
+		rawrequest.insert(rawrequest.end(), buffer, buffer + bytesRead);
+		// if (bytesRead < BUFFER_SIZE)
+			// break;
+	}
+	for (char i: rawrequest)
+		std::cout << i;
+	return rawrequest;
+}
+
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+{
+    std::vector<char> rawrequest;
+
+    rawrequest = getRequest(serverSocket);
+    HttpParser request;
+    try {
+    request.startParsing(rawrequest, serverSocket);
+    } catch (std::runtime_error &e) {
+		std::cerr << "Error parsing request\n";
+	}
+    std::cout << "\nserver index = " << serverIndex << "\n";
+    HttpResponse response = receiveRequest(request, conf, serverIndex);
+    std::string body = response.generate();
+    ssize_t bytesSent = send(serverSocket, body.c_str(), body.size(), MSG_NOSIGNAL);
+    if (bytesSent == -1)
     {
-        long bytesRead = 0;
-        bytesRead = recv(socketClient, buffer, sizeof(buffer) - 1, 0); 
-        buffer[bytesRead] = '\0'; // We need to work on reading everything available to gather all the data before processing the request and responding.
-        std::cout << "\n\n bytesRead =\n" << socketClient << "\n"  << bytesRead <<  "\n\n";
-        if (bytesRead <= 0) 
+         if (bytesRead <= 0) 
         {
             if (bytesRead < 0)
             {
@@ -256,6 +287,9 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int socke
             return ;
         }
     }
+    epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
+    close(serverSocket);
+    return ;
 }
 
 
