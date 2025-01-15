@@ -5,6 +5,14 @@ CgiHandler::CgiHandler() {}
 
 CgiHandler::~CgiHandler() {}
 
+void timeoutHandler(int signal) 
+{
+    if (signal == SIGALRM)
+    {
+        throw std::runtime_error("Timeout executing script.");
+    }
+}
+
 std::set<std::string> pythonKeywords = {
     "False", "None", "True", "and", "as", "assert", "async", "await", "break",
     "class", "continue", "def", "del", "elif", "else", "except", "finally",
@@ -80,6 +88,10 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
         }
         setenv("REQUEST_METHOD", strMethod.c_str(), 0);
         setenv("QUERY_STRING", queryString.c_str(), 0);
+
+        //avoid to show the error in the terminal;
+        freopen("/dev/null", "w", stderr);
+
         dup2(fdPipe[1], STDOUT_FILENO);
         close(fdPipe[1]);
         close(fdPipe[0]);
@@ -90,7 +102,10 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
     }
     else
     {
+        int executeTimeOut = 5;
         close(fdPipe[1]);
+        signal(SIGALRM, timeoutHandler);
+        alarm(executeTimeOut);
         char buffer[1000];
         std::string strOut = "";
         int bitesRead;
@@ -102,11 +117,13 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
         close(fdPipe[0]);
         int status;
         waitpid(pid, &status, 0);
-        if (WIFEXITED(status))
+        alarm(0);
+        if (WIFEXITED(status) && !WEXITSTATUS(status))
         {
             std::cout << "script executed\n";
+            std::cout << strOut << "\n";
             return strOut;
-        }
+        } 
         else
             throw std::runtime_error("script can not execute\n");;
     }
