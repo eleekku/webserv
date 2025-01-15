@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 Not Found</title>
+    <title>Error</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -45,8 +45,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>404</h1>
-        <p>Oops! The page you're looking for doesn't exist.</p>
+        <h1 id="error-code">{{error_code}}</h1>
+        <p id="error-message">{{error_message}}</p>
         <p><a href="/">Return to Home</a></p>
     </div>
 </body>
