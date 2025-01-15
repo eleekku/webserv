@@ -17,6 +17,7 @@ const std::map<int, std::string> HttpResponse::m_statusMap = {
 	{415, "Unsupported Media Type"},
 	{500, "Internal Server Error"},
 	{501, "Wrong Method"},
+	{502, "Bad Gateway"},
 	{505, "HTTP Version Not Supported"},
 	{502, "Bad Gateway"}
 };
@@ -89,6 +90,11 @@ std::string HttpResponse::getMimeType(const std::string& extension) const
 std::string HttpResponse::getMimeKey() const
 {
 	return m_mime;
+}
+
+std::string HttpResponse::getReasonPhrase() const
+{
+	return m_reasonPhrase;
 }
 
 void HttpResponse::setHeader(const std::string& key, const std::string& value)
@@ -325,7 +331,16 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& 
 		std::ifstream file("." + error, std::ios::binary);
 		std::ostringstream buffer;
 		buffer << file.rdbuf();
-		response.setBody(buffer.str());
+		std::string bufferstr = buffer.str();
+		size_t codePos = bufferstr.find("{{error_code}}");
+		if (codePos != std::string::npos) {
+		bufferstr.replace(codePos, 14, std::to_string(response.getStatus())); // Replace {{error_code}}
+    	}
+		size_t messagePos = bufferstr.find("{{error_message}}");
+    	if (messagePos != std::string::npos) {
+        bufferstr.replace(messagePos, 17, response.getReasonPhrase()); // Replace {{error_message}}
+    	}
+		response.setBody(bufferstr);
 		mime = ".html";
 		return {response.getStatus(), response.getBody()};
 	}
@@ -333,8 +348,19 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& 
 //	std::cout << "path is " << path << std::endl;
 	if (locationStr == "/cgi-bin") {
 		CgiHandler cgi;
-		std::string body = cgi.executeCGI(path, request.getQuery(), "", GET);
-		return {200, "hello"};
+		std::string body;
+		try {
+			body = cgi.executeCGI(path, request.getQuery(), "", GET, response);
+			response.setStatusCode(200);
+		}
+		catch (std::runtime_error &e) {
+			std::ifstream file("." + error, std::ios::binary);
+			std::ostringstream buffer;
+			buffer << file.rdbuf();
+			mime = ".html";
+			body = buffer.str();
+		}
+		return {response.getStatus(), body};
 	}
 	struct stat fileStat;
 	mime = getExtension(path);

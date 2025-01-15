@@ -38,7 +38,7 @@ std::string getPythonName(std::string& path)
     return path.substr(pos + 1);
 }
 
-std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method)
+std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
 {
     if (scriptPath.size() == 0)
      return NULL;
@@ -55,12 +55,14 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
     int fdPipe[2];
     if (pipe(fdPipe) == -1)
     {
+        response.setStatusCode(500);
         throw std::runtime_error("Pipe fail\n");
     }
 
     int pid = fork();
     if (pid == -1)
     {
+        response.setStatusCode(500);
         throw std::runtime_error("fork fail\n");
     }
 
@@ -71,6 +73,7 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
             int pipeWrite[2];
             if(pipe(pipeWrite) == -1)
             {
+                response.setStatusCode(500);
                 throw std::runtime_error("Pipe write fail\n");
             }
             write(pipeWrite[1], body.c_str(), body.size());
@@ -86,6 +89,7 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
 
         char *argv[] = {const_cast<char *> (scriptPath.c_str()), 0};
         execvp(scriptPath.c_str(), argv);
+        response.setStatusCode(500);
         throw std::runtime_error("execvp fail\n");
     }
     else
@@ -108,6 +112,9 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
             return strOut;
         }
         else
-            throw std::runtime_error("script can not execute\n");;
+        {
+            response.setStatusCode(502);
+            throw std::runtime_error("script can not execute\n");
+        }
     }
 }

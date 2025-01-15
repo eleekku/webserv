@@ -45,17 +45,9 @@
 </head>
 <body>
     <div class="container">
-        <h1 id="error-code">Error</h1>
-        <p id="error-message">An unexpected error has occurred.</p>
+        <h1 id="error-code">{{error_code}}</h1>
+        <p id="error-message">{{error_message}}</p>
         <p><a href="/">Return to Home</a></p>
     </div>
-    <script>
-        // Example script to dynamically set error code and message
-        const errorCode = '500'; // Replace with dynamic error code
-        const errorMessage = 'Internal Server Error'; // Replace with dynamic error message
-
-        document.getElementById('error-code').textContent = errorCode;
-        document.getElementById('error-message').textContent = errorMessage;
-    </script>
 </body>
 </html>

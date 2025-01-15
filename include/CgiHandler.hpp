@@ -7,6 +7,7 @@
 #include <regex>
 #include <string>
 #include <set>
+#include "HttpResponse.hpp"
 
 class CgiHandler
 {
@@ -15,5 +16,5 @@ public:
 	CgiHandler();
 	~CgiHandler();
 
-	std::string executeCGI(std::string scriptPath, std::string queryString, std::string body, int method);
+	std::string executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
 };
