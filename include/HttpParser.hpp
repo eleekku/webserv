@@ -6,7 +6,7 @@
 #include <sstream>
 #include <vector>
 
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE 8192
 
 enum e_http_method {
 	DELETE = 0,
@@ -25,25 +25,23 @@ class HttpParser
 		int									_status;
 		std::string							_method;
 		std::string							_target;
-		std::string							_query;
 		std::string							_version;
 		std::map<std::string, std::string>	_headers;
+		std::map<std::string, std::string>	_bodyHeaders;
 		std::string							_boundary;
 		size_t								_contentLength;
 		std::map<std::string, std::string>	_formFields;
 
 		// Parsing
 		std::stringstream	getVectorLine();
+		std::vector<char>	getBodyData();
 		void				extractReqLine();
-		void				parseQuery();
-		void				extractHeaders();
+		void				extractHeaders(bool body);
 
 		// Body processing
 		void								readBody(int serverSocket);
 		void								extractChunkedBody();
 		void								extractBody();
-		std::map<std::string, std::string>	extractBodyHeaders();
-		std::vector<char>					extractBodyContent();
 		void								extractBoundary();
 		void								extractContentLength();
 		void								extractMultipartFormData();
@@ -52,11 +50,11 @@ class HttpParser
 	public:
 		// Constructor
 		HttpParser();
+
 		// Getters
 		std::map<std::string, std::string>	getHeaders();
 		std::string							getMethodString();
 		std::string							getTarget();
-		std::string							getQuery();
 		uint8_t								getMethod();
 		int									getStatus();
 
