@@ -57,6 +57,7 @@ class HttpParser
 		std::map<std::string, std::string>	getHeaders();
 		std::string							getMethodString();
 		std::string							getTarget();
+		std::string							getQuery();
 		uint8_t								getMethod();
 		int									getStatus();
 

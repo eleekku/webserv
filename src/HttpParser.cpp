@@ -8,7 +8,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-HttpParser::HttpParser() : _pos(0), _method_enum(UNKNOWN), _status(0), _contentLength(0) {}
+HttpParser::HttpParser() : _pos(0), _method_enum(UNKNOWN), _status(200), _contentLength(0) {}
 
 // Getters
 std::map<std::string, std::string>	HttpParser::getHeaders() { return _headers;}
@@ -16,6 +16,7 @@ std::string							HttpParser::getMethodString() { return _method;}
 std::string							HttpParser::getTarget() { return _target;}
 uint8_t								HttpParser::getMethod() { return _method_enum;}
 int									HttpParser::getStatus() { return _status;}
+std::string							HttpParser::getQuery() { return _query;}
 
 std::stringstream HttpParser::getVectorLine()
 {
