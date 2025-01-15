@@ -316,10 +316,23 @@ void	HttpParser::extractMultipartFormData()
 	}
 }
 
+void	HttpParser::parseQuery()
+{
+	size_t	pos = _target.find('?');
+	if (pos != std::string::npos)
+	{
+		_query = _target.substr(pos + 1);
+		_target = _target.substr(0, pos);
+	}
+	else
+		_query = "";
+}
+
 void	HttpParser::startParsing(std::vector<char>& request, int serverSocket)
 {
 	_request = request;
 	extractReqLine();
+	parseQuery();
 	extractHeaders(false);
 	std::cout << _method << " " << _target << " " << _version << std::endl;
 	for (const auto& pair : _headers)

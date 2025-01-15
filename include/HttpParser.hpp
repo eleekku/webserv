@@ -29,6 +29,7 @@ class HttpParser
 		std::map<std::string, std::string>	_headers;
 		std::map<std::string, std::string>	_bodyHeaders;
 		std::string							_boundary;
+		std::string							_query;
 		size_t								_contentLength;
 		std::map<std::string, std::string>	_formFields;
 
@@ -36,6 +37,7 @@ class HttpParser
 		std::stringstream	getVectorLine();
 		std::vector<char>	getBodyData();
 		void				extractReqLine();
+		void				parseQuery();
 		void				extractHeaders(bool body);
 
 		// Body processing
