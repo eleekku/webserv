@@ -1,23 +1,22 @@
 #include "HttpParser.hpp"
 #include <cerrno>
-#include <cmath>
-#include <cstddef>
 #include <iostream>
-#include <sstream>
 #include <fstream>
 #include <stdexcept>
-#include <string>
 #include <filesystem>
+#include <sys/epoll.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
-HttpParser::HttpParser() : _pos(0), _method_enum(UNKNOWN), _status(0), _contentLength(0) {}
+HttpParser::HttpParser() : _pos(0), _method_enum(UNKNOWN), _status(200), _contentLength(0) {}
 
 // Getters
-std::map<std::string, std::string>	HttpParser::getHeaders() { return _headers;}
-std::string							HttpParser::getMethodString() { return _method;}
-std::string							HttpParser::getTarget() { return _target;}
-uint8_t								HttpParser::getMethod() { return _method_enum;}
-int									HttpParser::getStatus() { return _status;}
+map_t		HttpParser::getHeaders() { return _headers;}
+std::string	HttpParser::getMethodString() { return _method;}
+std::string	HttpParser::getTarget() { return _target;}
+uint8_t		HttpParser::getMethod() { return _method_enum;}
+int			HttpParser::getStatus() { return _status;}
+std::string	HttpParser::getQuery() { return _query;}
 
 std::stringstream HttpParser::getVectorLine()
 {
@@ -30,6 +29,20 @@ std::stringstream HttpParser::getVectorLine()
 	}
 	++_pos;
 	return line;
+}
+
+std::vector<char>	HttpParser::getBodyData()
+{
+	std::vector<char>	body;
+
+	while (_pos < _request.size())
+	{
+		body.push_back(_request[_pos]);
+		++_pos;
+		if (body.back() == '\n')
+			break;
+	}
+	return body;
 }
 
 void	HttpParser::extractReqLine()
@@ -47,7 +60,7 @@ void	HttpParser::extractReqLine()
 		_status = 405;
 }
 
-void checkHeaders(std::string key, std::string value)
+void checkHeaders(std::string_view key, std::string_view value)
 {
 	if (key.empty() || value.empty())
 		throw std::invalid_argument("Empty header key or value.");
@@ -57,7 +70,7 @@ void checkHeaders(std::string key, std::string value)
 		throw std::invalid_argument("Header key ends with a space.");
 }
 
-void	HttpParser::extractHeaders()
+void	HttpParser::extractHeaders(bool body)
 {
 	std::stringstream	line;
 	std::string			word;
@@ -77,7 +90,10 @@ void	HttpParser::extractHeaders()
 		key.pop_back();
 		if (value.back() == '\r')
 			value.pop_back();
-		_headers.emplace(key, value);
+		if (body)
+			_bodyHeaders.emplace(key, value);
+		else
+			_headers.emplace(key, value);
 		value.clear();
 	}
 }
@@ -93,7 +109,6 @@ void	HttpParser::extractContentLength()
 
 void	HttpParser::extractBody()
 {
-	std::cout << "EXTRACTING BODY\n";
 	if (_headers.contains("Content-Type"))
 	{
 		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
@@ -143,24 +158,65 @@ void	HttpParser::extractBody()
 void	HttpParser::readBody(int serverSocket)
 {
 	int	bytesRead = 0;
+	size_t totalBytesRead = 0;
 	char buffer[BUFFER_SIZE] = {0};
 
 	std::cout << "Server Socket: " << serverSocket << std::endl;
 
 	_request.clear();
+	_request.reserve(_contentLength);
 	_pos = 0;
-	while (true)
+
+	int epollFd = epoll_create1(0);
+	if (epollFd == -1)
 	{
-		bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
-		 if (bytesRead == -1)
+		perror("Failed to create epoll file descriptor");
+		throw std::runtime_error("Failed to create epoll file descriptor");
+	}
+	struct epoll_event event;
+	event.events = EPOLLIN;
+	event.data.fd = serverSocket;
+
+	if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serverSocket, &event) == -1)
+	{
+		perror("Failed to add server socket to epoll");
+		throw std::runtime_error("Failed to add server socket to epoll");
+	}
+	while (totalBytesRead < _contentLength)
+	{
+		struct epoll_event events[1];
+		int nfds = epoll_wait(epollFd, events, 1, 3000);
+		if (nfds == -1)
 		{
+			perror("Failed to wait for events on epoll");
+			close(epollFd);
+			throw std::runtime_error("Failed to wait for events on epoll");
+		}
+		else if (nfds == 0)
+		{
+			std::cerr << "Timeout waiting for events on epoll\n";
+			close(epollFd);
+			throw std::runtime_error("Timeout waiting for events on epoll");
+		}
+		bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
+		if (bytesRead > 0)
+		{
+			totalBytesRead += bytesRead;
+			_request.insert(_request.end(), buffer, buffer + bytesRead);
+		}
+		else if (bytesRead == 0)
+		{
+			break;
+		} else {
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 				break;
 			perror("Error reading from client socket");
+			close(epollFd);
 			throw std::runtime_error("Error reading from client socket");
 		}
-		_request.insert(_request.end(), buffer, buffer + bytesRead);
+		std::cout << totalBytesRead << " / " << _contentLength << std::endl;
 	}
+	close(epollFd);
 }
 
 void	HttpParser::extractBoundary()
@@ -178,36 +234,7 @@ void	HttpParser::extractBoundary()
 	}
 }
 
-std::map<std::string, std::string>	HttpParser::extractBodyHeaders()
-{
-	std::stringstream	line;
-	std::string 		word;
-	std::string 		key;
-	std::string 		value;
-	std::map<std::string, std::string> bodyHeaders;
-
-	while (true)
-	{
-		line = getVectorLine();
-		if (line.str() == "\r")
-			break;
-		line >> key;
-		while (line >> word)
-			value += word + ' ';
-		value.pop_back();
-		checkHeaders(key, value);
-		key.pop_back();
-		bodyHeaders.emplace(key, value);
-		value.clear();
-	}
-	for (const auto& pair : bodyHeaders)
-	{
-		std::cout << pair.first << " : " << pair.second << std::endl;
-	}
-	return bodyHeaders;
-}
-
-std::string	extractFilename(std::map<std::string, std::string>& bodyHeaders)
+std::string	extractFilename(map_t& bodyHeaders)
 {
 	std::string	filename;
 	std::string	disposition;
@@ -231,12 +258,14 @@ std::string	extractFilename(std::map<std::string, std::string>& bodyHeaders)
 
 void	HttpParser::extractMultipartFormData()
 {
-	std::map<std::string, std::string>	bodyHeaders;
-	std::string	filename;
-	std::stringstream line;
-	std::vector<char> content;
-	std::string		lineStr;
+	std::string							filename;
+	std::stringstream					line;
+	std::vector<char>					content;
+	std::vector<char>					lineVec;
+	size_t								vecSize;
+	std::string							lineStr;
 
+	content.reserve(_contentLength);
 	if (!std::filesystem::exists("www/uploads"))
 		std::filesystem::create_directory("www/uploads");
 	extractBoundary();
@@ -250,20 +279,27 @@ void	HttpParser::extractMultipartFormData()
 			lineStr.pop_back();
 		if ( lineStr == _boundary)
 		{
+			content.clear();
 			std::cout << "Extracting body headers\n";
-			bodyHeaders = extractBodyHeaders();
-			filename = extractFilename(bodyHeaders);
+			extractHeaders(true);
+			filename = extractFilename(_bodyHeaders);
 			while (true)
 			{
-				line = getVectorLine();
-				lineStr = line.str();
-				if (lineStr.back() == '\r')
-					lineStr.pop_back();
-				if (lineStr == _boundary || lineStr == _boundary + "--")
-					break;
-				content.insert(content.end(), lineStr.begin(), lineStr.end());
-				content.push_back('\n');
+				lineVec.clear();
+				lineVec = getBodyData();
+				vecSize = lineVec.size();
+				if (vecSize == _boundary.size() + 2 || vecSize == _boundary.size() + 4)
+				{
+					std::string vecAsString(lineVec.begin(), lineVec.end() - 2);
+					if (vecAsString == _boundary || vecAsString == _boundary + "--")
+					{
+						lineStr = vecAsString;
+						break;
+					}
+				}
+				content.insert(content.end(), lineVec.begin(), lineVec.end());
 			}
+			content.pop_back();
 			content.pop_back();
 			if (!filename.empty())
 			{
@@ -273,7 +309,7 @@ void	HttpParser::extractMultipartFormData()
 				outFile.write(content.data(), content.size());
 				outFile.close();
 			} else {
-				_formFields[bodyHeaders["name"]] = content.data();
+				throw std::runtime_error("No filename found in multipart/form-data");
 			}
 		}
 		if (lineStr == _boundary + "--")
@@ -281,11 +317,24 @@ void	HttpParser::extractMultipartFormData()
 	}
 }
 
+void	HttpParser::parseQuery()
+{
+	size_t	pos = _target.find('?');
+	if (pos != std::string::npos)
+	{
+		_query = _target.substr(pos + 1);
+		_target = _target.substr(0, pos);
+	}
+	else
+		_query = "";
+}
+
 void	HttpParser::startParsing(std::vector<char>& request, int serverSocket)
 {
 	_request = request;
 	extractReqLine();
-	extractHeaders();
+	parseQuery();
+	extractHeaders(false);
 	std::cout << _method << " " << _target << " " << _version << std::endl;
 	for (const auto& pair : _headers)
 	{

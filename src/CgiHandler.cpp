@@ -5,6 +5,14 @@ CgiHandler::CgiHandler() {}
 
 CgiHandler::~CgiHandler() {}
 
+void timeoutHandler(int signal) 
+{
+    if (signal == SIGALRM)
+    {
+        throw std::runtime_error("Timeout executing script.");
+    }
+}
+
 std::set<std::string> pythonKeywords = {
     "False", "None", "True", "and", "as", "assert", "async", "await", "break",
     "class", "continue", "def", "del", "elif", "else", "except", "finally",
@@ -38,7 +46,7 @@ std::string getPythonName(std::string& path)
     return path.substr(pos + 1);
 }
 
-std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method)
+std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
 {
     if (scriptPath.size() == 0)
      return NULL;
@@ -55,12 +63,14 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
     int fdPipe[2];
     if (pipe(fdPipe) == -1)
     {
+        response.setStatusCode(500);
         throw std::runtime_error("Pipe fail\n");
     }
 
     int pid = fork();
     if (pid == -1)
     {
+        response.setStatusCode(500);
         throw std::runtime_error("fork fail\n");
     }
 
@@ -71,6 +81,7 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
             int pipeWrite[2];
             if(pipe(pipeWrite) == -1)
             {
+                response.setStatusCode(500);
                 throw std::runtime_error("Pipe write fail\n");
             }
             write(pipeWrite[1], body.c_str(), body.size());
@@ -80,17 +91,25 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
         }
         setenv("REQUEST_METHOD", strMethod.c_str(), 0);
         setenv("QUERY_STRING", queryString.c_str(), 0);
+
+        //avoid to show the error in the terminal;
+        freopen("/dev/null", "w", stderr);
+
         dup2(fdPipe[1], STDOUT_FILENO);
         close(fdPipe[1]);
         close(fdPipe[0]);
 
         char *argv[] = {const_cast<char *> (scriptPath.c_str()), 0};
         execvp(scriptPath.c_str(), argv);
+        response.setStatusCode(500);
         throw std::runtime_error("execvp fail\n");
     }
     else
     {
+        int executeTimeOut = 5;
         close(fdPipe[1]);
+        signal(SIGALRM, timeoutHandler);
+        alarm(executeTimeOut);
         char buffer[1000];
         std::string strOut = "";
         int bitesRead;
@@ -102,12 +121,17 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
         close(fdPipe[0]);
         int status;
         waitpid(pid, &status, 0);
-        if (WIFEXITED(status))
+        alarm(0);
+        if (WIFEXITED(status) && !WEXITSTATUS(status))
         {
             std::cout << "script executed\n";
+            std::cout << strOut << "\n";
             return strOut;
-        }
+        } 
         else
-            throw std::runtime_error("script can not execute\n");;
+        {
+            response.setStatusCode(502);
+            throw std::runtime_error("script can not execute\n");
+        }
     }
 }

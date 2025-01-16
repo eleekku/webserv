@@ -31,6 +31,7 @@ public:
 	int		getStatus();
 	std::string getMimeType(const std::string& extension) const;
 	std::string getMimeKey() const;
+	std::string getReasonPhrase() const;
 
 
 
@@ -47,7 +48,7 @@ private:
 	static const std::map<std::string, std::string> m_mimeTypes;
 };
 
-std::pair<int, std::string> locateAndReadFile(std::string_view url, std::string& mime, ConfigFile &confile);
+std::pair<int, std::string> locateAndReadFile(HttpParser & , std::string& mime, ConfigFile &confile);
 std::string getExtension(const std::string_view& url);
 
 LocationConfig findKey(std::string key, std::string mainKey, ConfigFile &confile);
