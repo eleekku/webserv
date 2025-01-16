@@ -11,12 +11,12 @@
 HttpParser::HttpParser() : _pos(0), _method_enum(UNKNOWN), _status(200), _contentLength(0) {}
 
 // Getters
-std::map<std::string, std::string>	HttpParser::getHeaders() { return _headers;}
-std::string							HttpParser::getMethodString() { return _method;}
-std::string							HttpParser::getTarget() { return _target;}
-uint8_t								HttpParser::getMethod() { return _method_enum;}
-int									HttpParser::getStatus() { return _status;}
-std::string							HttpParser::getQuery() { return _query;}
+map_t		HttpParser::getHeaders() { return _headers;}
+std::string	HttpParser::getMethodString() { return _method;}
+std::string	HttpParser::getTarget() { return _target;}
+uint8_t		HttpParser::getMethod() { return _method_enum;}
+int			HttpParser::getStatus() { return _status;}
+std::string	HttpParser::getQuery() { return _query;}
 
 std::stringstream HttpParser::getVectorLine()
 {
@@ -234,7 +234,7 @@ void	HttpParser::extractBoundary()
 	}
 }
 
-std::string	extractFilename(std::map<std::string, std::string>& bodyHeaders)
+std::string	extractFilename(map_t& bodyHeaders)
 {
 	std::string	filename;
 	std::string	disposition;
@@ -309,7 +309,7 @@ void	HttpParser::extractMultipartFormData()
 				outFile.write(content.data(), content.size());
 				outFile.close();
 			} else {
-				_formFields[_bodyHeaders["name"]] = content.data();
+				throw std::runtime_error("No filename found in multipart/form-data");
 			}
 		}
 		if (lineStr == _boundary + "--")

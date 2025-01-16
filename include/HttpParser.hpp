@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <sstream>
 #include <vector>
 
@@ -15,23 +15,24 @@ enum e_http_method {
 	UNKNOWN = 3
 };
 
+typedef std::unordered_map<std::string, std::string> map_t;
+
 class HttpParser
 {
 	private:
 		// Variables
-		std::vector<char>					_request;
-		size_t								_pos;
-		uint8_t								_method_enum;
-		int									_status;
-		std::string							_method;
-		std::string							_target;
-		std::string							_version;
-		std::map<std::string, std::string>	_headers;
-		std::map<std::string, std::string>	_bodyHeaders;
-		std::string							_boundary;
-		std::string							_query;
-		size_t								_contentLength;
-		std::map<std::string, std::string>	_formFields;
+		std::vector<char>	_request;
+		size_t				_pos;
+		uint8_t				_method_enum;
+		int					_status;
+		std::string			_method;
+		std::string			_target;
+		std::string			_version;
+		map_t				_headers;
+		map_t				_bodyHeaders;
+		std::string			_boundary;
+		std::string			_query;
+		size_t				_contentLength;
 
 		// Parsing
 		std::stringstream	getVectorLine();
@@ -41,12 +42,12 @@ class HttpParser
 		void				extractHeaders(bool body);
 
 		// Body processing
-		void								readBody(int serverSocket);
-		void								extractChunkedBody();
-		void								extractBody();
-		void								extractBoundary();
-		void								extractContentLength();
-		void								extractMultipartFormData();
+		void	readBody(int serverSocket);
+		void	extractChunkedBody();
+		void	extractBody();
+		void	extractBoundary();
+		void	extractContentLength();
+		void	extractMultipartFormData();
 
 		// Checking functions
 	public:
@@ -54,12 +55,12 @@ class HttpParser
 		HttpParser();
 
 		// Getters
-		std::map<std::string, std::string>	getHeaders();
-		std::string							getMethodString();
-		std::string							getTarget();
-		std::string							getQuery();
-		uint8_t								getMethod();
-		int									getStatus();
+		map_t		getHeaders();
+		std::string	getMethodString();
+		std::string	getTarget();
+		std::string	getQuery();
+		uint8_t		getMethod();
+		int			getStatus();
 
 		void	startParsing(std::vector<char>& request, int serverSocket);
 };
