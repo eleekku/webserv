@@ -165,11 +165,16 @@ LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile)
     if (mainIt == locations.end()) {
         throw std::runtime_error("Main key not found");
     }
-
     std::map<std::string, LocationConfig> &mymap = mainIt->second;
     auto it = mymap.find(key);
-    if (it != mymap.end())
+	if (it != mymap.end())
         return it->second;
+	//std::cout << "key is" << key << std::endl;
+	//std::cout << mymap.begin()->second.root << std::endl;
+	if (!mymap.empty()){
+		mymap.begin()->second.root += key; 
+		return mymap.begin()->second;
+	}
     throw std::runtime_error("Key not found");
 }
 
@@ -324,6 +329,7 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& 
 	std::string error = confile.getErrorPage(serverIndex);
 	if (request.getTarget() == "/")
 		path += location.index;
+	std::cout << "path is " << path << std::endl;
 	if (!validateFile(path, response, location, serverIndex, GET, confile))
 	{
 		std::cout << "error is " << error << std::endl;
@@ -435,12 +441,12 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			response.setBody(file.second);
 			return response;
 		case POST:
-			status = 404;
-			mime = ".html";
+			status = 201;
+			mime = ".txt";
 			response.setStatusCode(status);
 			response.setMimeType(mime);
 			response.setHeader("Server", confile.getServerName(serverIndex));
-			response.setBody("Not found");
+			response.setBody("Created");
 			return response;
 		default:
 			status = 404;
