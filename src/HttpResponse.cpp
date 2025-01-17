@@ -329,7 +329,7 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& 
 	std::string error = confile.getErrorPage(serverIndex);
 	if (request.getTarget() == "/")
 		path += location.index;
-	std::cout << "path is " << path << std::endl;
+//	std::cout << "path is " << path << std::endl;
 	if (!validateFile(path, response, location, serverIndex, GET, confile))
 	{
 		std::cout << "error is " << error << std::endl;
