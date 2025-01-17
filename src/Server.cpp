@@ -1,12 +1,7 @@
 #include "../include/Server.hpp"
 #include "../include/HttpResponse.hpp"
-#include <cstddef>
-#include <sstream>
 
 #define MAX_EVENTS 10
-#define BUFFER_SIZE 4096
-
-
 
 //note : try catch to handle errors
 //       check max client body
@@ -122,7 +117,7 @@ void Server::run(ConfigFile& conf)
     }
     runLoop(conf, &events[MAX_EVENTS], event, epollFd);
 }
-// In this function, fdCurrentClient can be the server's socket or the client's file descriptor since it comes 
+// In this function, fdCurrentClient can be the server's socket or the client's file descriptor since it comes
 // from int currentData = events[i].data.u32 (the first 16 bits contain the file descriptor, and the other 16 bits contain the index of the associated server).
 void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event event, int epollFd)
 {
@@ -147,7 +142,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 sockaddr_in clientAddr{};
                 socklen_t clientLen = sizeof(clientAddr);
                 clientFd = accept(fdCurrentClient, (sockaddr*)&clientAddr, &clientLen);
-                if (clientFd == -1) 
+                if (clientFd == -1)
                 {
                     cleaningServerFd();
                     throw std::runtime_error ("Accept failed\n");
@@ -226,7 +221,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     (void)bytesSent;
     // if (bytesSent == -1)
     // {
-    //      if (bytesRead <= 0) 
+    //      if (bytesRead <= 0)
     //     {
     //         if (bytesRead < 0)
     //         {
@@ -237,7 +232,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     //         close(socketClient);
     //         return ;
     //     }
-    //     else 
+    //     else
     //     {
 
     //         HttpParser request(bytesRead);
@@ -250,10 +245,10 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     //         size_t totalBytesSent = 0;
     //         size_t bodySize = body.size();
 
-    //         while (totalBytesSent < bodySize) 
+    //         while (totalBytesSent < bodySize)
     //         {
     //             ssize_t bytesSent = send(socketClient, body.c_str() + totalBytesSent, bodySize - totalBytesSent, MSG_NOSIGNAL);
-    //             if (bytesSent == -1) 
+    //             if (bytesSent == -1)
     //             {
     //                 epoll_ctl(epollFd, EPOLL_CTL_DEL, socketClient, nullptr);
     //                 cleaningServerFd();
@@ -268,7 +263,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     //                 event.events = EPOLLOUT;
     //                 event.data.fd = socketClient;
     //                 if (epoll_ctl(epollFd, EPOLL_CTL_MOD, socketClient, &event) == -1)
-    //                 {   
+    //                 {
     //                     cleaningServerFd();
     //                     throw std::runtime_error("\nERROR EPOLLOUT\n");
     //                 }
@@ -278,7 +273,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     //         event.events = EPOLLIN;
     //         event.data.fd = socketClient;
     //         if (epoll_ctl(epollFd, EPOLL_CTL_MOD, socketClient, &event) == -1)
-    //         {   
+    //         {
     //             cleaningServerFd();
     //             throw std::runtime_error("\nERROR EPOLLOUT\n");
     //         }
@@ -301,10 +296,10 @@ int Server::getEpollFd() { return epollfd; }
 
 int Server::getClientFd() { return fdClient; }
 
-void Server::cleaningServerFd() 
+void Server::cleaningServerFd()
 {
 
-    for (int fd : serveSocket) 
+    for (int fd : serveSocket)
         close(fd);
     close(fdClient);
     close(epollfd);
