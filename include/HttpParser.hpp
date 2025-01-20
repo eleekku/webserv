@@ -126,6 +126,7 @@ class HttpParser
 		std::string	getMethodString();
 		std::string	getTarget();
 		std::string	getQuery();
+		std::string getBody();
 		uint8_t		getMethod();
 		int			getStatus();
 
