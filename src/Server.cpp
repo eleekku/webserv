@@ -246,11 +246,6 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
             return;
         }
     }
-    ssize_t bytesSent = send(serverSocket, body.c_str(), body.size(), MSG_NOSIGNAL);
-    if (bytesSent == -1)
-    {
-        std::cout << "error to send this client " << serverSocket;
-    }
     epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
     close(serverSocket);
     return ;
