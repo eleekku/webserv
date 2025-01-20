@@ -47,20 +47,58 @@ std::vector<char>	HttpParser::getBodyData()
 
 void	HttpParser::extractReqLine()
 {
-	getVectorLine() >> _method >> _target >> _version;
-	if (_version.back() == '\r')
-		_version.pop_back();
+	std::stringstream	line = getVectorLine();
+	std::string			remaining;
+
+	if (!(line >> _method >> _target >> _version))
+	{
+		_status = 400;
+		return ;
+	}
+	if (checkRequest(line) == false)
+		return ;
 	if (_method == "GET")
 		_method_enum = GET;
 	else if (_method == "POST")
 		_method_enum = POST;
 	else if (_method == "DELETE")
 		_method_enum = DELETE;
-	else
-		_status = 405;
+	else {
+		_status = 400;
+		throw std::invalid_argument("Invalid method: " + _method);
+	}
 }
 
-void checkHeaders(std::string_view key, std::string_view value)
+bool	HttpParser::checkRequest(std::stringstream& line)
+{
+	std::string	remaining;
+
+	if (line >> remaining)
+	{
+		_status = 400;
+		throw std::invalid_argument("Bad request.");
+	}
+    if (_target.empty() || _method.empty() || _version.empty())
+    {
+		_status = 400;
+		throw std::invalid_argument("Bad request.");
+    }
+    if (_version.back() == '\r')
+		_version.pop_back();
+	if (_version != "HTTP/1.1")
+	{
+    	_status = 505;
+     	throw std::invalid_argument("Bad request.");
+	}
+	if (_target.front() != '/')
+	{
+		_status = 400;
+		throw std::invalid_argument("Bad request.");
+	}
+	return true;
+}
+
+void HttpParser::checkHeaders(std::string_view key, std::string_view value)
 {
 	if (key.empty() || value.empty())
 		throw std::invalid_argument("Empty header key or value.");
@@ -68,6 +106,8 @@ void checkHeaders(std::string_view key, std::string_view value)
 		throw std::invalid_argument("Header key does not end with a colon.");
 	if (key.back() == ' ')
 		throw std::invalid_argument("Header key ends with a space.");
+	if (value.front() == ':')
+		throw std::invalid_argument("Header key end with a space.");
 }
 
 void	HttpParser::extractHeaders(bool body)
@@ -82,6 +122,10 @@ void	HttpParser::extractHeaders(bool body)
 		line = getVectorLine();
 		if (line.str() == "\r")
 			break;
+		if (line.str().empty())
+			throw std::runtime_error("Empty line in headers");
+		if (_pos >= _request.size())
+			throw std::runtime_error("Unexpected end of request");
 		line >> key;
 		while (line >> word)
 			value += word + ' ';
@@ -195,6 +239,7 @@ void	HttpParser::readBody(int serverSocket)
 		else if (nfds == 0)
 		{
 			std::cerr << "Timeout waiting for events on epoll\n";
+			_status = 408;
 			close(epollFd);
 			throw std::runtime_error("Timeout waiting for events on epoll");
 		}
@@ -208,6 +253,7 @@ void	HttpParser::readBody(int serverSocket)
 		{
 			break;
 		} else {
+			// This part should be removed according to the requirements
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 				break;
 			perror("Error reading from client socket");
@@ -309,7 +355,7 @@ void	HttpParser::extractMultipartFormData()
 				outFile.write(content.data(), content.size());
 				outFile.close();
 			} else {
-				throw std::runtime_error("No filename found in multipart/form-data");
+				_body.assign(content.begin(), content.end());
 			}
 		}
 		if (lineStr == _boundary + "--")
@@ -332,19 +378,23 @@ void	HttpParser::parseQuery()
 void	HttpParser::startParsing(std::vector<char>& request, int serverSocket)
 {
 	_request = request;
-	extractReqLine();
-	parseQuery();
-	extractHeaders(false);
-	std::cout << _method << " " << _target << " " << _version << std::endl;
-	for (const auto& pair : _headers)
-	{
-		std::cout << pair.first << " : " << pair.second << std::endl;
-	}
-	if (_method == "POST")
-	{
-		extractContentLength();
-		readBody(serverSocket);
-		if (_request.size() > 0)
-			extractBody();
+	try {
+		extractReqLine();
+		parseQuery();
+		extractHeaders(false);
+	//std::cout << _method << " " << _target << " " << _version << std::endl;
+	//for (const auto& pair : _headers)
+	//{
+	//	std::cout << pair.first << " : " << pair.second << std::endl;
+	//}
+		if (_method == "POST")
+		{
+			extractContentLength();
+			readBody(serverSocket);
+			if (_request.size() > 0)
+				extractBody();
+		}
+	} catch (std::exception &e) {
+		std::cerr << e.what() << std::endl;
 	}
 }
