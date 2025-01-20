@@ -107,7 +107,7 @@ void Server::run(ConfigFile& conf)
     int socketSize = serveSocket.size();
     for (int i = 0; i < socketSize; ++i)
     {
-        event.events = EPOLLIN | EPOLLET; // Non-blocking edge-triggered
+        event.events = EPOLLIN | EPOLLET | EPOLLOUT; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
         if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1)
         {
