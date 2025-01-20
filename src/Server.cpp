@@ -169,7 +169,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
             }
             else
             {
-                handleClientConnection(serverIndex, conf, fdCurrentClient, epollFd); // , event);
+                handleClientConnection(serverIndex, conf, fdCurrentClient, epollFd, event);
             }
         }
     }
@@ -203,7 +203,7 @@ std::vector<char> getRequest(int serverSocket)
 	return rawrequest;
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
     std::vector<char> rawrequest;
 
@@ -217,72 +217,40 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     std::cout << "\nserver index = " << serverIndex << "\n";
     HttpResponse response = receiveRequest(request, conf, serverIndex);
     std::string body = response.generate();
+
+    size_t totalBytesSent = 0;
+    size_t bodySize = body.size();
+
+    while (totalBytesSent < bodySize)
+    {
+        ssize_t bytesSent = send(serverSocket, body.c_str() + totalBytesSent, bodySize - totalBytesSent, MSG_NOSIGNAL);
+        if (bytesSent == -1)
+        {
+            epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
+            cleaningServerFd();
+            throw std::runtime_error ("Error sending response to client.\n");
+            return;
+        }
+        totalBytesSent += bytesSent;
+
+        if (totalBytesSent < bodySize)
+        {
+            // This happens when the response cannot be sent in a single attempt; it needs to be tested and improved.
+            event.events = EPOLLOUT;
+            event.data.fd = serverSocket;
+            if (epoll_ctl(epollFd, EPOLL_CTL_MOD, serverSocket, &event) == -1)
+            {
+                cleaningServerFd();
+                throw std::runtime_error("\nERROR EPOLLOUT\n");
+            }
+            return;
+        }
+    }
     ssize_t bytesSent = send(serverSocket, body.c_str(), body.size(), MSG_NOSIGNAL);
-    (void)bytesSent;
-    // if (bytesSent == -1)
-    // {
-    //      if (bytesRead <= 0)
-    //     {
-    //         if (bytesRead < 0)
-    //         {
-    //             cleaningServerFd();
-    //              throw (std::runtime_error("error en recv\n"));
-    //         }
-    //         epoll_ctl(epollFd, EPOLL_CTL_DEL, socketClient, nullptr);
-    //         close(socketClient);
-    //         return ;
-    //     }
-    //     else
-    //     {
-
-    //         HttpParser request(bytesRead);
-    //         request.parseRequest(buffer);
-    //         std::cout << "\nserver index = " << serverIndex << "\n";
-    //         // The response should only be sent after processing all the client's data.
-    //         HttpResponse response = receiveRequest(request, conf, serverIndex);
-
-    //         std::string body = response.generate();
-    //         size_t totalBytesSent = 0;
-    //         size_t bodySize = body.size();
-
-    //         while (totalBytesSent < bodySize)
-    //         {
-    //             ssize_t bytesSent = send(socketClient, body.c_str() + totalBytesSent, bodySize - totalBytesSent, MSG_NOSIGNAL);
-    //             if (bytesSent == -1)
-    //             {
-    //                 epoll_ctl(epollFd, EPOLL_CTL_DEL, socketClient, nullptr);
-    //                 cleaningServerFd();
-    //                 throw std::runtime_error ("Error sending response to client.\n");
-    //                 return;
-    //             }
-    //             totalBytesSent += bytesSent;
-
-    //             if (totalBytesSent < bodySize)
-    //             {
-    //                 // This happens when the response cannot be sent in a single attempt; it needs to be tested and improved.
-    //                 event.events = EPOLLOUT;
-    //                 event.data.fd = socketClient;
-    //                 if (epoll_ctl(epollFd, EPOLL_CTL_MOD, socketClient, &event) == -1)
-    //                 {
-    //                     cleaningServerFd();
-    //                     throw std::runtime_error("\nERROR EPOLLOUT\n");
-    //                 }
-    //                 return;
-    //             }
-    //         }
-    //         event.events = EPOLLIN;
-    //         event.data.fd = socketClient;
-    //         if (epoll_ctl(epollFd, EPOLL_CTL_MOD, socketClient, &event) == -1)
-    //         {
-    //             cleaningServerFd();
-    //             throw std::runtime_error("\nERROR EPOLLOUT\n");
-    //         }
-
-    //         epoll_ctl(epollFd, EPOLL_CTL_DEL, socketClient, nullptr);
-    //         close(socketClient);
-    //         return ;
-    //     }
-    // }
+    if (bytesSent == -1)
+    {
+        std::cout << "error to send this client " << serverSocket;
+    }
     epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
     close(serverSocket);
     return ;
