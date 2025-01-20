@@ -386,9 +386,48 @@ void ConfigFile::setLocations(int indexServer) //set a duoble map with the locat
     
 }
 
+bool isValidMaxBody(const std::string& arg) {
+    std::regex pattern(R"(^\d+[MK]$)");
+    return std::regex_match(arg, pattern);
+}
+
 const std::map<int, std::map<std::string, LocationConfig>> ConfigFile::getServerConfig() const {   return serverConfig; }
 std::string ConfigFile::getErrorPage(int i) { return errorPage[i]; }
-std::string ConfigFile::getMax_body(int i) { return max_body[i]; }
+long ConfigFile::getMax_body(int i) 
+{
+    size_t end = 0;
+    long body = 0;
+    std::string number = "";
+    if (!isValidMaxBody(max_body[i]))
+    {
+        throw std::runtime_error("\ninvalid MAX_BODY");
+    }
+    if ((end = max_body[i].find("M")) != std::string::npos)
+    {
+        number = max_body[i].substr(0, end);
+        if (!(body = std::stoi(number)))
+        {
+            throw std::runtime_error("\nMAXBODY too big");
+        }
+        if (body > 10)
+            throw std::runtime_error("\nMAXBODY too big");
+        return(std::stoi(number) * 1000000);
+    }
+    if ((end = max_body[i].find("K")) != std::string::npos)
+    {
+        number = max_body[i].substr(0, end);
+        if (!(body = std::stoi(number)))
+        {
+            throw std::runtime_error("\nMAXBODY too big");
+        }
+        if (body > 10000)
+        {
+            throw std::runtime_error("\nMAXBODY too big");
+        }
+        return(std::stoi(number) * 1000);
+    }
+    return body;
+}
 int ConfigFile::serverAmount() {  return port.size(); }
 std::vector<int> ConfigFile::getPort() { return port; }
 std::vector<std::string> ConfigFile::getIpServer() { return ip_server; }
