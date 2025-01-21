@@ -17,6 +17,7 @@ std::string	HttpParser::getTarget() { return _target;}
 uint8_t		HttpParser::getMethod() { return _method_enum;}
 int			HttpParser::getStatus() { return _status;}
 std::string	HttpParser::getQuery() { return _query;}
+std::string HttpParser::getBody() { return _body;}
 
 std::stringstream HttpParser::getVectorLine()
 {

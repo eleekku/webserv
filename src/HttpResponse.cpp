@@ -332,7 +332,7 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& 
 //	std::cout << "path is " << path << std::endl;
 	if (!validateFile(path, response, location, serverIndex, GET, confile))
 	{
-		std::cout << "error is " << error << std::endl;
+	//	std::cout << "error is " << error << std::endl;
 	//	path = "." + error;
 		std::ifstream file("." + error, std::ios::binary);
 		std::ostringstream buffer;
@@ -352,7 +352,8 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& 
 	}
 //	std::cout << "locationstr is " << locationStr << std::endl;
 //	std::cout << "path is " << path << std::endl;
-	if (locationStr == "/cgi-bin") {
+	if (locationStr == "/cgi") {
+		std::cout << "its cgi! " << std::endl;
 		CgiHandler cgi;
 		std::string body;
 		try {
@@ -406,6 +407,27 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, std::string& 
 	std::ostringstream buffer;
 	buffer << file.rdbuf();
 	return {200, buffer.str()};
+}
+
+void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+	LocationConfig location;
+	std::string locationStr = condenceLocation(request.getTarget());
+	if (locationStr != "/cgi") {
+		response.setStatusCode(400);
+		response.setMimeType(".html");
+		response.setHeader("Server", confile.getServerName(serverIndex));
+		response.setBody("Bad Request");
+		return;
+	}
+	location = findKey(locationStr, serverIndex, confile);
+	CgiHandler cgi;
+	std::string body = cgi.executeCGI(location.root, request.getQuery(), request.getBody(), POST, response);
+	response.setStatusCode(200);
+	response.setBody(body);
+	response.setMimeType(".txt");
+
+
+
 }
 
 HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
