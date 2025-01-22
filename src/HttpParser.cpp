@@ -203,7 +203,7 @@ void	HttpParser::extractBody()
 // 	std::getline(request, line);
 // }
 
-void	HttpParser::readBody(int serverSocket)
+void	HttpParser::readBody(int serverSocket, int epollFd)
 {
 	int	bytesRead = 0;
 	size_t totalBytesRead = 0;
@@ -215,21 +215,6 @@ void	HttpParser::readBody(int serverSocket)
 	_request.reserve(_contentLength);
 	_pos = 0;
 
-	int epollFd = epoll_create1(0);
-	if (epollFd == -1)
-	{
-		perror("Failed to create epoll file descriptor");
-		throw std::runtime_error("Failed to create epoll file descriptor");
-	}
-	struct epoll_event event;
-	event.events = EPOLLIN;
-	event.data.fd = serverSocket;
-
-	if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serverSocket, &event) == -1)
-	{
-		perror("Failed to add server socket to epoll");
-		throw std::runtime_error("Failed to add server socket to epoll");
-	}
 	while (totalBytesRead < _contentLength)
 	{
 		struct epoll_event events[1];
@@ -237,14 +222,12 @@ void	HttpParser::readBody(int serverSocket)
 		if (nfds == -1)
 		{
 			perror("Failed to wait for events on epoll");
-			close(epollFd);
 			throw std::runtime_error("Failed to wait for events on epoll");
 		}
 		else if (nfds == 0)
 		{
 			std::cerr << "Timeout waiting for events on epoll\n";
 			_status = 408;
-			close(epollFd);
 			throw std::runtime_error("Timeout waiting for events on epoll");
 		}
 		bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
@@ -258,15 +241,14 @@ void	HttpParser::readBody(int serverSocket)
 			break;
 		} else {
 			// This part should be removed according to the requirements
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-				break;
+			//if (errno == EAGAIN || errno == EWOULDBLOCK)
+			//	break;
 			perror("Error reading from client socket");
-			close(epollFd);
+			//close(epollFd);
 			throw std::runtime_error("Error reading from client socket");
 		}
 		std::cout << totalBytesRead << " / " << _contentLength << std::endl;
 	}
-	close(epollFd);
 }
 
 void	HttpParser::extractBoundary()
@@ -379,7 +361,7 @@ void	HttpParser::parseQuery()
 		_query = "";
 }
 
-void	HttpParser::startParsing(std::vector<char>& request, int serverSocket)
+void	HttpParser::startParsing(std::vector<char>& request, int serverSocket, int epollFd)
 {
 	_request = request;
 	try {
@@ -394,7 +376,7 @@ void	HttpParser::startParsing(std::vector<char>& request, int serverSocket)
 		if (_method == "POST")
 		{
 			extractContentLength();
-			readBody(serverSocket);
+			readBody(serverSocket, epollFd);
 			if (_request.size() > 0)
 				extractBody();
 		}
