@@ -8,8 +8,9 @@
 #include <sys/epoll.h>
 #include <csignal>
 #include <fcntl.h>
-#include "../include/ConfigFile.hpp" 
-#include "../include/HttpParser.hpp"
+#include "ConfigFile.hpp" 
+#include "HttpParser.hpp"
+#include "HandleRequest.hpp"
 
 void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig);
 

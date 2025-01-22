@@ -9,6 +9,8 @@
 #include <set>
 #include "HttpResponse.hpp"
 
+class HttpResponse;
+
 class CgiHandler
 {
 public:

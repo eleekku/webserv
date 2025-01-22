@@ -1,5 +1,6 @@
 #include "../include/Server.hpp"
 #include "../include/HttpResponse.hpp"
+#include "../include/HandleRequest.hpp"
 
 #define MAX_EVENTS 10
 
@@ -217,6 +218,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     std::cout << "\nserver index = " << serverIndex << "\n";
     HttpResponse response = receiveRequest(request, conf, serverIndex);
     std::string body = response.generate();
+    std::cout << body << std::endl;
 
     size_t totalBytesSent = 0;
     size_t bodySize = body.size();
