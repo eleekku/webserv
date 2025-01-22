@@ -123,7 +123,7 @@ void	HttpParser::extractHeaders(bool body)
 		if (line.str() == "\r")
 			break;
 		if (line.str().empty())
-			throw std::runtime_error("Empty line in headers");
+		 	throw std::runtime_error("Empty line in headers");
 		if (_pos >= _request.size())
 			throw std::runtime_error("Unexpected end of request");
 		line >> key;
@@ -135,7 +135,10 @@ void	HttpParser::extractHeaders(bool body)
 		if (value.back() == '\r')
 			value.pop_back();
 		if (body)
+		{
 			_bodyHeaders.emplace(key, value);
+			std::cout << key << ": " << _bodyHeaders[key] << std::endl;
+		}
 		else
 			_headers.emplace(key, value);
 		value.clear();
