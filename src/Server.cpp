@@ -180,23 +180,36 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
     }
 }
 
-std::vector<char> getRequest(int serverSocket)
+std::vector<char> getRequest(int serverSocket, int epollFd)
 {
 	int	bytesRead;
 	std::vector<char> rawrequest;
 	char buffer[BUFFER_SIZE] = {0};
+	struct epoll_event events[1];
 
 	while (true)
 	{
-		bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
-		if (bytesRead == -1)
-			break;
-		// 	throw std::runtime_error("Error reading from client socket");
-		// if (bytesRead == 0)
-		// 	break;
-		rawrequest.insert(rawrequest.end(), buffer, buffer + bytesRead);
-		// if (bytesRead < BUFFER_SIZE)
-			// break;
+		std::cout << "Reading from client..." << std::endl;
+		int nfds = epoll_wait(epollFd, events, 1, 3000);
+		if (nfds == -1)
+			throw std::runtime_error("Error in epoll_wait during request reading");
+		if (nfds == 0)
+		 	throw std::runtime_error("Timeout waiting for events on epoll during request reading");
+		if (events[0].events & EPOLLIN)
+		{
+			bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
+			if (bytesRead == 0 || bytesRead == -1)
+				break;
+			rawrequest.insert(rawrequest.end(), buffer, buffer + bytesRead);
+			if (rawrequest.size() >= 4)
+			{
+				std::string end(rawrequest.end() - 4, rawrequest.end());
+				if (end == "\r\n\r\n")
+					break;
+			}
+		} else {
+			return rawrequest;
+		}
 	}
 	for (char i: rawrequest)
 		std::cout << i;
@@ -207,10 +220,21 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
 {
     std::vector<char> rawrequest;
 
-    rawrequest = getRequest(serverSocket);
+    try {
+		rawrequest = getRequest(serverSocket, epollFd);
+		if (rawrequest.empty())
+		{
+			epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
+			close(serverSocket);
+			return;
+		}
+	} catch (std::runtime_error &e) {
+		std::cerr << "Error reading request\n";
+		return ;
+	}
     HttpParser request;
     try {
-    request.startParsing(rawrequest, serverSocket);
+    	request.startParsing(rawrequest, serverSocket);
     } catch (std::runtime_error &e) {
 		std::cerr << "Error parsing request\n";
 	}
