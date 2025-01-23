@@ -247,12 +247,14 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 	HttpResponse response;
 	response.setErrorpath(confile.getErrorPage(serverIndex));	
 	unsigned int status = request.getStatus();
-	if (status != 200)
+	std::cout << "status is " << status << std::endl;
+	if (status != 200 && status != 201)
 	{
+		std::cout << "status is ll" << status << std::endl;
 		response.setStatusCode(status);
 		response.setMimeType(".html");
 		response.setHeader("Server", confile.getServerName(0));
-		response.setBody("Bad Request");
+//		response.setBody("Bad Request");
 		return response;
 	}
 	int	method = request.getMethod();
@@ -271,19 +273,21 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			response.setBody(file.second);
 			return response;
 		case POST:
-	//		status = 201;
-	//		response.setStatusCode(status);
-	//		response.setMimeType(".txt");
-			handlePost(request, confile, serverIndex, response);
 			response.setHeader("Server", confile.getServerName(serverIndex));
-	//		response.setBody("Created");
+			if (status == 201) {
+				response.setStatusCode(status);
+				response.setMimeType(".txt");
+	//			response.setBody("Created");
+			}
+			else
+				handlePost(request, confile, serverIndex, response);
 			return response;
 		default:
-			status = 404;
+			status = 405;
 			response.setStatusCode(status);
 			response.setMimeType(".html");
 			response.setHeader("Server", confile.getServerName(serverIndex));
-			response.setBody("Not found");
+		//	response.setBody("Not found");
 			return response;
 	}
 }

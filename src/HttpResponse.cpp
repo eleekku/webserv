@@ -18,8 +18,9 @@ const std::map<int, std::string> HttpResponse::m_statusMap = {
 	{500, "Internal Server Error"},
 	{501, "Wrong Method"},
 	{502, "Bad Gateway"},
+	{503, "Service Unavailable"},
+	{504, "Gateway Timeout"},
 	{505, "HTTP Version Not Supported"},
-	{502, "Bad Gateway"}
 };
 
 const std::map<std::string, std::string> HttpResponse::m_mimeTypes = {
@@ -46,7 +47,8 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 		m_reasonPhrase = "Unknown";
 }
 
-HttpResponse::~HttpResponse() {}
+HttpResponse::~HttpResponse() {
+}
 
 HttpResponse::HttpResponse(const HttpResponse& other) {
 	m_statusCode = other.m_statusCode;
@@ -162,6 +164,9 @@ std::string HttpResponse::generate() const {
 		response << key << ": " << value << "\r\n";
 	}
 	response << "\r\n";
-	response << m_body;
+	if (!m_body.empty())
+		response << m_body;
+	else
+		response << getReasonPhrase();
 	return response.str();
 }
