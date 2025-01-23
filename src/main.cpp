@@ -22,8 +22,7 @@ void globalSignalHandler(int signum)
             close(g_serverInstance->getEpollFd());
         }
     }
-
-    std::cout << "\nServer shut down.\n" << std::endl;
+    throw std::runtime_error("\nServer shut down.");
     exit(signum);
 }
 

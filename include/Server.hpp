@@ -22,6 +22,7 @@ class Server
     private:
 
     std::vector<int> serveSocket;
+    //ConfigFile &fileC;
     int epollfd;
     int fdClient;
     std::map<int, time_t> client_activity;
@@ -47,6 +48,7 @@ class Server
     void cleaningServerFd();
     std::vector<char> getRequest(int serverSocket, int epollFd);
     void check_inactive_connections(int epollfd);
+    //ConfigFile& getFile();
 };
 
 extern Server* g_serverInstance;

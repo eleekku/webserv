@@ -9,7 +9,7 @@
 
 Server* g_serverInstance = nullptr;
 
-Server::Server(){ }
+Server::Server() { }
 
 Server::~Server(){}
 
@@ -265,6 +265,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
 		{
 			epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
 			close(serverSocket);
+            client_activity.erase(serverSocket);
 			return;
 		}
 	} catch (std::runtime_error &e) {
@@ -274,42 +275,52 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     HttpParser request;
     try {
     	request.startParsing(rawrequest, serverSocket, epollFd);
-    event.events = EPOLLOUT;
-    event.data.fd = serverSocket;
-    epoll_ctl(epollFd, EPOLL_CTL_MOD, serverSocket, &event);
+        event.events = EPOLLOUT;
+        event.data.fd = serverSocket;
+        epoll_ctl(epollFd, EPOLL_CTL_MOD, serverSocket, &event);
     } catch (std::runtime_error &e) {
 		std::cerr << "Error parsing request\n";
 	}
     std::cout << "\nserver index = " << serverIndex << "\n";
-    /*if (events[0].events & EPOLLOUT)
-    {
-        std::cout << "\nhola\n";
-    }*/
     HttpResponse response = receiveRequest(request, conf, serverIndex);
     std::string body = response.generate();
-//    std::cout << body << std::endl;
 
     size_t totalBytesSent = 0;
     size_t bodySize = body.size();
     std::cout << "bodysize\n" << bodySize <<"\n";
     while (totalBytesSent < bodySize) 
     {
-        int n = epoll_wait(epollFd, events, MAX_EVENTS, -1);
-        for (int i = 0; i < n; i++) 
-        { 
-            client_activity[serverSocket] = time(NULL);
-            if (events[i].events & EPOLLOUT) 
-            {
-                while (totalBytesSent < bodySize) 
+        int n = epoll_wait(epollFd, events, 1, 10000);
+        if (n == 0)
+            break;
+        else
+        {   
+            //std::cout << "body respnse2\n" << totalBytesSent << "\n"; 
+            //for (int i = 0; i < n; i++) 
+            //{ 
+                client_activity[serverSocket] = time(NULL);
+                if (events[0].events & EPOLLOUT) 
                 {
-                    ssize_t bytesSent = send(serverSocket, body.c_str() + totalBytesSent, bodySize - totalBytesSent, MSG_NOSIGNAL);
-                    std::cout << "\nbytessend\n" << bytesSent << "\n";
-                    if (bytesSent == -1)
-                        break;
-                    totalBytesSent += bytesSent;
+                    std::cout << "body respnse2\n" << totalBytesSent << "\n"; 
+                    while (totalBytesSent < bodySize) 
+                    {
+                        ssize_t bytesSent = send(serverSocket, body.c_str() + totalBytesSent, bodySize - totalBytesSent, MSG_NOSIGNAL);
+                        std::cout << "\nbytessend\n" << bytesSent << "\n";
+                        if (bytesSent == -1)
+                        {
+                            std::cout << "body respnse\n" << totalBytesSent << "\n";
+                            std::cout << "body respnse\n" << totalBytesSent << "\n";
+                            break;
+                        }
+                        totalBytesSent += bytesSent;
+                    }
                 }
-            }
         }
+        //}
+    }
+    if (totalBytesSent < bodySize)
+    {
+        std::cout << "\ntimeout response\n";
     }
     event.data.fd = serverSocket;
     epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
