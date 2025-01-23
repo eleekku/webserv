@@ -8,8 +8,9 @@
 #include <sys/epoll.h>
 #include <csignal>
 #include <fcntl.h>
-#include "../include/ConfigFile.hpp" 
-#include "../include/HttpParser.hpp"
+#include "ConfigFile.hpp" 
+#include "HttpParser.hpp"
+#include "HandleRequest.hpp"
 
 void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig);
 
@@ -44,7 +45,7 @@ class Server
     void runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event eventint, int epollFd);
     bool isCompleteRequest(const std::string& request);
     void cleaningServerFd();
-    std::vector<char> getRequest(int serverSocket);
+    std::vector<char> getRequest(int serverSocket, int epollFd);
     void check_inactive_connections(int epollfd);
 };
 

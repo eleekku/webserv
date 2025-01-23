@@ -106,7 +106,7 @@ class HttpParser
 		void				extractHeaders(bool body);
 
 		// Body processing
-		void	readBody(int serverSocket);
+		void	readBody(int serverSocket, int epollFd);
 		void	extractChunkedBody();
 		void	extractBody();
 		void	extractBoundary();
@@ -130,5 +130,5 @@ class HttpParser
 		uint8_t		getMethod();
 		int			getStatus();
 
-		void	startParsing(std::vector<char>& request, int serverSocket);
+		void	startParsing(std::vector<char>& request, int serverSocket, int epollFd);
 };
