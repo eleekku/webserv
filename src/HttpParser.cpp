@@ -378,7 +378,10 @@ void	HttpParser::startParsing(std::vector<char>& request, int serverSocket, int 
 			extractContentLength();
 			readBody(serverSocket, epollFd);
 			if (_request.size() > 0)
+			{
 				extractBody();
+				_status = 201;
+			}
 		}
 	} catch (std::exception &e) {
 		std::cerr << e.what() << std::endl;
