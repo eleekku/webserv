@@ -96,6 +96,16 @@ bool	HttpParser::checkRequest(std::stringstream& line)
 		_status = 400;
 		throw std::invalid_argument("Bad request.");
 	}
+	if (_method.size() > 6) // 6 is the length of the longest method
+	{
+		_status = 501;
+		throw std::invalid_argument("Method too long: " + _method);
+	}
+	if (_target.size() > 4096)
+	{
+		_status = 414;
+		throw std::invalid_argument("Target too long: " + _target);
+	}
 	return true;
 }
 
