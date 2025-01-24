@@ -14,7 +14,9 @@ const std::map<int, std::string> HttpResponse::m_statusMap = {
 	{403, "Forbidden"},
 	{404, "Not Found"},
 	{405, "Method Not Allowed"},
+	{414, "URI Too Long"},
 	{415, "Unsupported Media Type"},
+	{431, "Request Header Fields Too Large"},
 	{500, "Internal Server Error"},
 	{501, "Wrong Method"},
 	{502, "Bad Gateway"},
@@ -155,9 +157,9 @@ std::string HttpResponse::generate() const {
 	if (m_headers.find("Content-Type") == m_headers.end()) {
 		response << "Content-Type: " << getMimeType(m_mime) << "\r\n";
 	}
-
 	if (m_headers.find("Content-Length") == m_headers.end()) {
-        response << "Content-Length: " << m_body.size() << "\r\n";
+		if (!m_body.empty())
+        	response << "Content-Length: " << m_body.size() << "\r\n";
     }
 
 	for (const auto& [key, value] : m_headers) {
@@ -166,7 +168,7 @@ std::string HttpResponse::generate() const {
 	response << "\r\n";
 	if (!m_body.empty())
 		response << m_body;
-	else
+	else if (m_statusCode != 204)
 		response << getReasonPhrase();
 	return response.str();
 }
