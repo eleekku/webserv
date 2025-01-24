@@ -113,7 +113,7 @@ std::pair<int, std::string> handleDelete(HttpParser& request, ConfigFile &confil
     if (std::filesystem::remove(path, ec)) {
         response.setStatusCode(204);
         std::cout << "File deleted" << std::endl;
-		return {response.getStatus(), "No content, file deleted"};
+		return {response.getStatus(), ""};
     } else {
         if (ec) {
             response.setStatusCode(403);
@@ -247,7 +247,7 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 	HttpResponse response;
 	response.setErrorpath(confile.getErrorPage(serverIndex));	
 	unsigned int status = request.getStatus();
-	std::cout << "status is " << status << std::endl;
+//	std::cout << "status is " << status << std::endl;
 	if (status != 200 && status != 201)
 	{
 		std::cout << "status is ll" << status << std::endl;

@@ -5,11 +5,15 @@ CgiHandler::CgiHandler() {}
 
 CgiHandler::~CgiHandler() {}
 
+int childid = 0;
+
 void timeoutHandler(int signal) 
 {
     if (signal == SIGALRM)
     {
-        throw std::runtime_error("Timeout executing script.");
+        kill(childid, SIGKILL);
+ //       childid = SIGALRM;
+ //       throw std::runtime_error("Timeout executing script.");
     }
 }
 
@@ -68,6 +72,7 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
     }
 
     int pid = fork();
+    childid = pid;
     if (pid == -1)
     {
         response.setStatusCode(500);
@@ -121,6 +126,11 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
         close(fdPipe[0]);
         int status;
         waitpid(pid, &status, 0);
+        if (WIFSIGNALED(status))
+        {
+            response.setStatusCode(504);
+            throw std::runtime_error("Gateway Timeout\n");
+        }
         alarm(0);
         if (WIFEXITED(status) && !WEXITSTATUS(status))
         {

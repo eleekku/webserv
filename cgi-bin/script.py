@@ -4,7 +4,7 @@
 import cgi
 
 # Encabezado HTTP
-print("Content-Type: text/html\n")
+  print("Content-Type: text/html\n")
 
 # Contenido HTML
 print("""
