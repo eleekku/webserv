@@ -396,6 +396,15 @@ void	HttpParser::startParsing(std::vector<char>& request, int serverSocket, int 
 {
 	_request = request;
 	try {
+		if (_request.size() >= 4)
+		{
+			std::string end(_request.end() - 4, _request.end());
+			if (end != "\r\n\r\n")
+			{
+				_status = 400;
+				return ;
+			}
+		}
 		extractReqLine();
 		parseQuery();
 		extractHeaders(false);
