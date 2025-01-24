@@ -14,48 +14,37 @@
 
 class HttpResponse
 {
-public:
-	HttpResponse();
-	HttpResponse(int code, std::string& mime);
-	~HttpResponse();
-	HttpResponse(const HttpResponse& other);
-	HttpResponse& operator=(const HttpResponse& other);
+	public:
+		HttpResponse();
+		HttpResponse(int code, std::string& mime);
+		~HttpResponse();
+		HttpResponse(const HttpResponse& other);
+		HttpResponse& operator=(const HttpResponse& other);
 
-	void setHeader(const std::string& key, const std::string& value);
-	void setBody(const std::string& body);
-	void setStatusCode(int code);
-	void setMimeType(const std::string& mime);
-	std::string generate() const;
+		void setHeader(const std::string& key, const std::string& value);
+		void setBody(const std::string& body);
+		void setStatusCode(int code);
+		void setMimeType(const std::string& mime);
+		void setErrorpath(std::string errorpath);
+		std::string generate() const;
 
-	std::string getBody() const;
-	int		getStatus();
-	std::string getMimeType(const std::string& extension) const;
-	std::string getMimeKey() const;
-	std::string getReasonPhrase() const;
+		std::string getBody() const;
+		int		getStatus();
+		std::string getMimeType(const std::string& extension) const;
+		std::string getMimeKey() const;
+		std::string getReasonPhrase() const;
+		std::string getErrorpath() const;
 
+	private:
 
-
-private:
-
-	int			m_statusCode;
-	bool		m_sent;
-	std::map	<std::string, std::string> m_headers;
-	std::string	m_reasonPhrase;
-	std::string	m_body;
-	std::string m_mime;
-	std::string	getCurrentDate() const;
-	static const std::map<int, std::string> m_statusMap;
-	static const std::map<std::string, std::string> m_mimeTypes;
+		int			m_statusCode;
+		bool		m_sent;
+		std::map	<std::string, std::string> m_headers;
+		std::string	m_reasonPhrase;
+		std::string	m_body;
+		std::string m_mime;
+		std::string m_errorpath;
+		std::string	getCurrentDate() const;
+		static const std::map<int, std::string> m_statusMap;
+		static const std::map<std::string, std::string> m_mimeTypes;
 };
-
-std::pair<int, std::string> locateAndReadFile(HttpParser & , std::string& mime, ConfigFile &confile);
-std::string getExtension(const std::string_view& url);
-
-LocationConfig findKey(std::string key, std::string mainKey, ConfigFile &confile);
-HttpResponse	receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex);
-void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response);
-std::string formPath(std::string_view target, LocationConfig &locationConfig);
-std::string convertMethod(int method);
-
-
-

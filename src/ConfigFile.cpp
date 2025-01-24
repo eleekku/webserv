@@ -390,7 +390,7 @@ bool isValidMaxBody(const std::string& arg) {
     std::regex pattern(R"(^\d+[MK]$)");
     return std::regex_match(arg, pattern);
 }
-
+//getters
 const std::map<int, std::map<std::string, LocationConfig>> ConfigFile::getServerConfig() const {   return serverConfig; }
 std::string ConfigFile::getErrorPage(int i) { return errorPage[i]; }
 long ConfigFile::getMax_body(int i) 
