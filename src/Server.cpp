@@ -292,7 +292,6 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     std::cout << "\nserver index = " << serverIndex << "\n";
     HttpResponse response = receiveRequest(request, conf, serverIndex);
     std::string body = response.generate();
-
     size_t totalBytesSent = 0;
     size_t bodySize = body.size();
     std::cout << "bodysize\n" << bodySize <<"\n";
