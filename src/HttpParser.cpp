@@ -112,13 +112,30 @@ bool	HttpParser::checkRequest(std::stringstream& line)
 void HttpParser::checkHeaders(std::string_view key, std::string_view value)
 {
 	if (key.empty() || value.empty())
+	{
+		_status = 400;
 		throw std::invalid_argument("Empty header key or value.");
+	}
 	if (key.back() != ':')
+	{
+		_status = 400;
 		throw std::invalid_argument("Header key does not end with a colon.");
+	}
 	if (key.back() == ' ')
+	{
+		_status = 400;
 		throw std::invalid_argument("Header key ends with a space.");
+	}
 	if (value.front() == ':')
+	{
+		_status = 400;
 		throw std::invalid_argument("Header key end with a space.");
+	}
+	if (key.size() > 8000 || value.size() > 8000)
+	{
+		_status = 431;
+		throw std::invalid_argument("Header key or value too long.");
+	}
 }
 
 void	HttpParser::extractHeaders(bool body)
