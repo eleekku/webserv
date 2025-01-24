@@ -152,6 +152,10 @@ void	HttpParser::extractContentLength()
 	{
 		std::stringstream ss(_headers["Content-Length"]);
 		ss >> _contentLength;
+	} else {
+		_contentLength = 0;
+		_status = 411;
+		throw std::runtime_error("Content-Length header not found");
 	}
 }
 
