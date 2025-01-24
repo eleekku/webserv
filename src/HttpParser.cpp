@@ -96,19 +96,46 @@ bool	HttpParser::checkRequest(std::stringstream& line)
 		_status = 400;
 		throw std::invalid_argument("Bad request.");
 	}
+	if (_method.size() > 6) // 6 is the length of the longest method
+	{
+		_status = 501;
+		throw std::invalid_argument("Method too long: " + _method);
+	}
+	if (_target.size() > 4096)
+	{
+		_status = 414;
+		throw std::invalid_argument("Target too long: " + _target);
+	}
 	return true;
 }
 
 void HttpParser::checkHeaders(std::string_view key, std::string_view value)
 {
 	if (key.empty() || value.empty())
+	{
+		_status = 400;
 		throw std::invalid_argument("Empty header key or value.");
+	}
 	if (key.back() != ':')
+	{
+		_status = 400;
 		throw std::invalid_argument("Header key does not end with a colon.");
+	}
 	if (key.back() == ' ')
+	{
+		_status = 400;
 		throw std::invalid_argument("Header key ends with a space.");
+	}
 	if (value.front() == ':')
+	{
+		_status = 400;
 		throw std::invalid_argument("Header key end with a space.");
+	}
+	if (key.size() > 8000 || value.size() > 8000)
+	{
+		_status = 431;
+		throw std::invalid_argument("Header key or value too long.");
+	}
 }
 
 void	HttpParser::extractHeaders(bool body)
@@ -152,6 +179,10 @@ void	HttpParser::extractContentLength()
 	{
 		std::stringstream ss(_headers["Content-Length"]);
 		ss >> _contentLength;
+	} else {
+		_contentLength = 0;
+		_status = 411;
+		throw std::runtime_error("Content-Length header not found");
 	}
 }
 
