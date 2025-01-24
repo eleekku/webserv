@@ -13,7 +13,7 @@ LocationConfig findKey(std::string key, int mainKey, ConfigFile &confile) {
 	if (it != mymap.end())
         return it->second;
 	if (!mymap.empty()){
-		mymap.begin()->second.root += key; 
+		mymap.begin()->second.root += key;
 		return mymap.begin()->second;
 	}
     throw std::runtime_error("Key not found");
@@ -101,7 +101,7 @@ std::pair<int, std::string> handleDelete(HttpParser& request, ConfigFile &confil
 //	std::cout << "path is " << path << std::endl;
 	if (response.getStatus() == 404 || response.getStatus() == 405)
 		return returnErrorPage(response);
-	
+
 	if (!validateFile(path, response, locationConfig, serverIndex, DELETE, confile))
 	{
 		response.setStatusCode(403);
@@ -113,7 +113,7 @@ std::pair<int, std::string> handleDelete(HttpParser& request, ConfigFile &confil
     if (std::filesystem::remove(path, ec)) {
         response.setStatusCode(204);
         std::cout << "File deleted" << std::endl;
-		return {response.getStatus(), "No content, file deleted"};
+		return {response.getStatus(), ""};
     } else {
         if (ec) {
             response.setStatusCode(403);
@@ -216,7 +216,7 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, ConfigFile &c
 		return (listDirectory(request, path, location, response));
 	std::ifstream file(path, std::ios::binary);
 	if (!file){
-		response.setStatusCode(500); 
+		response.setStatusCode(500);
 		return (returnErrorPage(response));
 	}
 
@@ -245,14 +245,16 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 
 HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
 	HttpResponse response;
-	response.setErrorpath(confile.getErrorPage(serverIndex));	
+	response.setErrorpath(confile.getErrorPage(serverIndex));
 	unsigned int status = request.getStatus();
-	if (status != 200)
+	std::cout << "status is " << status << std::endl;
+	if (status != 200 && status != 201)
 	{
+		std::cout << "status is ll" << status << std::endl;
 		response.setStatusCode(status);
 		response.setMimeType(".html");
 		response.setHeader("Server", confile.getServerName(0));
-		response.setBody("Bad Request");
+//		response.setBody("Bad Request");
 		return response;
 	}
 	int	method = request.getMethod();
@@ -271,19 +273,21 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			response.setBody(file.second);
 			return response;
 		case POST:
-	//		status = 201;
-	//		response.setStatusCode(status);
-	//		response.setMimeType(".txt");
-			handlePost(request, confile, serverIndex, response);
 			response.setHeader("Server", confile.getServerName(serverIndex));
-	//		response.setBody("Created");
+			if (status == 201) {
+				response.setStatusCode(status);
+				response.setMimeType(".txt");
+	//			response.setBody("Created");
+			}
+			else
+				handlePost(request, confile, serverIndex, response);
 			return response;
 		default:
-			status = 404;
+			status = 405;
 			response.setStatusCode(status);
 			response.setMimeType(".html");
 			response.setHeader("Server", confile.getServerName(serverIndex));
-			response.setBody("Not found");
+		//	response.setBody("Not found");
 			return response;
 	}
 }

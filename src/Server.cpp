@@ -1,8 +1,10 @@
 #include "../include/Server.hpp"
 #include "../include/HttpResponse.hpp"
 #include "../include/HandleRequest.hpp"
+#include <algorithm>
 
 #define MAX_EVENTS 10
+#define MAX_REQUEST_SIZE 32000
 
 //note : try catch to handle errors
 //       check max client body
@@ -119,17 +121,17 @@ void Server::run(ConfigFile& conf)
     runLoop(conf, &events[MAX_EVENTS], event, epollFd);
 }
 
-void Server::check_inactive_connections(int epollFd) 
+void Server::check_inactive_connections(int epollFd)
 {
     time_t now = time(NULL);
 
-    for (auto it = client_activity.begin(); it != client_activity.end(); ) 
+    for (auto it = client_activity.begin(); it != client_activity.end(); )
     {
-        if (now - it->second > 20) 
+        if (now - it->second > 20)
         {
             int client_fd = it->first;
             std::cout << "Closing client connection (inactivity): " << client_fd << std::endl;
-            
+
             struct epoll_event event;
             event.data.fd = client_fd;
             epoll_ctl(epollFd, EPOLL_CTL_DEL, client_fd, nullptr);
@@ -247,6 +249,12 @@ std::vector<char> Server::getRequest(int serverSocket, int epollFd)
 				if (end == "\r\n\r\n")
 					break;
 			}
+			if (rawrequest.size() >= MAX_REQUEST_SIZE)
+			{
+				const char *needle = "\r\n\r\n";
+				rawrequest.insert(rawrequest.end(), needle, needle + 4);
+				break;
+			}
 		} else {
 			return rawrequest;
 		}
@@ -284,7 +292,6 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     std::cout << "\nserver index = " << serverIndex << "\n";
     HttpResponse response = receiveRequest(request, conf, serverIndex);
     std::string body = response.generate();
-
     size_t totalBytesSent = 0;
     size_t bodySize = body.size();
     while (totalBytesSent < bodySize) 
