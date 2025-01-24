@@ -176,7 +176,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     if (clientFd == -1)
                     {
                         cleaningServerFd();
-                        throw std::runtime_error ("Accept failed\n");
+                        std::cerr << "\nAccept failed\n";
                         continue;
                     }
                     fdClient = clientFd;
@@ -287,40 +287,37 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
 
     size_t totalBytesSent = 0;
     size_t bodySize = body.size();
-    std::cout << "bodysize\n" << bodySize <<"\n";
     while (totalBytesSent < bodySize) 
     {
         int n = epoll_wait(epollFd, events, 1, 10000);
-        if (n == 0)
-            break;
+        if (n == -1)
+        {
+            cleaningServerFd();
+            throw std::runtime_error("run = Error in epoll_wait");
+        }
+        if (n == 0)//this happen for a timeout 
+        {
+            //body = response.generate();
+            //bodySize = body.size();
+            totalBytesSent = 0;
+        }
         else
         {   
-            //std::cout << "body respnse2\n" << totalBytesSent << "\n"; 
-            //for (int i = 0; i < n; i++) 
-            //{ 
-                client_activity[serverSocket] = time(NULL);
-                if (events[0].events & EPOLLOUT) 
+            client_activity[serverSocket] = time(NULL);
+            if (events[0].events & EPOLLOUT) 
+            {                
+                ssize_t bytesSent = send(serverSocket, body.c_str() + totalBytesSent, BUFFER_SIZE, MSG_NOSIGNAL);
+                if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
                 {
-                    std::cout << "body respnse2\n" << totalBytesSent << "\n"; 
-                    while (totalBytesSent < bodySize) 
-                    {
-                        ssize_t bytesSent = send(serverSocket, body.c_str() + totalBytesSent, bodySize - totalBytesSent, MSG_NOSIGNAL);
-                        std::cout << "\nbytessend\n" << bytesSent << "\n";
-                        if (bytesSent == -1)
-                        {
-                            std::cout << "body respnse\n" << totalBytesSent << "\n";
-                            std::cout << "body respnse\n" << totalBytesSent << "\n";
-                            break;
-                        }
-                        totalBytesSent += bytesSent;
-                    }
+                    std::cout << "Send fail to response client " << serverSocket << "\n";
+                    //body = response.generate();
+                    //bodySize = body.size();
+                    totalBytesSent = 0;
                 }
+                else
+                    totalBytesSent += bytesSent;
+            }
         }
-        //}
-    }
-    if (totalBytesSent < bodySize)
-    {
-        std::cout << "\ntimeout response\n";
     }
     event.data.fd = serverSocket;
     epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
