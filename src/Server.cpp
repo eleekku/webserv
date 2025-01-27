@@ -290,7 +290,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
 		std::cerr << "Error parsing request\n";
 	}
     std::cout << "\nserver index = " << serverIndex << "\n";
-    if (_sending.find(serverSocket) == _sending.end())
+    if (_sending.find(i) == _sending.end())
     {
         HttpResponse response;
         if (response.getStatus() != true)//getStatus for to check if we already send evething
