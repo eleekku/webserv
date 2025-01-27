@@ -1,5 +1,4 @@
 #include "../include/Server.hpp"
-#include "../include/HttpResponse.hpp"
 #include "../include/HandleRequest.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -11,7 +10,7 @@
 
 Server* g_serverInstance = nullptr;
 
-Server::Server() {
+Server::Server()  { _response.resize(MAX_EVENTS);
 	_requests.resize(MAX_EVENTS);
 	_is_used.resize(MAX_EVENTS, false);
 }
@@ -153,6 +152,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
 {
     while (true)
     {
+        std::cout << "Main loop..." << std::endl;
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, 20000);
         if (nfds == -1)
         {
@@ -209,7 +209,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 }
                 else
                 {
-                    handleClientConnection(serverIndex, conf, fdCurrentClient, epollFd, event, events);
+                    handleClientConnection(serverIndex, conf, fdCurrentClient, epollFd, event, i);
                 }
             }
         }
@@ -238,58 +238,45 @@ void Server::releaseVectors(size_t index)
 		_is_used[index] = false;
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, struct epoll_event* events) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
-	HttpParser* request = getParser(serverIndex);
+	HttpParser* request = getParser(eventIndex);
 
-	if (request[serverIndex].startParsing(serverSocket) == false)
+	if (request[eventIndex].startParsing(serverSocket) == false)
 		return ;
     event.events = EPOLLOUT;
     event.data.fd = serverSocket;
     epoll_ctl(epollFd, EPOLL_CTL_MOD, serverSocket, &event);
     std::cout << "\nserver index = " << serverIndex << "\n";
-    HttpResponse response = receiveRequest(request, conf, serverIndex);
-    response.generate();
-    int i;
-    i = 0; // This is the index of the event in the events array.
-    if (!response.sendResponse(serverSocket, i)){
-        // This means that the response was not sent yet.
-    }
-    
-    size_t totalBytesSent = 0;
-    size_t bodySize = body.size();
-    while (totalBytesSent < bodySize) 
+    if (_sending.find(eventIndex) == _sending.end())
     {
-        int n = epoll_wait(epollFd, events, 1, 10000);
-        if (n == -1)
+        HttpResponse response;
+        response = receiveRequest(request[eventIndex], conf, serverIndex);
+        response.generate();
+        if (response.sendResponse(serverSocket, eventIndex) != true)//getStatus for to check if we already send evething
         {
-            cleaningServerFd();
-            throw std::runtime_error("run = Error in epoll_wait");
-        }
-        if (n == 0)//this happen for a timeout 
-        {
-            //body = response.generate();
-            //bodySize = body.size();
-            totalBytesSent = 0;
-        }
-        else
-        {   
-            client_activity[serverSocket] = time(NULL);
-            if (events[0].events & EPOLLOUT) 
-            {                
-                ssize_t bytesSent = send(serverSocket, body.c_str() + totalBytesSent, BUFFER_SIZE, MSG_NOSIGNAL);
-                if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
-                {
-                    std::cout << "Send fail to response client " << serverSocket << "\n";
-                    //body = response.generate();
-                    //bodySize = body.size();
-                    totalBytesSent = 0;
-                }
-                else
-                    totalBytesSent += bytesSent;
-            }
+            _response[eventIndex] = response;
+            _sending[serverSocket] = true;
+            return ;
         }
     }
+    else
+    {
+        auto it = _sending.find(serverSocket); 
+        if (it != _sending.end() && it->second == true)
+        {
+            if (_response[eventIndex].sendResponse(serverSocket, eventIndex) != true)
+                return ;
+        }
+    }
+    /*
+        HttpResponse response = receiveRequest(request, conf, serverIndex);
+        body = response.generate();
+        bodyready[serverSocket] = body;
+        totalBytesSent = 0;
+        bodySize = body.size();
+    */
+    _sending.erase(serverSocket);
     event.data.fd = serverSocket;
     epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
     close(serverSocket);

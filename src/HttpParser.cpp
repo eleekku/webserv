@@ -370,6 +370,7 @@ void HttpParser::readRequest(int clientfd, bool body)
 	int bytesRead = 0;
 	char buffer[BUFFER_SIZE] = {0};
 
+	std::cout << "Reading request..." << std::endl;
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
 	if (bytesRead == 0)
 	{
@@ -399,6 +400,7 @@ void HttpParser::readRequest(int clientfd, bool body)
 
 bool	HttpParser::startParsing(int clientfd)
 {
+	std::cout << _state << std::endl;
 	try {
 		switch (_state)
 		{
