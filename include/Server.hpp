@@ -8,7 +8,7 @@
 #include <sys/epoll.h>
 #include <csignal>
 #include <fcntl.h>
-#include "ConfigFile.hpp" 
+#include "ConfigFile.hpp"
 #include "HttpParser.hpp"
 #include "HandleRequest.hpp"
 
@@ -17,11 +17,13 @@ void printServerConfig(  std::map<std::string, std::map<std::string, LocationCon
 class ConfigFile;
 class HttpParser;
 
-class Server 
+class Server
 {
     private:
 
-    std::vector<int> serveSocket;
+    std::vector<int> 		serveSocket;
+    std::vector<HttpParser> _requests;
+    std::vector<bool>		_is_used;
     //ConfigFile &fileC;
     int epollfd;
     int fdClient;
@@ -33,7 +35,7 @@ class Server
 
     Server();
     ~Server();
-    
+
     void initialize(ConfigFile& conf);
     int createServerSocket(int port, std::string ipServer);
     void run(ConfigFile& conf);
@@ -48,6 +50,8 @@ class Server
     void cleaningServerFd();
     std::vector<char> getRequest(int serverSocket, int epollFd);
     void check_inactive_connections(int epollfd);
+    HttpParser* getParser(size_t index);
+    void releaseVectors(size_t index);
     //ConfigFile& getFile();
 };
 
