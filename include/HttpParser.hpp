@@ -146,5 +146,5 @@ class HttpParser
 		uint8_t		getMethod();
 		int			getStatus();
 
-		void	startParsing(int clientfd);
+		bool	startParsing(int clientfd);
 };

@@ -397,7 +397,7 @@ void HttpParser::readRequest(int clientfd, bool body)
 	}
 }
 
-void	HttpParser::startParsing(int clientfd)
+bool	HttpParser::startParsing(int clientfd)
 {
 	try {
 		switch (_state)
@@ -447,6 +447,9 @@ void	HttpParser::startParsing(int clientfd)
 	} catch (std::exception &e) {
 		std::cerr << e.what() << std::endl;
 	}
+	if (_state == done || _state == error)
+		return true;
+	return false;
 	//std::cout << _method << " " << _target << " " << _version << std::endl;
 	//for (const auto& pair : _headers)
 	//{
