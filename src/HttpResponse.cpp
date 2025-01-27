@@ -40,7 +40,7 @@ const std::map<std::string, std::string> HttpResponse::m_mimeTypes = {
 
 HttpResponse::HttpResponse() {}
 
-HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_sent(false), m_mime(mime) {
+HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_sent(false), m_mime(mime), m_totalBytesSent(0) {
 	auto it = m_statusMap.find(code);
 	if (it != m_statusMap.end()) {
 		m_reasonPhrase = it->second;
@@ -146,7 +146,7 @@ std::string HttpResponse::getErrorpath() const
 	return m_errorpath;
 }
 
-std::string HttpResponse::generate() const {
+void HttpResponse::generate() {
 
 	std::ostringstream response;
 
@@ -170,5 +170,30 @@ std::string HttpResponse::generate() const {
 		response << m_body;
 	else if (m_statusCode != 204)
 		response << getReasonPhrase();
-	return response.str();
+	m_responsestr = response.str();
 }
+
+bool HttpResponse::sendResponse(int serverSocket, int i)
+{
+
+    struct epoll_event events[10];
+	size_t bodySize = m_responsestr.size();
+    if (events[i].events & EPOLLOUT) 
+    {
+        ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, BUFFER_SIZE, MSG_NOSIGNAL);
+        if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
+        {
+            std::cout << "Send fail to response client " << serverSocket << "\n";
+        }
+        else
+            m_totalBytesSent += bytesSent;
+        if (m_totalBytesSent == bodySize)
+        {
+            //readytoanswer[serverSocket] = true;
+			m_sent = true;
+			return true;
+        }
+    }
+}
+
+

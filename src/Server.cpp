@@ -224,8 +224,6 @@ std::vector<char> Server::getRequest(int serverSocket, int epollFd)
 	char buffer[BUFFER_SIZE] = {0};
 	struct epoll_event events[1];
 
-	//TO DO: Add check against max_size for request
-
 	while (true)
 	{
 		std::cout << "Reading from client..." << std::endl;
@@ -263,7 +261,7 @@ std::vector<char> Server::getRequest(int serverSocket, int epollFd)
 	return rawrequest;
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int i) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
      std::string body;
     std::vector<char> rawrequest;
@@ -290,12 +288,12 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
 		std::cerr << "Error parsing request\n";
 	}
     std::cout << "\nserver index = " << serverIndex << "\n";
-    if (_sending.find(i) == _sending.end())
+    if (_sending.find(eventIndex) == _sending.end())
     {
         HttpResponse response;
-        if (response.getStatus() != true)//getStatus for to check if we already send evething
+        if (response.sendResponse(serverSocket, eventIndex) != true)//getStatus for to check if we already send evething
         {
-            _response[i] = response;
+            _response[eventIndex] = response;
             _sending[serverSocket] = true;
             return ;
         }
@@ -305,7 +303,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
         auto it = _sending.find(serverSocket); 
         if (it != _sending.end() && it->second == true)
         {
-            if (_response[i].getStatus() == true)
+            if (_response[eventIndex].sendResponse(serverSocket, eventIndex) != true)
                 return ;
         }
     }
