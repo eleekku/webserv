@@ -1,16 +1,19 @@
 #include "../include/Server.hpp"
 #include "../include/HandleRequest.hpp"
 #include <algorithm>
+#include <cstddef>
 
 #define MAX_EVENTS 10
-#define MAX_REQUEST_SIZE 32000
 
 //note : try catch to handle errors
 //       check max client body
 
 Server* g_serverInstance = nullptr;
 
-Server::Server()  { _response.resize(MAX_EVENTS); }
+Server::Server()  { _response.resize(MAX_EVENTS);
+	_requests.resize(MAX_EVENTS);
+	_is_used.resize(MAX_EVENTS, false);
+}
 
 Server::~Server(){}
 
@@ -149,6 +152,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
 {
     while (true)
     {
+        std::cout << "Main loop..." << std::endl;
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, 20000);
         if (nfds == -1)
         {
@@ -217,80 +221,38 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
     }
 }
 
-std::vector<char> Server::getRequest(int serverSocket, int epollFd)
+HttpParser* Server::getParser(size_t index)
 {
-	int	bytesRead;
-	std::vector<char> rawrequest;
-	char buffer[BUFFER_SIZE] = {0};
-	struct epoll_event events[1];
-
-	while (true)
+	if (index < _requests.size() && !_is_used[index])
 	{
-		std::cout << "Reading from client..." << std::endl;
-		int nfds = epoll_wait(epollFd, events, 1, 3000);
-		if (nfds == -1)
-			throw std::runtime_error("Error in epoll_wait during request reading");
-		//TO DO: Add status codes???
-		if (nfds == 0)
-		 	throw std::runtime_error("Timeout waiting for events on epoll during request reading");
-		if (events[0].events & EPOLLIN)
-		{
-            client_activity[serverSocket] = time(NULL);
-			bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
-			if (bytesRead == 0 || bytesRead == -1)
-				break;
-			rawrequest.insert(rawrequest.end(), buffer, buffer + bytesRead);
-			if (rawrequest.size() >= 4)
-			{
-				std::string end(rawrequest.end() - 4, rawrequest.end());
-				if (end == "\r\n\r\n")
-					break;
-			}
-			if (rawrequest.size() >= MAX_REQUEST_SIZE)
-			{
-				const char *needle = "\r\n\r\n";
-				rawrequest.insert(rawrequest.end(), needle, needle + 4);
-				break;
-			}
-		} else {
-			return rawrequest;
-		}
+		_is_used[index] = true;
+		_requests[index] = HttpParser();
+		return &_requests[index];
 	}
-	//for (char i: rawrequest)
-	//	std::cout << i;
-	return rawrequest;
+	return nullptr;
+}
+
+void Server::releaseVectors(size_t index)
+{
+	if (index < _requests.size())
+		_is_used[index] = false;
 }
 
 void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
-     std::string body;
-    std::vector<char> rawrequest;
-    try {
-		rawrequest = getRequest(serverSocket, epollFd);
-		if (rawrequest.empty())
-		{
-			epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
-			close(serverSocket);
-            client_activity.erase(serverSocket);
-			return;
-		}
-	} catch (std::runtime_error &e) {
-		std::cerr << "Error reading request\n";
+	HttpParser* request = getParser(eventIndex);
+
+	if (request[eventIndex].startParsing(serverSocket) == false)
 		return ;
-	}
-    HttpParser request;
-    try {
-    	request.startParsing(rawrequest, serverSocket, epollFd);
-        event.events = EPOLLOUT;
-        event.data.fd = serverSocket;
-        epoll_ctl(epollFd, EPOLL_CTL_MOD, serverSocket, &event);
-    } catch (std::runtime_error &e) {
-		std::cerr << "Error parsing request\n";
-	}
+    event.events = EPOLLOUT;
+    event.data.fd = serverSocket;
+    epoll_ctl(epollFd, EPOLL_CTL_MOD, serverSocket, &event);
     std::cout << "\nserver index = " << serverIndex << "\n";
     if (_sending.find(eventIndex) == _sending.end())
     {
         HttpResponse response;
+        response = receiveRequest(request[eventIndex], conf, serverIndex);
+        response.generate();
         if (response.sendResponse(serverSocket, eventIndex) != true)//getStatus for to check if we already send evething
         {
             _response[eventIndex] = response;

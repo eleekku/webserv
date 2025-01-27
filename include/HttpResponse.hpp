@@ -40,7 +40,7 @@ class HttpResponse
 
 		int			m_statusCode;
 		bool		m_sent;
-		long		m_totalBytesSent;
+		size_t		m_totalBytesSent;
 		std::map	<std::string, std::string> m_headers;
 		std::string	m_reasonPhrase;
 		std::string	m_body;

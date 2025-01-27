@@ -40,13 +40,14 @@ const std::map<std::string, std::string> HttpResponse::m_mimeTypes = {
 
 HttpResponse::HttpResponse() {}
 
-HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_sent(false), m_mime(mime), m_totalBytesSent(0) {
+HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_sent(false), m_mime(mime) {
 	auto it = m_statusMap.find(code);
 	if (it != m_statusMap.end()) {
 		m_reasonPhrase = it->second;
 	}
 	else
 		m_reasonPhrase = "Unknown";
+	m_totalBytesSent = 0;
 }
 
 HttpResponse::~HttpResponse() {
@@ -187,13 +188,14 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
         }
         else
             m_totalBytesSent += bytesSent;
-        if (m_totalBytesSent == bodySize)
+        if (m_totalBytesSent < bodySize)
         {
             //readytoanswer[serverSocket] = true;
-			m_sent = true;
-			return true;
+			return false;
         }
     }
+	m_sent = true;
+	return true;
 }
 
 
