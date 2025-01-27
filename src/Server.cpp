@@ -225,8 +225,6 @@ std::vector<char> Server::getRequest(int serverSocket, int epollFd)
 	char buffer[BUFFER_SIZE] = {0};
 	struct epoll_event events[1];
 
-	//TO DO: Add check against max_size for request
-
 	while (true)
 	{
 		std::cout << "Reading from client..." << std::endl;
