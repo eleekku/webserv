@@ -8,7 +8,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-HttpParser::HttpParser() : _pos(0), _method_enum(UNKNOWN), _status(200), _contentLength(0) {}
+HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0), _method_enum(UNKNOWN), _status(200), _contentLength(0) {}
 
 // Getters
 map_t		HttpParser::getHeaders() { return _headers;}
@@ -234,54 +234,6 @@ void	HttpParser::extractBody()
 // 	std::getline(request, line);
 // }
 
-void	HttpParser::readBody(int serverSocket, int epollFd)
-{
-	int	bytesRead = 0;
-	size_t totalBytesRead = 0;
-	char buffer[BUFFER_SIZE] = {0};
-
-	std::cout << "Server Socket: " << serverSocket << std::endl;
-
-	_request.clear();
-	_request.reserve(_contentLength);
-	_pos = 0;
-
-	while (totalBytesRead < _contentLength)
-	{
-		struct epoll_event events[1];
-		int nfds = epoll_wait(epollFd, events, 1, 3000);
-		if (nfds == -1)
-		{
-			perror("Failed to wait for events on epoll");
-			throw std::runtime_error("Failed to wait for events on epoll");
-		}
-		else if (nfds == 0)
-		{
-			std::cerr << "Timeout waiting for events on epoll\n";
-			_status = 408;
-			throw std::runtime_error("Timeout waiting for events on epoll");
-		}
-		bytesRead = recv(serverSocket, buffer, BUFFER_SIZE, 0);
-		if (bytesRead > 0)
-		{
-			totalBytesRead += bytesRead;
-			_request.insert(_request.end(), buffer, buffer + bytesRead);
-		}
-		else if (bytesRead == 0)
-		{
-			break;
-		} else {
-			// This part should be removed according to the requirements
-			//if (errno == EAGAIN || errno == EWOULDBLOCK)
-			//	break;
-			perror("Error reading from client socket");
-			//close(epollFd);
-			throw std::runtime_error("Error reading from client socket");
-		}
-		std::cout << totalBytesRead << " / " << _contentLength << std::endl;
-	}
-}
-
 void	HttpParser::extractBoundary()
 {
 	if (_headers.contains("Content-Type"))
@@ -392,29 +344,115 @@ void	HttpParser::parseQuery()
 		_query = "";
 }
 
-void	HttpParser::startParsing(std::vector<char>& request, int serverSocket, int epollFd)
+void	HttpParser::checkReadRequest()
 {
-	_request = request;
+	if (_request.size() > MAX_REQUEST_SIZE)
+	{
+		const char *needle = "\r\n\r\n";
+		_request.insert(_request.end(), needle, needle + 4);
+		return ;
+	}
+	if (_request.size() >= 4)
+	{
+		std::string end(_request.end() - 4, _request.end());
+		if (end != "\r\n\r\n")
+		{
+			_status = 400;
+			_state = error;
+			return ;
+		}
+	}
+	_state = parsingRequest;
+}
+
+void HttpParser::readRequest(int clientfd, bool body)
+{
+	int bytesRead = 0;
+	char buffer[BUFFER_SIZE] = {0};
+
+	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
+	if (bytesRead == 0)
+	{
+		if (body)
+			if (_totalBytesRead == _contentLength)
+				_state = parsingBody;
+			else
+				throw std::runtime_error("Unexpected end of request");
+		else
+			_state = checkingRequest;
+		return ;
+	}
+	else if (bytesRead == -1)
+	{
+		_state = error;
+		perror("Error reading from client socket");
+		throw std::runtime_error("Error reading from client socket");
+	}
+	else
+	{
+		_totalBytesRead += bytesRead;
+		std::cout << _totalBytesRead << " / " << _contentLength << std::endl;
+		_request.insert(_request.end(), buffer, buffer + bytesRead);
+		// Check if the request is too big or has other issues
+	}
+}
+
+bool	HttpParser::startParsing(int clientfd)
+{
 	try {
-		extractReqLine();
-		parseQuery();
-		extractHeaders(false);
+		switch (_state)
+		{
+			case start:
+				_request.reserve(BUFFER_SIZE);
+				readRequest(clientfd, false);
+				break;
+			case readingRequest:
+				readRequest(clientfd, false);
+				break;
+			case checkingRequest:
+				checkReadRequest();
+				break;
+			case parsingRequest:
+				extractReqLine();
+				parseQuery();
+				extractHeaders(false);
+				if (_method == "POST")
+					_state = startBody;
+				else
+					_state = done;
+				break;
+			case startBody:
+				extractContentLength();
+				_request.clear();
+				_request.reserve(_contentLength);
+				_pos = 0;
+				_totalBytesRead = 0;
+				readRequest(clientfd, true);
+				break;
+			case readingBody:
+				readRequest(clientfd, true);
+				break;
+			case parsingBody:
+				if (_request.size() > 0)
+				{
+					extractBody();
+					_status = 201;
+				}
+				break;
+			case done:
+				break;
+			case error:
+				break;
+		}
+	} catch (std::exception &e) {
+		std::cerr << e.what() << std::endl;
+	}
+	if (_state == done || _state == error)
+		return true;
+	return false;
 	//std::cout << _method << " " << _target << " " << _version << std::endl;
 	//for (const auto& pair : _headers)
 	//{
 	//	std::cout << pair.first << " : " << pair.second << std::endl;
 	//}
-		if (_method == "POST")
-		{
-			extractContentLength();
-			readBody(serverSocket, epollFd);
-			if (_request.size() > 0)
-			{
-				extractBody();
-				_status = 201;
-			}
-		}
-	} catch (std::exception &e) {
-		std::cerr << e.what() << std::endl;
-	}
 }

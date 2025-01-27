@@ -8,6 +8,19 @@
 #include <array>
 
 #define BUFFER_SIZE 8192
+#define MAX_REQUEST_SIZE 24576
+
+enum e_state {
+	start,
+	readingRequest,
+	checkingRequest,
+	parsingRequest,
+	startBody,
+	readingBody,
+	parsingBody,
+	done,
+	error
+};
 
 enum e_http_method {
 	DELETE = 0,
@@ -22,8 +35,10 @@ class HttpParser
 {
 	private:
 		// Variables
+		e_state				_state;
 		std::vector<char>	_request;
 		size_t				_pos;
+		size_t				_totalBytesRead;
 		uint8_t				_method_enum;
 		int					_status;
 		std::string			_method;
@@ -99,6 +114,7 @@ class HttpParser
 				}();
 
 		// Parsing
+		void				readRequest(int clientfd, bool body);
 		std::stringstream	getVectorLine();
 		std::vector<char>	getBodyData();
 		void				extractReqLine();
@@ -106,7 +122,6 @@ class HttpParser
 		void				extractHeaders(bool body);
 
 		// Body processing
-		void	readBody(int serverSocket, int epollFd);
 		void	extractChunkedBody();
 		void	extractBody();
 		void	extractBoundary();
@@ -114,6 +129,7 @@ class HttpParser
 		void	extractMultipartFormData();
 
 		// Checking functions
+		void	checkReadRequest();
 		bool	checkRequest(std::stringstream& line);
 		void	checkHeaders(std::string_view key, std::string_view value);
 
@@ -130,5 +146,5 @@ class HttpParser
 		uint8_t		getMethod();
 		int			getStatus();
 
-		void	startParsing(std::vector<char>& request, int serverSocket, int epollFd);
+		bool	startParsing(int clientfd);
 };
