@@ -243,10 +243,14 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
 	HttpParser* request = getParser(eventIndex);
 
 	if (request[eventIndex].startParsing(serverSocket) == false)
+	{
+		std::cout << "Not yet..." << std::endl;
 		return ;
+	}
     event.events = EPOLLOUT;
     event.data.fd = serverSocket;
     epoll_ctl(epollFd, EPOLL_CTL_MOD, serverSocket, &event);
+    std::cout << request[eventIndex].getMethodString() << " " << request[eventIndex].getTarget() << std::endl;
     std::cout << "\nserver index = " << serverIndex << "\n";
     if (_sending.find(eventIndex) == _sending.end())
     {
@@ -262,7 +266,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     }
     else
     {
-        auto it = _sending.find(serverSocket); 
+        auto it = _sending.find(serverSocket);
         if (it != _sending.end() && it->second == true)
         {
             if (_response[eventIndex].sendResponse(serverSocket, eventIndex) != true)

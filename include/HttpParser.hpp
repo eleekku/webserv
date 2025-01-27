@@ -11,15 +11,15 @@
 #define MAX_REQUEST_SIZE 24576
 
 enum e_state {
-	start,
-	readingRequest,
-	checkingRequest,
-	parsingRequest,
-	startBody,
-	readingBody,
-	parsingBody,
-	done,
-	error
+	start = 1,
+	readingRequest = 2,
+	checkingRequest = 3,
+	parsingRequest = 4,
+	startBody = 5,
+	readingBody = 6,
+	parsingBody = 7,
+	done = 8,
+	error = 0
 };
 
 enum e_http_method {
