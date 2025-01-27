@@ -11,11 +11,13 @@
 #include "ConfigFile.hpp" 
 #include "HttpParser.hpp"
 #include "HandleRequest.hpp"
+#include "HttpResponse.hpp"
 
 void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig);
 
 class ConfigFile;
 class HttpParser;
+class HttpResponse;
 
 class Server 
 {
@@ -26,6 +28,10 @@ class Server
     int epollfd;
     int fdClient;
     std::map<int, time_t> client_activity;
+    std::map<int, bool> _sending;
+    std::vector <HttpResponse> _response;
+    size_t totalBytesSent;
+    size_t bodySize;
     //int fdGeneral;
 
 
@@ -38,7 +44,7 @@ class Server
     int createServerSocket(int port, std::string ipServer);
     void run(ConfigFile& conf);
     std::vector<int> getServerSocket();
-    void handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, struct epoll_event* events);
+    void handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int i);
     int getEpollFd();
     int getClientFd();
     int getfdGeneral();

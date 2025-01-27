@@ -1,5 +1,4 @@
 #include "../include/Server.hpp"
-#include "../include/HttpResponse.hpp"
 #include "../include/HandleRequest.hpp"
 #include <algorithm>
 
@@ -11,7 +10,7 @@
 
 Server* g_serverInstance = nullptr;
 
-Server::Server() { }
+Server::Server()  { _response.resize(MAX_EVENTS); }
 
 Server::~Server(){}
 
@@ -206,7 +205,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 }
                 else
                 {
-                    handleClientConnection(serverIndex, conf, fdCurrentClient, epollFd, event, events);
+                    handleClientConnection(serverIndex, conf, fdCurrentClient, epollFd, event, i);
                 }
             }
         }
@@ -264,8 +263,9 @@ std::vector<char> Server::getRequest(int serverSocket, int epollFd)
 	return rawrequest;
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, struct epoll_event* events) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int i) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
+     std::string body;
     std::vector<char> rawrequest;
     try {
 		rawrequest = getRequest(serverSocket, epollFd);
@@ -290,42 +290,33 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
 		std::cerr << "Error parsing request\n";
 	}
     std::cout << "\nserver index = " << serverIndex << "\n";
-    HttpResponse response = receiveRequest(request, conf, serverIndex);
-    std::string body = response.generate();
-    size_t totalBytesSent = 0;
-    size_t bodySize = body.size();
-    while (totalBytesSent < bodySize) 
+    if (_sending.find(serverSocket) == _sending.end())
     {
-        int n = epoll_wait(epollFd, events, 1, 10000);
-        if (n == -1)
+        HttpResponse response;
+        if (response.getStatus() != true)//getStatus for to check if we already send evething
         {
-            cleaningServerFd();
-            throw std::runtime_error("run = Error in epoll_wait");
-        }
-        if (n == 0)//this happen for a timeout 
-        {
-            //body = response.generate();
-            //bodySize = body.size();
-            totalBytesSent = 0;
-        }
-        else
-        {   
-            client_activity[serverSocket] = time(NULL);
-            if (events[0].events & EPOLLOUT) 
-            {                
-                ssize_t bytesSent = send(serverSocket, body.c_str() + totalBytesSent, BUFFER_SIZE, MSG_NOSIGNAL);
-                if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
-                {
-                    std::cout << "Send fail to response client " << serverSocket << "\n";
-                    //body = response.generate();
-                    //bodySize = body.size();
-                    totalBytesSent = 0;
-                }
-                else
-                    totalBytesSent += bytesSent;
-            }
+            _response[i] = response;
+            _sending[serverSocket] = true;
+            return ;
         }
     }
+    else
+    {
+        auto it = _sending.find(serverSocket); 
+        if (it != _sending.end() && it->second == true)
+        {
+            if (_response[i].getStatus() == true)
+                return ;
+        }
+    }
+    /*
+        HttpResponse response = receiveRequest(request, conf, serverIndex);
+        body = response.generate();
+        bodyready[serverSocket] = body;
+        totalBytesSent = 0;
+        bodySize = body.size();
+    */
+    _sending.erase(serverSocket);
     event.data.fd = serverSocket;
     epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);
     close(serverSocket);
