@@ -289,9 +289,14 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     } catch (std::runtime_error &e) {
 		std::cerr << "Error parsing request\n";
 	}
-    std::cout << "\nserver index = " << serverIndex << "\n";
     HttpResponse response = receiveRequest(request, conf, serverIndex);
-    std::string body = response.generate();
+    response.generate();
+    int i;
+    i = 0; // This is the index of the event in the events array.
+    if (!response.sendResponse(serverSocket, i)){
+        // This means that the response was not sent yet.
+    }
+    
     size_t totalBytesSent = 0;
     size_t bodySize = body.size();
     while (totalBytesSent < bodySize) 
