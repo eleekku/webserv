@@ -10,8 +10,8 @@
 #include <fcntl.h>
 #include "ConfigFile.hpp"
 #include "HttpParser.hpp"
-#include "HandleRequest.hpp"
-#include "HttpResponse.hpp"
+//#include "HandleRequest.hpp"
+//#include "HttpResponse.hpp"
 
 void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig);
 

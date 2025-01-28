@@ -209,7 +209,21 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 }
                 else
                 {
-                    handleClientConnection(serverIndex, conf, fdCurrentClient, epollFd, event, i);
+                    if (events[i].events & EPOLLIN)
+                    {
+                        HttpParser* request = getParser(i);
+                        if (request[i].startParsing(fdCurrentClient) == true)
+                        {
+                            event.events = EPOLLOUT;
+                            event.data.fd = fdCurrentClient;
+                            epoll_ctl(epollFd, EPOLL_CTL_MOD, fdCurrentClient, &event);
+                            std::cout << "Not yet..." << std::endl;
+                        }
+                    }
+                    if (events[i].events & EPOLLOUT)
+                    {
+                        handleClientConnection(serverIndex, conf, fdCurrentClient, epollFd, event, i);
+                    }
                 }
             }
         }
@@ -238,24 +252,15 @@ void Server::releaseVectors(size_t index)
 		_is_used[index] = false;
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event,  int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
-	HttpParser* request = getParser(eventIndex);
 
-	if (request[eventIndex].startParsing(serverSocket) == false)
-	{
-		std::cout << "Not yet..." << std::endl;
-		return ;
-	}
-    event.events = EPOLLOUT;
-    event.data.fd = serverSocket;
-    epoll_ctl(epollFd, EPOLL_CTL_MOD, serverSocket, &event);
-    std::cout << request[eventIndex].getMethodString() << " " << request[eventIndex].getTarget() << std::endl;
-    std::cout << "\nserver index = " << serverIndex << "\n";
+    //std::cout << request[eventIndex].getMethodString() << " " << request[eventIndex].getTarget() << std::endl;
+    //std::cout << "\nserver index = " << serverIndex << "\n";
     if (_sending.find(eventIndex) == _sending.end())
     {
         HttpResponse response;
-        response = receiveRequest(request[eventIndex], conf, serverIndex);
+        response = receiveRequest(_requests[eventIndex], conf, serverIndex);
         response.generate();
         if (response.sendResponse(serverSocket, eventIndex) != true)//getStatus for to check if we already send evething
         {
@@ -280,6 +285,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
         totalBytesSent = 0;
         bodySize = body.size();
     */
+   releaseVectors(eventIndex);
     _sending.erase(serverSocket);
     event.data.fd = serverSocket;
     epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);

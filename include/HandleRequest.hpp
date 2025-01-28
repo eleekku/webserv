@@ -1,3 +1,5 @@
+#pragma once
+
 #include "HttpParser.hpp"
 #include "ConfigFile.hpp"
 #include "HttpResponse.hpp"
@@ -17,4 +19,3 @@ std::pair<int, std::string>	locateAndReadFile(HttpParser &request, ConfigFile &c
 void 						handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpResponse &response);
 HttpResponse				receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex);
 std::pair<int, std::string> returnErrorPage(HttpResponse &response);
-
