@@ -214,8 +214,8 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         getParser(i);
                         if (_requests[i].startParsing(fdCurrentClient) == true)
                         {
-                            event.events = EPOLLOUT;
-                            event.data.fd = fdCurrentClient;
+                            events[i].events = EPOLLOUT;
+                            events[i].data.fd = fdCurrentClient;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, fdCurrentClient, &event);
                             std::cout << "Not yet..." << std::endl;
                         }
