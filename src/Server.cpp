@@ -153,7 +153,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
     while (true)
     {
         std::cout << "Main loop..." << std::endl;
-        int nfds = epoll_wait(epollFd, events, MAX_EVENTS, 20000);
+        int nfds = epoll_wait(epollFd, events, MAX_EVENTS, 10000);
         if (nfds == -1)
         {
             cleaningServerFd();
@@ -211,11 +211,11 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 {
                     if (events[i].events & EPOLLIN)
                     {
-                        HttpParser* request = getParser(i);
-                        if (request[i].startParsing(fdCurrentClient) == true)
+                        getParser(i);
+                        if (_requests[i].startParsing(fdCurrentClient) == true)
                         {
-                            event.events = EPOLLOUT;
-                            event.data.fd = fdCurrentClient;
+                            events[i].events = EPOLLOUT;
+                            events[i].data.fd = fdCurrentClient;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, fdCurrentClient, &event);
                             std::cout << "Not yet..." << std::endl;
                         }
@@ -285,7 +285,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
         totalBytesSent = 0;
         bodySize = body.size();
     */
-   releaseVectors(eventIndex);
+    releaseVectors(eventIndex);
     _sending.erase(serverSocket);
     event.data.fd = serverSocket;
     epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, nullptr);

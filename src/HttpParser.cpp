@@ -208,6 +208,7 @@ void	HttpParser::extractBody()
 		// 	throw std::runtime_error("Failed to read complete body");
 		// }
 	}
+	_state = done;
 }
 
 // void	HttpParser::extractChunkedBody(std::vector<char>& request)
@@ -379,7 +380,10 @@ void HttpParser::readRequest(int clientfd, bool body)
 			if (_totalBytesRead == _contentLength)
 				_state = parsingBody;
 			else
+			{
+				_state = error;
 				throw std::runtime_error("Unexpected end of request");
+			}
 		else
 			_state = checkingRequest;
 		return ;
@@ -410,62 +414,61 @@ void HttpParser::readRequest(int clientfd, bool body)
 
 bool	HttpParser::startParsing(int clientfd)
 {
-	std::cout << _state << std::endl;
 	try {
-start_parsing:
-		switch (_state)
+		while (true)
 		{
-			case start:
-				std::cout << "Starting parsing..." << std::endl;
-				_request.reserve(BUFFER_SIZE);
-				readRequest(clientfd, false);
-				if (_state == checkingRequest)
-					goto start_parsing;
-				break;
-			case readingRequest:
-				std::cout << "Reading request..." << std::endl;
-				readRequest(clientfd, false);
-				if (_state == checkingRequest)
-					goto start_parsing;
-				break;
-			case checkingRequest:
-				std::cout << "Checking request..." << std::endl;
-				checkReadRequest();
-				if (_state == parsingRequest)
-					goto start_parsing;
-				break;
-			case parsingRequest:
-				std::cout << "Parsing request..." << std::endl;
-				extractReqLine();
-				parseQuery();
-				extractHeaders(false);
-				if (_method == "POST")
-					_state = startBody;
-				else
-					_state = done;
-				std::cout << _state << std::endl;
-				break;
-			case startBody:
-				extractContentLength();
-				_request.clear();
-				_request.reserve(_contentLength);
-				_pos = 0;
-				_totalBytesRead = 0;
-				readRequest(clientfd, true);
-				break;
-			case readingBody:
-				readRequest(clientfd, true);
-				break;
-			case parsingBody:
-				if (_request.size() > 0)
-				{
-					extractBody();
-					_status = 201;
-				}
-				break;
-			case done:
-				break;
-			case error:
+			switch (_state)
+			{
+				case start:
+					std::cout << "Starting parsing..." << std::endl;
+					_request.reserve(BUFFER_SIZE);
+					_state = readingRequest;
+					readRequest(clientfd, false);
+					break;
+				case readingRequest:
+					readRequest(clientfd, false);
+					break;
+				case checkingRequest:
+					std::cout << "Checking request..." << std::endl;
+					checkReadRequest();
+					break;
+				case parsingRequest:
+					std::cout << "Parsing request..." << std::endl;
+					extractReqLine();
+					parseQuery();
+					extractHeaders(false);
+					if (_method_enum == POST)
+						_state = startBody;
+					else
+						_state = done;
+					break;
+				case startBody:
+					std::cout << "Starting body..." << std::endl;
+					extractContentLength();
+					_request.clear();
+					_request.reserve(_contentLength);
+					_pos = 0;
+					_totalBytesRead = 0;
+					readRequest(clientfd, true);
+					_state = readingBody;
+					break;
+				case readingBody:
+					readRequest(clientfd, true);
+					break;
+				case parsingBody:
+					if (_request.size() > 0)
+					{
+						extractBody();
+						_status = 201;
+					}
+					break;
+				case done:
+					break;
+				case error:
+					break;
+			}
+			if (_state == done || _state == error || _state == readingRequest
+				|| _state == readingBody || _state == startBody)
 				break;
 		}
 	} catch (std::exception &e) {
