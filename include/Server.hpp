@@ -56,8 +56,8 @@ class Server
     void cleaningServerFd();
     std::vector<char> getRequest(int serverSocket, int epollFd);
     void check_inactive_connections(int epollfd);
-    HttpParser* getParser(size_t index);
-    void releaseVectors(size_t index);
+    void    getParser(size_t index);
+    void    releaseVectors(size_t index);
     //ConfigFile& getFile();
 };
 

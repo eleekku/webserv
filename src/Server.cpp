@@ -235,15 +235,13 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
     }
 }
 
-HttpParser* Server::getParser(size_t index)
+void    Server::getParser(size_t index)
 {
 	if (index < _requests.size() && !_is_used[index])
 	{
 		_is_used[index] = true;
 		_requests[index] = HttpParser();
-		return &_requests[index];
 	}
-	return nullptr;
 }
 
 void Server::releaseVectors(size_t index)
