@@ -52,14 +52,9 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 
 HttpResponse::~HttpResponse() {
 }
-/*
+
 HttpResponse::HttpResponse(const HttpResponse& other) {
-	m_statusCode = other.m_statusCode;
-	m_reasonPhrase = other.m_reasonPhrase;
-	m_headers = other.m_headers;
-	m_body = other.m_body;
-	m_mime = other.m_mime;
-	m_sent = other.m_sent;
+	*this = other;
 }
 
 HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
@@ -71,8 +66,12 @@ HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 	m_body = other.m_body;
 	m_mime = other.m_mime;
 	m_sent = other.m_sent;
+	cgi = other.cgi;
+	m_totalBytesSent = other.m_totalBytesSent;
+	m_errorpath = other.m_errorpath;
+	m_responsestr = other.m_responsestr;
 	return *this;
-}*/
+}
 
 std::string HttpResponse::getCurrentDate() const
 {
@@ -200,6 +199,7 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
     //{
 		if (cgi)
 		{
+		std::cout << "should be cgi response\n";
 		if (cgi->waitpidCheck(*this) == false)
 			return false;
 		else {
@@ -227,6 +227,11 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
     //}
 	m_sent = true;
 	return true;
+}
+
+int	HttpResponse::getchildid()
+{
+	return cgi->getchildid();
 }
 
 

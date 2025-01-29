@@ -271,6 +271,7 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			return response;
 		case GET:
 			file = locateAndReadFile(request, confile, serverIndex, response);
+	//		std::cout << "child id in receieve request is " << response.getchildid() << std::endl;
 			response.setStatusCode(file.first);
 			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody(file.second);

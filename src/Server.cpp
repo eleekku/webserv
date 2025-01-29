@@ -259,6 +259,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int serve
     {
         HttpResponse response;
         response = receiveRequest(_requests[eventIndex], conf, serverIndex);
+//        std::cout << "child id in handle client connection is " << response.getchildid() << std::endl;
         response.generate();
         if (response.sendResponse(serverSocket, eventIndex) != true)//getStatus for to check if we already send evething
         {

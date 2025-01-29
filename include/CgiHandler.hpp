@@ -33,4 +33,5 @@ class CgiHandler
 	void executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
 	bool waitpidCheck(HttpResponse &response);
 	std::string getCgiOut() const;
+	int getchildid();
 };

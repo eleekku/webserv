@@ -6,12 +6,14 @@ CgiHandler::CgiHandler() : pid(0), pidResult(0), status(0), cgiOut("") { }
 CgiHandler::~CgiHandler() {}
 
 CgiHandler::CgiHandler(const CgiHandler& src) {
-    (void)src;
-    // Copy members from src to this object
-    // Example: this->member = src.member;
+    *this = src;
 }
 
-CgiHandler& CgiHandler::operator=(const CgiHandler&) {
+CgiHandler& CgiHandler::operator=(const CgiHandler& src) {
+    this->pid = src.pid;
+    this->pidResult = src.pidResult;
+    this->status = src.status;
+    this->cgiOut = src.cgiOut;
     return *this;
 }
 
@@ -114,13 +116,16 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
         close(fdPipe[0]);
 
         char *argv[] = {const_cast<char *> (scriptPath.c_str()), 0};
+        std::cerr << "execvp\n";
         execvp(scriptPath.c_str(), argv);
         response.setStatusCode(500);
         throw std::runtime_error("execvp fail\n");
     }
+//    std::cerr << "child id is " << pid << "\n";
     int executeTimeOut = 5;
     signal(SIGALRM, timeoutHandler);
     alarm(executeTimeOut);
+ //   std::cerr << "child id is " << pid << "\n";
 //    if (!waitpidCheck(response))
 //        return false;
 //    return true;
@@ -128,7 +133,6 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
 
 bool CgiHandler::waitpidCheck(HttpResponse &response)
 {
-    std::cout << "pid is " << std::endl;
     std::cout << pid << "\n";
     pidResult =  waitpid(pid, &status, WNOHANG);
     std::cout << "pid result is " << pidResult << "\n";
@@ -172,3 +176,5 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
 }
 
 std::string CgiHandler::getCgiOut() const { return cgiOut;}
+
+int CgiHandler::getchildid() { return pid; }
