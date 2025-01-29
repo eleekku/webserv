@@ -67,10 +67,14 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
 
     std::cout << "\ncgi runing\n";
     if (scriptPath.size() == 0)
+    {
         throw std::runtime_error("empty scriptPath\n");
+    }
     std::string strtest = getPythonName(scriptPath);
     if(!isValidPythonFilename(strtest))
+    {
         throw std::runtime_error("invalid file name\n");
+    }
     std::string strMethod = "";
     if (method == GET)
         strMethod = "GET";
