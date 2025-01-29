@@ -122,11 +122,12 @@ class HttpParser
 		void				extractHeaders(bool body);
 
 		// Body processing
-		void	extractChunkedBody();
-		void	extractBody();
-		void	extractBoundary();
-		void	extractContentLength();
-		void	extractMultipartFormData();
+		void		extractChunkedBody();
+		void		extractBody();
+		void		extractBoundary();
+		void		extractContentLength();
+		void		extractMultipartFormData();
+		std::string	extractFilename();
 
 		// Checking functions
 		void	checkReadRequest();
