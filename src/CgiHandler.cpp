@@ -65,10 +65,16 @@ bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
 
     std::cout << "\ncgi runing\n";
     if (scriptPath.size() == 0)
+    {
+        return true;
         throw std::runtime_error("empty scriptPath\n");
+    }
     std::string strtest = getPythonName(scriptPath);
     if(!isValidPythonFilename(strtest))
+    {
+        return true;
         throw std::runtime_error("invalid file name\n");
+    }
     std::string strMethod = "";
     if (method == GET)
         strMethod = "GET";
@@ -77,6 +83,7 @@ bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
     if (pipe(fdPipe) == -1)
     {
         response.setStatusCode(500);
+        return true;
         throw std::runtime_error("Pipe fail\n");
     }
     fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
@@ -116,6 +123,7 @@ bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
         char *argv[] = {const_cast<char *> (scriptPath.c_str()), 0};
         execvp(scriptPath.c_str(), argv);
         response.setStatusCode(500);
+        return true;
         throw std::runtime_error("execvp fail\n");
     }
     int executeTimeOut = 5;
@@ -128,7 +136,7 @@ bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
 
 bool CgiHandler::waitpidCheck(HttpResponse &response)
 {
-    pidResult =  waitpid(pid, &status, 0);
+    pidResult =  waitpid(pid, &status, WNOHANG);
     if (pidResult == 0)
     {
         return false;

@@ -193,7 +193,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         continue;
                     }
                     // Associate client with server index
-                    event.events = EPOLLIN | EPOLLOUT;
+                    events->events = EPOLLIN | EPOLLOUT;
                     event.data.u32 = (serverIndex << 16) | clientFd;
                     if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1)
                     {
@@ -203,8 +203,8 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     }
                     client_activity[fdClient] = time(NULL);
                     std::cout << "Accepted connection on server \n" << serverIndex << "\n" << clientFd << "\n";
-                    event.events = EPOLLIN;
-                    event.data.fd = clientFd;
+                    events[i].events = EPOLLIN;
+                    events[i].data.fd = clientFd;
                     epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &event);
                 }
                 else
