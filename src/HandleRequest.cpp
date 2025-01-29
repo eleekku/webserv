@@ -198,10 +198,12 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, ConfigFile &c
 //	std::cout << "path is " << path << std::endl;
 	if (locationStr == "/cgi") { //calls the cgi executor
 		std::cout << "its cgi! " << std::endl;
-		CgiHandler cgi;
+	//	CgiHandler cgi;
+		response.createCgi();
+	//	response.startCgi(path, request.getQuery(), "", GET);
 		std::string body;
 		try {
-			body = cgi.executeCGI(path, request.getQuery(), "", GET, response);
+			body = response.startCgi(path, request.getQuery(), "", GET, response);
 			response.setStatusCode(200);
 		}
 		catch (std::runtime_error &e) {
@@ -236,8 +238,9 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 		return;
 	}
 	location = findKey(locationStr, serverIndex, confile);
-	CgiHandler cgi;
-	std::string body = cgi.executeCGI(location.root, request.getQuery(), request.getBody(), POST, response);
+	response.createCgi();
+//	CgiHandler cgi;
+	std::string body = response.startCgi(location.root, request.getQuery(), request.getBody(), POST, response);
 	response.setStatusCode(200);
 	response.setBody(body);
 	response.setMimeType(".txt");

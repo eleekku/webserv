@@ -1,5 +1,4 @@
 #include "../include/HttpResponse.hpp"
-#include "../include/CgiHandler.hpp"
 
 /*To use the HttpResponse declare HttpResponse object and define it with receiveRequest funciton which takes HttpParser object.
 Then call HttpParser member function generate which will return the response as string.*/
@@ -52,7 +51,7 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 
 HttpResponse::~HttpResponse() {
 }
-
+/*
 HttpResponse::HttpResponse(const HttpResponse& other) {
 	m_statusCode = other.m_statusCode;
 	m_reasonPhrase = other.m_reasonPhrase;
@@ -72,7 +71,7 @@ HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 	m_mime = other.m_mime;
 	m_sent = other.m_sent;
 	return *this;
-}
+}*/
 
 std::string HttpResponse::getCurrentDate() const
 {
@@ -145,6 +144,17 @@ void HttpResponse::setErrorpath(std::string errorpath)
 std::string HttpResponse::getErrorpath() const
 {
 	return m_errorpath;
+}
+
+void HttpResponse::createCgi() {
+	if (!cgi)
+		cgi.emplace();
+}
+
+std::string	HttpResponse::startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response) {
+	if (cgi)
+		return cgi->executeCGI(scriptPath, queryString, body, method, response);
+	return "";
 }
 
 void HttpResponse::generate() {

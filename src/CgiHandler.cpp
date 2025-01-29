@@ -1,9 +1,19 @@
-#include "../include/CgiHandler.hpp"
+// #include "../include/CgiHandler.hpp"
 #include "../include/HttpResponse.hpp"
 
 CgiHandler::CgiHandler() {}
 
 CgiHandler::~CgiHandler() {}
+
+CgiHandler::CgiHandler(const CgiHandler& src) {
+    (void)src;
+    // Copy members from src to this object
+    // Example: this->member = src.member;
+}
+
+CgiHandler& CgiHandler::operator=(const CgiHandler&) {
+    return *this;
+}
 
 int childid = 0;
 
