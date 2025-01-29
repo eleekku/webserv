@@ -52,10 +52,12 @@ std::string getPythonName(std::string& path)
 
 std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
 {
+    std::cout << "\ncgi runing firs\n";
     if (flagChildProcess)
     {
+        std::cout << "\ncgi runing\n";
         if (scriptPath.size() == 0)
-        return NULL;
+            return "";
         std::string strtest = getPythonName(scriptPath);
         if(!isValidPythonFilename(strtest))
             throw std::runtime_error("invalid file name\n");;
