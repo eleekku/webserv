@@ -60,7 +60,7 @@ std::string getPythonName(std::string& path)
     return path.substr(pos + 1);
 }
 
-bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
+void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
 {
 
     std::cout << "\ncgi runing\n";
@@ -121,14 +121,18 @@ bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
     int executeTimeOut = 5;
     signal(SIGALRM, timeoutHandler);
     alarm(executeTimeOut);
-    if (waitpidCheck(response))
-        return false;
-    return true;
+//    if (!waitpidCheck(response))
+//        return false;
+//    return true;
 }
 
 bool CgiHandler::waitpidCheck(HttpResponse &response)
 {
-    pidResult =  waitpid(pid, &status, 0);
+    std::cout << "pid is " << std::endl;
+    std::cout << pid << "\n";
+    pidResult =  waitpid(pid, &status, WNOHANG);
+    std::cout << "pid result is " << pidResult << "\n";
+    std::cout << errno << "\n";
     if (pidResult == 0)
     {
         return false;
@@ -136,13 +140,14 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     }
     if (WIFSIGNALED(status))
     {
+        std::cerr << "script terminated by signal " << "\n";
         close(fdPipe[1]);
         close(fdPipe[0]);
         response.setStatusCode(504);
         return true;
     }
     alarm(0);
-    if (WIFEXITED(status) && !WEXITSTATUS(status))
+    if (pidResult == pid) 
     {
         char buffer[1024];
         int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
@@ -158,6 +163,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     } 
     else
     {
+        std::cerr << "script terminated with error\n";
         response.setStatusCode(502);
         return true;
         throw std::runtime_error("script can not execute\n");
@@ -165,4 +171,4 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     return true;
 }
 
-std::string CgiHandler::getCgiOut() { return cgiOut;}
+std::string CgiHandler::getCgiOut() const { return cgiOut;}
