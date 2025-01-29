@@ -60,19 +60,17 @@ std::string getPythonName(std::string& path)
     return path.substr(pos + 1);
 }
 
-bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
+void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
 {
 
     std::cout << "\ncgi runing\n";
     if (scriptPath.size() == 0)
     {
-        return true;
         throw std::runtime_error("empty scriptPath\n");
     }
     std::string strtest = getPythonName(scriptPath);
     if(!isValidPythonFilename(strtest))
     {
-        return true;
         throw std::runtime_error("invalid file name\n");
     }
     std::string strMethod = "";
@@ -83,7 +81,6 @@ bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
     if (pipe(fdPipe) == -1)
     {
         response.setStatusCode(500);
-        return true;
         throw std::runtime_error("Pipe fail\n");
     }
     fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
@@ -123,20 +120,19 @@ bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
         char *argv[] = {const_cast<char *> (scriptPath.c_str()), 0};
         execvp(scriptPath.c_str(), argv);
         response.setStatusCode(500);
-        return true;
         throw std::runtime_error("execvp fail\n");
     }
     int executeTimeOut = 5;
     signal(SIGALRM, timeoutHandler);
     alarm(executeTimeOut);
-    if (waitpidCheck(response))
-        return false;
-    return true;
+//    if (!waitpidCheck(response))
+//        return false;
+//    return true;
 }
 
 bool CgiHandler::waitpidCheck(HttpResponse &response)
 {
-    pidResult =  waitpid(pid, &status, WNOHANG);
+    pidResult =  waitpid(pid, &status, 0);
     if (pidResult == 0)
     {
         return false;
@@ -144,13 +140,14 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     }
     if (WIFSIGNALED(status))
     {
+        std::cerr << "script terminated by signal " << "\n";
         close(fdPipe[1]);
         close(fdPipe[0]);
         response.setStatusCode(504);
         return true;
     }
     alarm(0);
-    if (WIFEXITED(status) && !WEXITSTATUS(status))
+    if (pidResult == pid) 
     {
         char buffer[1024];
         int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
@@ -166,6 +163,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     } 
     else
     {
+        std::cerr << "script terminated with error\n";
         response.setStatusCode(502);
         return true;
         throw std::runtime_error("script can not execute\n");
@@ -173,4 +171,4 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     return true;
 }
 
-std::string CgiHandler::getCgiOut() { return cgiOut;}
+std::string CgiHandler::getCgiOut() const { return cgiOut;}

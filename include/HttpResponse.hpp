@@ -30,7 +30,7 @@ class HttpResponse
 		void 	setErrorpath(std::string errorpath);
 
 		void 	createCgi();
-		std::string	startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
+		void	startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
 		void 	generate();
 		bool	sendResponse(int serverSocket, int i);                      //int clientFd, int epollFd,;
 
@@ -40,6 +40,7 @@ class HttpResponse
 		std::string getMimeKey() const;
 		std::string getReasonPhrase() const;
 		std::string getErrorpath() const;
+		std::string getCgiBody() const;
 
 	private:
 

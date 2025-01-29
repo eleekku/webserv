@@ -4,6 +4,7 @@
 Then call HttpParser member function generate which will return the response as string.*/
 
 const std::map<int, std::string> HttpResponse::m_statusMap = {
+	{102, "Processing"},
 	{200, "OK"},
 	{201, "Created"},
 	{202, "Accepted"},
@@ -101,6 +102,11 @@ std::string HttpResponse::getReasonPhrase() const
 	return m_reasonPhrase;
 }
 
+std::string HttpResponse::getCgiBody() const
+{
+	return cgi->getCgiOut();
+}
+
 void HttpResponse::setHeader(const std::string& key, const std::string& value)
 {
 	m_headers[key] = value;
@@ -151,16 +157,9 @@ void HttpResponse::createCgi() {
 		cgi.emplace();
 }
 
-std::string	HttpResponse::startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response) {
+void	HttpResponse::startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response) {
 	if (cgi)
-	{
-		if (!cgi->executeCGI(scriptPath, queryString, body, method, response))
-		{
-			return cgi->getCgiOut();
-		}
-
-	}
-	return "";
+		cgi->executeCGI(scriptPath, queryString, body, method, response);
 }
 
 void HttpResponse::generate() {
@@ -199,6 +198,18 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	std::cout << "socket \n" << m_totalBytesSent << "\n";
     //if (events[i].events & EPOLLOUT) 
     //{
+		if (cgi)
+		{
+		if (cgi->waitpidCheck(*this) == false)
+			return false;
+		else {
+			setBody(cgi->getCgiOut());
+			std::cout << "body to send\n" << m_body << "\n";
+		//	setHeader("Server", confile.getServerName(serverIndex));
+			generate();
+			bodySize = m_responsestr.size();
+		}
+		}
         ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, 2000000, MSG_NOSIGNAL);
 		//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
 		std::cout <<  "\n bytes to send\n" <<bytesSent << "\n";

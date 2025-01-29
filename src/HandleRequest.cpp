@@ -201,15 +201,15 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, ConfigFile &c
 	//	CgiHandler cgi;
 		response.createCgi();
 	//	response.startCgi(path, request.getQuery(), "", GET);
-		std::string body;
 		try {
-			body = response.startCgi(path, request.getQuery(), "", GET, response);
-			response.setStatusCode(200);
+			response.startCgi(path, request.getQuery(), "", GET, response);
+			response.setStatusCode(102);
+			return {102, "Processing"};	
 		}
 		catch (std::runtime_error &e) {
 			return (returnErrorPage(response));
 		}
-		return {response.getStatus(), body};
+
 	}
 	struct stat fileStat;
 	stat(path.c_str(), &fileStat);
@@ -240,10 +240,10 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 	location = findKey(locationStr, serverIndex, confile);
 	response.createCgi();
 //	CgiHandler cgi;
-	std::string body = response.startCgi(location.root, request.getQuery(), request.getBody(), POST, response);
-	response.setStatusCode(200);
-	response.setBody(body);
-	response.setMimeType(".txt");
+
+	response.startCgi(location.root, request.getQuery(), request.getBody(), POST, response);
+		response.setStatusCode(102);
+		return;
 }
 
 HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
