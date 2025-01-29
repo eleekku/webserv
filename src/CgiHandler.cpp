@@ -1,7 +1,7 @@
 // #include "../include/CgiHandler.hpp"
 #include "../include/HttpResponse.hpp"
 
-CgiHandler::CgiHandler() : pid(0), pidResult(0), status(0), strOut("") { flagChildProcess = -1; }
+CgiHandler::CgiHandler() : pid(0), pidResult(0), status(0), cgiOut("") { }
 
 CgiHandler::~CgiHandler() {}
 
@@ -60,100 +60,109 @@ std::string getPythonName(std::string& path)
     return path.substr(pos + 1);
 }
 
-std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
+bool CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
 {
-    std::cout << "\ncgi runing firs\n";
-    if (flagChildProcess)
+
+    std::cout << "\ncgi runing\n";
+    if (scriptPath.size() == 0)
+        throw std::runtime_error("empty scriptPath\n");
+    std::string strtest = getPythonName(scriptPath);
+    if(!isValidPythonFilename(strtest))
+        throw std::runtime_error("invalid file name\n");
+    std::string strMethod = "";
+    if (method == GET)
+        strMethod = "GET";
+    else if (method == POST)
+        strMethod = "POST";
+    if (pipe(fdPipe) == -1)
     {
-        std::cout << "\ncgi runing\n";
-        if (scriptPath.size() == 0)
-            return "";
-        std::string strtest = getPythonName(scriptPath);
-        if(!isValidPythonFilename(strtest))
-            throw std::runtime_error("invalid file name\n");;
-        std::string strMethod = "";
-        if (method == GET)
-            strMethod = "GET";
-        else if (method == POST)
-            strMethod = "POST";
-        if (pipe(fdPipe) == -1)
-        {
-            response.setStatusCode(500);
-            throw std::runtime_error("Pipe fail\n");
-        }
-        fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
-    
-        pid = fork();
-        childid = pid;
-        if (pid == -1)
-        {
-            response.setStatusCode(500);
-            throw std::runtime_error("fork fail\n");
-        }
-        if(pid == 0)
-        {
-            if (method == POST)
-            {
-                int pipeWrite[2];
-                fcntl(pipeWrite[1], F_SETFL, O_NONBLOCK);
-                if(pipe(pipeWrite) == -1)
-                {
-                    response.setStatusCode(500);
-                    throw std::runtime_error("Pipe write fail\n");
-                }
-                write(pipeWrite[1], body.c_str(), body.size());
-                close(pipeWrite[1]);
-                dup2(pipeWrite[0], STDIN_FILENO);
-                close(pipeWrite[0]);
-            }
-            setenv("REQUEST_METHOD", strMethod.c_str(), 0);
-            setenv("QUERY_STRING", queryString.c_str(), 0);
-
-            //avoid to show the error in the terminal;
-            freopen("/dev/null", "w", stderr);
-
-            dup2(fdPipe[1], STDOUT_FILENO);
-            close(fdPipe[1]);
-            close(fdPipe[0]);
-
-            char *argv[] = {const_cast<char *> (scriptPath.c_str()), 0};
-            execvp(scriptPath.c_str(), argv);
-            response.setStatusCode(500);
-            throw std::runtime_error("execvp fail\n");
-        }
-        int executeTimeOut = 5;
-        close(fdPipe[1]);
-        signal(SIGALRM, timeoutHandler);
-        alarm(executeTimeOut);
+        response.setStatusCode(500);
+        throw std::runtime_error("Pipe fail\n");
     }
-    char buffer[1000];
-    int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
-    if (bitesRead == -1)
-        throw std::runtime_error("bites to read failt");
-    buffer[bitesRead] = '\0';
-    strOut += buffer;
-    close(fdPipe[0]);
+    fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
+    pid = fork();
+    childid = pid;
+    if (pid == -1)
+    {
+        response.setStatusCode(500);
+        throw std::runtime_error("fork fail\n");
+    }
+    if(pid == 0)
+    {
+        if (method == POST)
+        {
+            int pipeWrite[2];
+            fcntl(pipeWrite[1], F_SETFL, O_NONBLOCK);
+            if(pipe(pipeWrite) == -1)
+            {
+                response.setStatusCode(500);
+                throw std::runtime_error("Pipe write fail\n");
+            }
+            write(pipeWrite[1], body.c_str(), body.size());
+            close(pipeWrite[1]);
+            dup2(pipeWrite[0], STDIN_FILENO);
+            close(pipeWrite[0]);
+        }
+        setenv("REQUEST_METHOD", strMethod.c_str(), 0);
+        setenv("QUERY_STRING", queryString.c_str(), 0);
+
+        //avoid to show the error in the terminal;
+        freopen("/dev/null", "w", stderr);
+
+        dup2(fdPipe[1], STDOUT_FILENO);
+        close(fdPipe[1]);
+        close(fdPipe[0]);
+
+        char *argv[] = {const_cast<char *> (scriptPath.c_str()), 0};
+        execvp(scriptPath.c_str(), argv);
+        response.setStatusCode(500);
+        throw std::runtime_error("execvp fail\n");
+    }
+    int executeTimeOut = 5;
+    signal(SIGALRM, timeoutHandler);
+    alarm(executeTimeOut);
+    if (waitpidCheck(response))
+        return false;
+    return true;
+}
+
+bool CgiHandler::waitpidCheck(HttpResponse &response)
+{
     pidResult =  waitpid(pid, &status, 0);
     if (pidResult == 0)
     {
-        flagChildProcess = 0;
+        return false;
         throw std::runtime_error("cgi is still running");
     }
     if (WIFSIGNALED(status))
     {
+        close(fdPipe[1]);
+        close(fdPipe[0]);
         response.setStatusCode(504);
-        throw std::runtime_error("Gateway Timeout\n");
+        return true;
     }
     alarm(0);
     if (WIFEXITED(status) && !WEXITSTATUS(status))
     {
+        char buffer[1024];
+        int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
+        if (bitesRead == -1)
+            throw std::runtime_error("bites to read failt");
+        buffer[bitesRead] = '\0';
+        cgiOut += buffer;
+        close(fdPipe[1]);
+        close(fdPipe[0]);
         std::cout << "script executed\n";
-        std::cout << strOut << "\n";
-        return strOut;
+        std::cout << cgiOut << "\n";
+        return true;
     } 
     else
     {
         response.setStatusCode(502);
+        return true;
         throw std::runtime_error("script can not execute\n");
     }
+    return true;
 }
+
+std::string CgiHandler::getCgiOut() { return cgiOut;}

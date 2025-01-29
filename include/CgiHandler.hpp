@@ -19,9 +19,8 @@ class CgiHandler
 	int pid;
 	int pidResult;
 	int status;
-	int flagChildProcess;
 	int fdPipe[2];
-	std::string strOut;
+	std::string cgiOut;
 
 	public:
 
@@ -31,5 +30,7 @@ class CgiHandler
 	CgiHandler(const CgiHandler&); // = default;
     CgiHandler& operator=(const CgiHandler&); // = default;
 
-	std::string executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
+	bool executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
+	bool waitpidCheck(HttpResponse &response);
+	std::string getCgiOut();
 };

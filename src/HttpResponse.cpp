@@ -153,7 +153,13 @@ void HttpResponse::createCgi() {
 
 std::string	HttpResponse::startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response) {
 	if (cgi)
-		return cgi->executeCGI(scriptPath, queryString, body, method, response);
+	{
+		if (!cgi->executeCGI(scriptPath, queryString, body, method, response))
+		{
+			return cgi->getCgiOut();
+		}
+
+	}
 	return "";
 }
 
