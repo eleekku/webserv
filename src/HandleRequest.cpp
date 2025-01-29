@@ -277,7 +277,7 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			if (status == 201) {
 				response.setStatusCode(status);
 				response.setMimeType(".txt");
-	//			response.setBody("Created");
+				response.setBody("Created");
 			}
 			else
 				handlePost(request, confile, serverIndex, response);
