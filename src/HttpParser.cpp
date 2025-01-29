@@ -250,7 +250,7 @@ void	HttpParser::extractBoundary()
 	}
 }
 
-std::string	extractFilename(map_t& bodyHeaders)
+std::string	HttpParser::extractFilename()
 {
 	std::string	filename;
 	std::string	disposition;
@@ -258,15 +258,22 @@ std::string	extractFilename(map_t& bodyHeaders)
 	size_t		start;
 	size_t		end;
 
-	if (bodyHeaders.contains("Content-Disposition"))
+	if (_bodyHeaders.contains("Content-Disposition"))
 	{
-		disposition = bodyHeaders["Content-Disposition"];
+		disposition = _bodyHeaders["Content-Disposition"];
 		filenamePos = disposition.find("filename=\"");
 		if (filenamePos != std::string::npos)
 		{
 			start = filenamePos + 10;
 			end = disposition.find("\"", start);
 			filename = disposition.substr(start, end - start);
+			if (filename == "")
+			{
+				std::cout << "Empty filename" << std::endl;
+				throw std::runtime_error("Empty filename in multipart/form-data");
+				_state = done;
+				_status = 400;
+			}
 		}
 	}
 	return filename;
@@ -298,7 +305,7 @@ void	HttpParser::extractMultipartFormData()
 			content.clear();
 			std::cout << "Extracting body headers\n";
 			extractHeaders(true);
-			filename = extractFilename(_bodyHeaders);
+			filename = extractFilename();
 			while (true)
 			{
 				lineVec.clear();
@@ -407,6 +414,8 @@ void HttpParser::readRequest(int clientfd, bool body)
 				_state = checkingRequest;
 			else if (_totalBytesRead == _contentLength && body)
 				_state = parsingBody;
+			else if (_totalBytesRead < _contentLength && body)
+				_state = readingBody;
 		}
 		// Check if the request is too big or has other issues
 	}
@@ -450,7 +459,6 @@ bool	HttpParser::startParsing(int clientfd)
 					_pos = 0;
 					_totalBytesRead = 0;
 					readRequest(clientfd, true);
-					_state = readingBody;
 					break;
 				case readingBody:
 					readRequest(clientfd, true);
@@ -463,6 +471,7 @@ bool	HttpParser::startParsing(int clientfd)
 					}
 					break;
 				case done:
+					std::cout << "Done parsing..." << std::endl;
 					break;
 				case error:
 					break;
@@ -472,6 +481,7 @@ bool	HttpParser::startParsing(int clientfd)
 				break;
 		}
 	} catch (std::exception &e) {
+		_state = error;
 		std::cerr << e.what() << std::endl;
 	}
 	if (_state == done || _state == error)

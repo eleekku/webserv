@@ -13,7 +13,17 @@ class HttpResponse;
 
 class CgiHandler
 {
-public:
+
+	private :
+
+	int pid;
+	int pidResult;
+	int status;
+	int flagChildProcess;
+	int fdPipe[2];
+	std::string strOut;
+
+	public:
 
 	CgiHandler();
 	~CgiHandler();
