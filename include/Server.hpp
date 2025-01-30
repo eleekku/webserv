@@ -2,9 +2,7 @@
 #define SERVER_HPP
 
 #include <string>
-#include <iostream>
 #include <arpa/inet.h>
-#include <stdexcept>
 #include <sys/epoll.h>
 #include <csignal>
 #include <fcntl.h>
@@ -58,7 +56,7 @@ class Server
     void cleaningServerFd();
     std::vector<char> getRequest(int serverSocket, int epollFd);
     void check_inactive_connections(int epollfd);
-    void    getParser(size_t index);
+    void    createNewParserObject(size_t index);
     void    releaseVectors(size_t index);
     //ConfigFile& getFile();
 };

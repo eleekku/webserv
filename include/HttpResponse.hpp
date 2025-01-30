@@ -13,6 +13,7 @@
 #include "HttpParser.hpp"
 #include "ConfigFile.hpp"
 #include "Server.hpp"
+#include "HandleRequest.hpp"
 
 class HttpResponse
 {
@@ -20,8 +21,8 @@ class HttpResponse
 		HttpResponse();
 		HttpResponse(int code, std::string& mime);
 		~HttpResponse();
-//		HttpResponse(const HttpResponse& other);
-//		HttpResponse& operator=(const HttpResponse& other);
+		HttpResponse(const HttpResponse& other);
+		HttpResponse& operator=(const HttpResponse& other);
 
 		void 	setHeader(const std::string& key, const std::string& value);
 		void 	setBody(const std::string& body);
@@ -41,6 +42,8 @@ class HttpResponse
 		std::string getReasonPhrase() const;
 		std::string getErrorpath() const;
 		std::string getCgiBody() const;
+
+		int	getchildid();
 
 	private:
 

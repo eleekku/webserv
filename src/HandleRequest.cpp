@@ -251,12 +251,13 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 	response.setErrorpath(confile.getErrorPage(serverIndex));
 	unsigned int status = request.getStatus();
 //	std::cout << "status is " << status << std::endl;
-	if (status != 200 && status != 201)
+	if (status != 200 && status != 201 && status != 204)
 	{
 		std::cout << "status is ll" << status << std::endl;
 		response.setStatusCode(status);
 		response.setMimeType(".html");
 		response.setHeader("Server", confile.getServerName(0));
+		returnErrorPage(response);
 //		response.setBody("Bad Request");
 		return response;
 	}
@@ -271,6 +272,7 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			return response;
 		case GET:
 			file = locateAndReadFile(request, confile, serverIndex, response);
+	//		std::cout << "child id in receieve request is " << response.getchildid() << std::endl;
 			response.setStatusCode(file.first);
 			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody(file.second);
