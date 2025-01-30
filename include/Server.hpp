@@ -34,6 +34,8 @@ class Server
     std::vector <HttpResponse> _response;
     size_t totalBytesSent;
     size_t bodySize;
+    int contador;
+    //int clientFd[10];
     //int fdGeneral;
 
 

@@ -128,11 +128,17 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
 //    if (!waitpidCheck(response))
 //        return false;
 //    return true;
+/*   struct sigaction sa;
+    sa.sa_handler = timeoutHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGALRM, &sa, NULL);
+    alarm(5); // Máximo 5 segundos*/
 }
 
 bool CgiHandler::waitpidCheck(HttpResponse &response)
 {
-    pidResult =  waitpid(pid, &status, 0);
+    pidResult =  waitpid(pid, &status, WNOHANG);
     if (pidResult == 0)
     {
         return false;
