@@ -216,7 +216,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     {
                         std::cout << "\nin\n";
                         createNewParserObject(i);
-                        if (_requests[i].startParsing(client) == true)
+                        if (_requests[i].startParsing(client, conf.getMax_body(serverIndex)) == true)
                         {
                             events[i].events = EPOLLOUT;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
