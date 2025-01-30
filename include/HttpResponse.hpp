@@ -13,6 +13,7 @@
 #include "HttpParser.hpp"
 #include "ConfigFile.hpp"
 #include "Server.hpp"
+#include "HandleRequest.hpp"
 
 class HttpResponse
 {

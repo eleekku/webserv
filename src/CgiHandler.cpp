@@ -130,7 +130,7 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
     signal(SIGALRM, timeoutHandler);
     alarm(executeTimeOut);
  //   std::cerr << "child id is " << pid << "\n";
-//    if (!waitpidCheck(response))
+  //  waitpidCheck(response);
 //        return false;
 //    return true;
 }
@@ -144,7 +144,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     if (pidResult == 0)
     {
         return false;
-        throw std::runtime_error("cgi is still running");
+      //  throw std::runtime_error("cgi is still running");
     }
     if (WIFSIGNALED(status))
     {
@@ -165,6 +165,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         cgiOut += buffer;
         close(fdPipe[1]);
         close(fdPipe[0]);
+        response.setStatusCode(200);
         std::cout << "script executed\n";
         std::cout << cgiOut << "\n";
         return true;

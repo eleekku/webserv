@@ -197,10 +197,12 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	std::cout << "socket \n" << m_totalBytesSent << "\n";
     //if (events[i].events & EPOLLOUT) 
     //{
+	try {
 		if (cgi)
 		{
 		std::cout << "should be cgi response\n";
-		if (cgi->waitpidCheck(*this) == false)
+		if (!cgi->waitpidCheck(*this))
+
 			return false;
 		else {
 			setBody(cgi->getCgiOut());
@@ -210,6 +212,10 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 			bodySize = m_responsestr.size();
 		}
 		}
+	}
+	catch (std::exception &e) {
+		returnErrorPage(*this);
+	}
         ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, 2000000, MSG_NOSIGNAL);
 		//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
 		std::cout <<  "\n bytes to send\n" <<bytesSent << "\n";
