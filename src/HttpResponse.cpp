@@ -173,6 +173,10 @@ void HttpResponse::generate() {
 		response << "Content-Type: " << getMimeType(m_mime) << "\r\n";
 	}
 	if (m_headers.find("Content-Length") == m_headers.end()) {
+		if (m_body.empty() && m_statusCode != 204) {
+			m_body = getReasonPhrase();
+			response << "Content-Length: " << m_body.size() << "\r\n";
+		}
 		if (!m_body.empty())
         	response << "Content-Length: " << m_body.size() << "\r\n";
     }
@@ -183,8 +187,10 @@ void HttpResponse::generate() {
 	response << "\r\n";
 	if (!m_body.empty())
 		response << m_body;
-	else if (m_statusCode != 204)
+	else if (m_statusCode != 204) {
 		response << getReasonPhrase();
+		
+	}
 	m_responsestr = response.str();
 }
 
