@@ -27,6 +27,7 @@ class HttpParser
 		map_t				_headers;
 		map_t				_bodyHeaders;
 		std::string			_body;
+		size_t				_maxBodySize;
 		std::string			_boundary;
 		std::string			_query;
 		size_t				_contentLength;
@@ -127,5 +128,5 @@ class HttpParser
 		uint8_t		getMethod();
 		int			getStatus();
 
-		bool	startParsing(int clientfd);
+		bool	startParsing(int clientfd, long maxBodySize);
 };
