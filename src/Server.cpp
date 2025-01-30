@@ -171,6 +171,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 int currentData = events[i].data.u32;
                 int serverIndex = currentData >> 16;
                 int fdCurrentData = currentData & 0xFFFF;
+                std::cout << "\n\nfd in epoll\n\n" << fdCurrentData << "\n\n";
                 if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
                     socketS = fdCurrentData;
                 else
@@ -178,7 +179,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 if (socketS != 0)
                 {
                     // New connection on server socket
-                    std::cout << "\nindex event cuando acepto\n" << i << "\n";
+                    std::cout << "\nindex event before accept\n" << i << "\n";
                     sockaddr_in clientAddr{};
                     socklen_t clientLen = sizeof(clientAddr);
                     int clientFd = accept(socketS, (sockaddr*)&clientAddr, &clientLen);
@@ -206,7 +207,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         continue;
                     }
                     client_activity[fdClient] = time(NULL);
-                    events[i].events = EPOLLIN;
+                    event.events = EPOLLIN;
                     epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &event);
                 }
                 else
@@ -228,11 +229,6 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
                         {
                             events[i].events = EPOLLOUT;
-                            epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
-                        }
-                        else
-                        {
-                            events[i].events = EPOLLIN;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
                         }
                     }
