@@ -418,7 +418,7 @@ void HttpParser::readRequest(int clientfd, bool body)
 			_status = 413;
 			throw std::runtime_error("Request too large");
 		}
-		if (_request.size() > MAX_REQUEST_SIZE)
+		if (!body && _request.size() > MAX_REQUEST_SIZE)
 		{
 			const char *needle = "\r\n\r\n";
 			_request.insert(_request.end(), needle, needle + 4);
