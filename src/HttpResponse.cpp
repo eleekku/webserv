@@ -181,18 +181,11 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
     //struct epoll_event events[10];
 	size_t bodySize = m_responsestr.size();
 	int bufferSize = bodySize - m_totalBytesSent;
-	std::cout << "\n\n----------------------------\n\n";
-	std::cout << "m_totalBytesSent \n" << m_totalBytesSent << "\n";
-	std::cout << "bodySize \n" << bodySize << "\n";
-	std::cout << "bufferSize \n" << bufferSize << "\n";
-	std::cout << "\n\n----------------------------\n\n";
-	
     //if (events[i].events & EPOLLOUT)
     //{
 	try {
-		if (cgi)
+		if (cgi && cgidone == false)
 		{
-		std::cout << "should be cgi response\n";
 		if (!cgi->waitpidCheck(*this))
 			return false;
 		else {

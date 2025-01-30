@@ -15,6 +15,8 @@ CgiHandler& CgiHandler::operator=(const CgiHandler& src) {
     this->pidResult = src.pidResult;
     this->status = src.status;
     this->cgiOut = src.cgiOut;
+    this->fdPipe[0] = src.fdPipe[0];
+    this->fdPipe[1] = src.fdPipe[1];
     return *this;
 }
 
@@ -124,14 +126,23 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
         std::cerr << "execvp\n";
         execvp(scriptPath.c_str(), argv);
         response.setStatusCode(500);
-        throw std::runtime_error("execvp fail\n");
+        exit(1);
     }
+    close(fdPipe[1]);
+    std::cerr << "read fd is in response " << fdPipe[0] << "\n";
 //    std::cerr << "child id is " << pid << "\n";
     int executeTimeOut = 5;
     signal(SIGALRM, timeoutHandler);
     alarm(executeTimeOut);
  //   std::cerr << "child id is " << pid << "\n";
-  //  waitpidCheck(response);
+ /*
+    while (response.cgidone == false)
+    {
+        std::cerr << "read fd is in response " << fdPipe[0] << "\n";
+        waitpidCheck(response);
+    }
+    exit (0);*/
+//    waitpidCheck(response);
 //        return false;
 //    return true;
 /*   struct sigaction sa;
@@ -144,10 +155,11 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
 
 bool CgiHandler::waitpidCheck(HttpResponse &response)
 {
-    std::cout << pid << "\n";
+//    std::cout << "pid is " << pid << "\n";
     pidResult =  waitpid(pid, &status, WNOHANG);
-    std::cout << "pid result is " << pidResult << "\n";
-    std::cout << errno << "\n";
+//    std::cout << "pid result is " << pidResult << "\n";
+//    std::cout << errno << "\n";
+//    std::cerr << "read fd is " << fdPipe[0] << "\n";
     if (pidResult == 0)
     {
         response.setStatusCode(102);
@@ -160,29 +172,35 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         close(fdPipe[1]);
         close(fdPipe[0]);
         response.setStatusCode(504);
-        return true;
+        throw std::runtime_error("script terminated by signal\n");
     }
     alarm(0);
     if (pidResult == pid) 
     {
+        std::cerr << "script executed\n";
         char buffer[1024];
+        std::cerr << "fdPipe[0] is " << fdPipe[0] << "\n";
         int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
-        if (bitesRead == -1)
+        if (bitesRead == -1) {
             throw std::runtime_error("bites to read failt");
+        }
+        std::cout << "bites read is " << bitesRead << "\n";
         buffer[bitesRead] = '\0';
         cgiOut += buffer;
         close(fdPipe[1]);
         close(fdPipe[0]);
         response.setStatusCode(200);
-        std::cout << "script executed\n";
+        std::cerr << "script executed\n";
         std::cout << cgiOut << "\n";
+        response.cgidone = true;
         return true;
     } 
     else
     {
         std::cerr << "script terminated with error\n";
+        response.cgidone = true;
         response.setStatusCode(502);
-        return true;
+        response.errorPage();
         throw std::runtime_error("script can not execute\n");
     }
     return true;

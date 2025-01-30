@@ -45,6 +45,7 @@ class HttpResponse
 		std::string getErrorpath() const;
 		std::string getCgiBody() const;
 		void 		errorPage();
+		bool		cgidone;
 
 		int	getchildid();
 

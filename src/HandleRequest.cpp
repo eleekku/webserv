@@ -221,6 +221,7 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 
 HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
 	HttpResponse response;
+	response.cgidone = false;
 	response.setHeader("Server", confile.getServerName(serverIndex));
 	response.setErrorpath(confile.getErrorPage(serverIndex));
 	unsigned int status = request.getStatus();

@@ -171,7 +171,6 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 int currentData = events[i].data.u32;
                 int serverIndex = currentData >> 16;
                 int fdCurrentData = currentData & 0xFFFF;
-                std::cout << "\n\nfd in epoll\n\n" << fdCurrentData << "\n\n";
                 if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
                     socketS = fdCurrentData;
                 else
@@ -214,13 +213,11 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 {
                     if (events[i].events & EPOLLIN)
                     {
-                        std::cout << "\nin\n";
                         createNewParserObject(i);
                         if (_requests[i].startParsing(client, conf.getMax_body(serverIndex)) == true)
                         {
                             event.events = EPOLLOUT;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
-                            std::cout << "Not yet..." << std::endl;
                         }
                     }
                     if (events[i].events & EPOLLOUT)
@@ -228,7 +225,6 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         //handleClientConnection(serverIndex, conf, client, epollFd, event, i);
                         if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
                         {
-                            std::cout << "\n\n vine aki\n\n";
                             event.events = EPOLLOUT;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
                         }
@@ -304,7 +300,6 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
     epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
     close(clientFd);
     client_activity.erase(clientFd);
-    std::cout << "\n\n respuesta lista\n\n";
     return true;
 }
 
