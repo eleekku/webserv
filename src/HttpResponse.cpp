@@ -21,12 +21,7 @@ HttpResponse::~HttpResponse() {
 }
 
 HttpResponse::HttpResponse(const HttpResponse& other) {
-	m_statusCode = other.m_statusCode;
-	m_reasonPhrase = other.m_reasonPhrase;
-	m_headers = other.m_headers;
-	m_body = other.m_body;
-	m_mime = other.m_mime;
-	m_sent = other.m_sent;
+	*this = other;
 }
 
 HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
@@ -38,6 +33,10 @@ HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 	m_body = other.m_body;
 	m_mime = other.m_mime;
 	m_sent = other.m_sent;
+	cgi = other.cgi;
+	m_totalBytesSent = other.m_totalBytesSent;
+	m_errorpath = other.m_errorpath;
+	m_responsestr = other.m_responsestr;
 	return *this;
 }
 
@@ -67,6 +66,11 @@ std::string HttpResponse::getMimeKey() const
 std::string HttpResponse::getReasonPhrase() const
 {
 	return m_reasonPhrase;
+}
+
+std::string HttpResponse::getCgiBody() const
+{
+	return cgi->getCgiOut();
 }
 
 void HttpResponse::setHeader(const std::string& key, const std::string& value)
@@ -114,6 +118,16 @@ std::string HttpResponse::getErrorpath() const
 	return m_errorpath;
 }
 
+void HttpResponse::createCgi() {
+	if (!cgi)
+		cgi.emplace();
+}
+
+void	HttpResponse::startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response) {
+	if (cgi)
+		cgi->executeCGI(scriptPath, queryString, body, method, response);
+}
+
 void HttpResponse::generate() {
 
 	std::ostringstream response;
@@ -150,6 +164,19 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	std::cout << "socket \n" << m_totalBytesSent << "\n";
     //if (events[i].events & EPOLLOUT)
     //{
+		if (cgi)
+		{
+		std::cout << "should be cgi response\n";
+		if (cgi->waitpidCheck(*this) == false)
+			return false;
+		else {
+			setBody(cgi->getCgiOut());
+			std::cout << "body to send\n" << m_body << "\n";
+		//	setHeader("Server", confile.getServerName(serverIndex));
+			generate();
+			bodySize = m_responsestr.size();
+		}
+		}
         ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, 2000000, MSG_NOSIGNAL);
 		//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
 		std::cout <<  "\n bytes to send\n" <<bytesSent << "\n";
@@ -167,4 +194,9 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
     //}
 	m_sent = true;
 	return true;
+}
+
+int	HttpResponse::getchildid()
+{
+	return cgi->getchildid();
 }

@@ -198,16 +198,18 @@ std::pair<int, std::string> locateAndReadFile(HttpParser &request, ConfigFile &c
 //	std::cout << "path is " << path << std::endl;
 	if (locationStr == "/cgi") { //calls the cgi executor
 		std::cout << "its cgi! " << std::endl;
-		CgiHandler cgi;
-		std::string body;
+	//	CgiHandler cgi;
+		response.createCgi();
+	//	response.startCgi(path, request.getQuery(), "", GET);
 		try {
-			body = cgi.executeCGI(path, request.getQuery(), "", GET, response);
-			response.setStatusCode(200);
+			response.startCgi(path, request.getQuery(), "", GET, response);
+			response.setStatusCode(102);
+			return {102, "Processing"};	
 		}
 		catch (std::runtime_error &e) {
 			return (returnErrorPage(response));
 		}
-		return {response.getStatus(), body};
+
 	}
 	struct stat fileStat;
 	stat(path.c_str(), &fileStat);
@@ -236,11 +238,12 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 		return;
 	}
 	location = findKey(locationStr, serverIndex, confile);
-	CgiHandler cgi;
-	std::string body = cgi.executeCGI(location.root, request.getQuery(), request.getBody(), POST, response);
-	response.setStatusCode(200);
-	response.setBody(body);
-	response.setMimeType(".txt");
+	response.createCgi();
+//	CgiHandler cgi;
+
+	response.startCgi(location.root, request.getQuery(), request.getBody(), POST, response);
+		response.setStatusCode(102);
+		return;
 }
 
 HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
@@ -268,6 +271,7 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			return response;
 		case GET:
 			file = locateAndReadFile(request, confile, serverIndex, response);
+	//		std::cout << "child id in receieve request is " << response.getchildid() << std::endl;
 			response.setStatusCode(file.first);
 			response.setHeader("Server", confile.getServerName(serverIndex));
 			response.setBody(file.second);

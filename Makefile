@@ -7,12 +7,12 @@ SRC_DIR  := ./src
 OBJ_DIR  := ./obj
 
 SRCS	:= $(SRC_DIR)/main.cpp \
+			$(SRC_DIR)/ConfigFile.cpp \
+			$(SRC_DIR)/CgiHandler.cpp \
 			$(SRC_DIR)/HandleRequest.cpp \
 			$(SRC_DIR)/HttpParser.cpp \
 			$(SRC_DIR)/Server.cpp \
-			$(SRC_DIR)/HttpResponse.cpp \
-			$(SRC_DIR)/ConfigFile.cpp \
-			$(SRC_DIR)/CgiHandler.cpp
+			$(SRC_DIR)/HttpResponse.cpp
 OBJS	:= $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 
 INC_FLAG := -I include

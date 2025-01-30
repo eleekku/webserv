@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CgiHandler.hpp"
 #include <string>
 #include <map>
 #include <ctime>
@@ -8,6 +9,7 @@
 #include <filesystem>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <optional>
 #include "HttpParser.hpp"
 #include "ConfigFile.hpp"
 #include "Server.hpp"
@@ -26,6 +28,9 @@ class HttpResponse
 		void 	setStatusCode(int code);
 		void 	setMimeType(const std::string& mime);
 		void 	setErrorpath(std::string errorpath);
+
+		void 	createCgi();
+		void	startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
 		void 	generate();
 		bool	sendResponse(int serverSocket, int i);                      //int clientFd, int epollFd,;
 
@@ -35,19 +40,23 @@ class HttpResponse
 		std::string getMimeKey() const;
 		std::string getReasonPhrase() const;
 		std::string getErrorpath() const;
+		std::string getCgiBody() const;
+
+		int	getchildid();
 
 	private:
 
-		int			m_statusCode;
-		bool		m_sent;
-		size_t		m_totalBytesSent;
-		std::map	<std::string, std::string> m_headers;
-		std::string	m_reasonPhrase;
-		std::string	m_body;
-		std::string m_mime;
-		std::string m_errorpath;
-		std::string m_responsestr;
-		std::string	getCurrentDate() const;
-		static const std::map<int, std::string> m_statusMap;
-		static const std::map<std::string, std::string> m_mimeTypes;
+		std::optional<CgiHandler> 						cgi; 
+		int												m_statusCode;
+		bool											m_sent;
+		size_t											m_totalBytesSent;
+		std::map<std::string, std::string>				m_headers;
+		std::string										m_reasonPhrase;
+		std::string										m_body;
+		std::string 									m_mime;
+		std::string 									m_errorpath;
+		std::string 									m_responsestr;
+		std::string										getCurrentDate() const;
+		static const std::map<int, std::string>			m_statusMap;
+		static const std::map<std::string, std::string>	m_mimeTypes;
 };

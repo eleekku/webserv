@@ -7,17 +7,31 @@
 #include <regex>
 #include <string>
 #include <set>
-#include "HttpResponse.hpp"
 
 
 class HttpResponse;
 
 class CgiHandler
 {
-public:
+
+	private :
+
+	int pid;
+	int pidResult;
+	int status;
+	int fdPipe[2];
+	std::string cgiOut;
+
+	public:
 
 	CgiHandler();
 	~CgiHandler();
 
-	std::string executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
+	CgiHandler(const CgiHandler&); // = default;
+    CgiHandler& operator=(const CgiHandler&); // = default;
+
+	void executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
+	bool waitpidCheck(HttpResponse &response);
+	std::string getCgiOut() const;
+	int getchildid();
 };
