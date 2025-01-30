@@ -111,7 +111,7 @@ void Server::run(ConfigFile& conf)
     int socketSize = serveSocket.size();
     for (int i = 0; i < socketSize; ++i)
     {
-        event.events = EPOLLIN | EPOLLET;// | EPOLLOUT; // Non-blocking edge-triggered
+        event.events = EPOLLIN;// | EPOLLET;// | EPOLLOUT; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
         if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1)
         {
@@ -224,12 +224,17 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     }
                     if (events[i].events & EPOLLOUT)
                     {
-                        handleClientConnection(serverIndex, conf, client, epollFd, event, i);
-                        /*if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
+                        //handleClientConnection(serverIndex, conf, client, epollFd, event, i);
+                        if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
                         {
                             events[i].events = EPOLLOUT;
-                            epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd[i], &event);
-                        }*/
+                            epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
+                        }
+                        else
+                        {
+                            events[i].events = EPOLLIN;
+                            epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
+                        }
                     }
                 }
                 client = 0;
@@ -259,7 +264,7 @@ void Server::releaseVectors(size_t index)
 		_is_used[index] = false;
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clientFd, int epollFd, struct epoll_event event,  int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clientFd, int epollFd, struct epoll_event event,  int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
 
     //std::cout << request[eventIndex].getMethodString() << " " << request[eventIndex].getTarget() << std::endl;
@@ -277,7 +282,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         {
             _response[eventIndex] = response;
             _sending[clientFd] = true;
-            return ;
+            return false;
         }
     }
     else
@@ -286,7 +291,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         if (it != _sending.end() && it->second == true)
         {
             if (_response[eventIndex].sendResponse(clientFd, eventIndex) != true)
-                return ;
+                return false;
         }
     }
     /*
@@ -302,7 +307,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
     epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
     close(clientFd);
     client_activity.erase(clientFd);
-    return ;
+    return true;
 }
 
 
