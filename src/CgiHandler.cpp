@@ -1,5 +1,6 @@
 #include "../include/CgiHandler.hpp"
 #include "../include/HttpResponse.hpp"
+#include "Constants.hpp"
 
 CgiHandler::CgiHandler() {}
 
@@ -7,7 +8,7 @@ CgiHandler::~CgiHandler() {}
 
 int childid = 0;
 
-void timeoutHandler(int signal) 
+void timeoutHandler(int signal)
 {
     if (signal == SIGALRM)
     {
@@ -24,23 +25,23 @@ std::set<std::string> pythonKeywords = {
     "not", "or", "pass", "raise", "return", "try", "while", "with", "yield"
 };
 
-bool isValidPythonFilename(std::string& filename) 
+bool isValidPythonFilename(std::string& filename)
 {
 
     std::regex pattern(R"(^[a-zA-Z_][a-zA-Z0-9_]*\.py$)");
 
-    if (!std::regex_match(filename, pattern)) 
+    if (!std::regex_match(filename, pattern))
         return false;
 
     std::string nameWithoutExtension = filename.substr(0, filename.size() - 3);
 
-    if (pythonKeywords.find(nameWithoutExtension) != pythonKeywords.end()) 
+    if (pythonKeywords.find(nameWithoutExtension) != pythonKeywords.end())
         return false;
 
     return true;
 }
 
-std::string getPythonName(std::string& path) 
+std::string getPythonName(std::string& path)
 {
     size_t pos = path.find_last_of("/");
 
@@ -137,7 +138,7 @@ std::string CgiHandler::executeCGI(std::string scriptPath, std::string queryStri
             std::cout << "script executed\n";
             std::cout << strOut << "\n";
             return strOut;
-        } 
+        }
         else
         {
             response.setStatusCode(502);

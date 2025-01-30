@@ -1,9 +1,8 @@
 #include "../include/Server.hpp"
 #include "../include/HandleRequest.hpp"
+#include "Constants.hpp"
 #include <algorithm>
 #include <cstddef>
-
-#define MAX_EVENTS 10
 
 //note : try catch to handle errors
 //       check max client body
@@ -211,7 +210,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 {
                     if (events[i].events & EPOLLIN)
                     {
-                        getParser(i);
+                        createNewParserObject(i);
                         if (_requests[i].startParsing(fdCurrentClient) == true)
                         {
                             events[i].events = EPOLLOUT;
@@ -235,7 +234,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
     }
 }
 
-void    Server::getParser(size_t index)
+void    Server::createNewParserObject(size_t index)
 {
 	if (index < _requests.size() && !_is_used[index])
 	{

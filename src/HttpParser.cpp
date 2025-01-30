@@ -1,4 +1,5 @@
 #include "HttpParser.hpp"
+#include "Constants.hpp"
 #include <cerrno>
 #include <iostream>
 #include <fstream>
@@ -355,12 +356,6 @@ void	HttpParser::parseQuery()
 void	HttpParser::checkReadRequest()
 {
 	_state = parsingRequest;
-	if (_request.size() > MAX_REQUEST_SIZE)
-	{
-		const char *needle = "\r\n\r\n";
-		_request.insert(_request.end(), needle, needle + 4);
-		return ;
-	}
 	if (_request.size() >= 4)
 	{
 		std::string end(_request.end() - 4, _request.end());
@@ -417,7 +412,18 @@ void HttpParser::readRequest(int clientfd, bool body)
 			else if (_totalBytesRead < _contentLength && body)
 				_state = readingBody;
 		}
-		// Check if the request is too big or has other issues
+		if (body && _request.size() > MAX_BODY_SIZE)
+		{
+			_state = error;
+			_status = 413;
+			throw std::runtime_error("Request too large");
+		}
+		if (_request.size() > MAX_REQUEST_SIZE)
+		{
+			const char *needle = "\r\n\r\n";
+			_request.insert(_request.end(), needle, needle + 4);
+			_state = checkingRequest;
+		}
 	}
 }
 
