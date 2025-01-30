@@ -42,6 +42,7 @@ class HttpResponse
 		std::string getReasonPhrase() const;
 		std::string getErrorpath() const;
 		std::string getCgiBody() const;
+		void 		errorPage();
 
 		int	getchildid();
 
