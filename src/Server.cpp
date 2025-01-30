@@ -111,7 +111,7 @@ void Server::run(ConfigFile& conf)
     int socketSize = serveSocket.size();
     for (int i = 0; i < socketSize; ++i)
     {
-        event.events = EPOLLIN | EPOLLET;// | EPOLLOUT; // Non-blocking edge-triggered
+        event.events = EPOLLIN;// | EPOLLET;// | EPOLLOUT; // Non-blocking edge-triggered
         event.data.u32 = (i << 16) | serveSocket[i];
         if (epoll_ctl(epollFd, EPOLL_CTL_ADD, serveSocket[i], &event) == -1)
         {
@@ -171,6 +171,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 int currentData = events[i].data.u32;
                 int serverIndex = currentData >> 16;
                 int fdCurrentData = currentData & 0xFFFF;
+                std::cout << "\n\nfd in epoll\n\n" << fdCurrentData << "\n\n";
                 if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
                     socketS = fdCurrentData;
                 else
@@ -178,7 +179,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 if (socketS != 0)
                 {
                     // New connection on server socket
-                    std::cout << "\nindex event cuando acepto\n" << i << "\n";
+                    std::cout << "\nindex event before accept\n" << i << "\n";
                     sockaddr_in clientAddr{};
                     socklen_t clientLen = sizeof(clientAddr);
                     int clientFd = accept(socketS, (sockaddr*)&clientAddr, &clientLen);
@@ -206,7 +207,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         continue;
                     }
                     client_activity[fdClient] = time(NULL);
-                    events[i].events = EPOLLIN;
+                    event.events = EPOLLIN;
                     epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &event);
                 }
                 else
@@ -224,12 +225,12 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     }
                     if (events[i].events & EPOLLOUT)
                     {
-                        handleClientConnection(serverIndex, conf, client, epollFd, event, i);
-                        /*if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
+                        //handleClientConnection(serverIndex, conf, client, epollFd, event, i);
+                        if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
                         {
                             events[i].events = EPOLLOUT;
-                            epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd[i], &event);
-                        }*/
+                            epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
+                        }
                     }
                 }
                 client = 0;
@@ -259,7 +260,7 @@ void Server::releaseVectors(size_t index)
 		_is_used[index] = false;
 }
 
-void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clientFd, int epollFd, struct epoll_event event,  int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clientFd, int epollFd, struct epoll_event event,  int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
 
     //std::cout << request[eventIndex].getMethodString() << " " << request[eventIndex].getTarget() << std::endl;
@@ -277,7 +278,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         {
             _response[eventIndex] = response;
             _sending[clientFd] = true;
-            return ;
+            return false;
         }
     }
     else
@@ -286,7 +287,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         if (it != _sending.end() && it->second == true)
         {
             if (_response[eventIndex].sendResponse(clientFd, eventIndex) != true)
-                return ;
+                return false;
         }
     }
     /*
@@ -302,7 +303,7 @@ void Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
     epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
     close(clientFd);
     client_activity.erase(clientFd);
-    return ;
+    return true;
 }
 
 

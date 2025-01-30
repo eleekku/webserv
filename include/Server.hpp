@@ -46,7 +46,7 @@ class Server
     int createServerSocket(int port, std::string ipServer);
     void run(ConfigFile& conf);
     std::vector<int> getServerSocket();
-    void handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int i);
+    bool handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int i);
     int getEpollFd();
     int getClientFd();
     int getfdGeneral();
