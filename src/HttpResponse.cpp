@@ -204,7 +204,7 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 		errorPage();
 		bodySize = m_responsestr.size();
 	}
-		std::cout << "response is \n" << m_responsestr << "\n";
+	//	std::cout << "response is \n" << m_responsestr << "\n";
         ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, 2000000, MSG_NOSIGNAL);
 		//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
 		std::cout <<  "\n bytes to send\n" <<bytesSent << "\n";

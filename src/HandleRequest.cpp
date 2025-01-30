@@ -195,9 +195,10 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 		response.errorPage();
 		return;
 	}
-
+//	response.setStatusCode(200);
 	std::ostringstream buffer;
 	buffer << file.rdbuf();
+	response.setBody(buffer.str());
 	return;
 }
 
@@ -213,8 +214,6 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 	}
 	location = findKey(locationStr, serverIndex, confile);
 	response.createCgi();
-//	CgiHandler cgi;
-
 	response.startCgi(location.root, request.getQuery(), request.getBody(), POST, response);
 		response.setStatusCode(102);
 		return;
@@ -222,8 +221,10 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 
 HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
 	HttpResponse response;
+	response.setHeader("Server", confile.getServerName(serverIndex));
 	response.setErrorpath(confile.getErrorPage(serverIndex));
 	unsigned int status = request.getStatus();
+	response.setStatusCode(status);
 	std::cout << "status is " << status << std::endl;
 	if (status != 200 && status != 201 && status != 204)
 	{
@@ -233,21 +234,17 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 //		response.setBody("Bad Request");
 		return response;
 	}
-	std::cout << "method is " << request.getMethod() << std::endl;
-	int	method = request.getMethod();
-	std::cout << "method is " << method << std::endl; 
-	switch (method) {
+	switch (request.getMethod()) {
 		case DELETE:
 			response.setStatusCode(status);
-			response.setHeader("Server", confile.getServerName(serverIndex));
 			handleDelete(request, confile, serverIndex, response);
 		//	response.setBody("Not found");
 			return response;
 		case GET:
+	//		std::cout << "entering response with status :" << response.getStatus() << std::endl;
 			locateAndReadFile(request, confile, serverIndex, response);
 	//		std::cout << "child id in receieve request is " << response.getchildid() << std::endl;;
-			std::cout << "returning from response with status :" << response.getStatus() << std::endl;
-			response.setHeader("Server", confile.getServerName(serverIndex));
+	//		std::cout << "returning from response with status :" << response.getStatus() << std::endl;
 			return response;
 		case POST:
 			response.setHeader("Server", confile.getServerName(serverIndex));
@@ -260,10 +257,8 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 				handlePost(request, confile, serverIndex, response);
 			return response;
 		default:
-			status = 405;
-			response.setStatusCode(status);
-			response.setMimeType(".html");
-			response.setHeader("Server", confile.getServerName(serverIndex));
+			response.setStatusCode(405);
+			response.errorPage();
 		//	response.setBody("Not found");
 			return response;
 	}
