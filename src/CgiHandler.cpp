@@ -144,6 +144,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     std::cout << errno << "\n";
     if (pidResult == 0)
     {
+        response.setStatusCode(102);
         return false;
       //  throw std::runtime_error("cgi is still running");
     }
