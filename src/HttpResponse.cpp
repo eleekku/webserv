@@ -159,6 +159,23 @@ void HttpResponse::generate() {
 	m_responsestr = response.str();
 }
 
+void HttpResponse::errorPage() {
+	std::ifstream file("." + getErrorpath(), std::ios::binary);
+	std::ostringstream buffer;
+	buffer << file.rdbuf();
+	std::string bufferstr = buffer.str();
+	size_t codePos = bufferstr.find("{{error_code}}");
+	if (codePos != std::string::npos) {
+		bufferstr.replace(codePos, 14, std::to_string(getStatus()));
+    }
+	size_t messagePos = bufferstr.find("{{error_message}}");
+    if (messagePos != std::string::npos) {
+        bufferstr.replace(messagePos, 17, getReasonPhrase());
+    }
+	setBody(bufferstr);
+	setMimeType(".html");
+}
+
 bool HttpResponse::sendResponse(int serverSocket, int i)
 {
 	std::cout << "\nhola\n";
@@ -184,7 +201,7 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 		}
 	}
 	catch (std::exception &e) {
-		returnErrorPage(*this);
+		errorPage();
 		bodySize = m_responsestr.size();
 	}
 		std::cout << "response is \n" << m_responsestr << "\n";
