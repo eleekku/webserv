@@ -1,4 +1,5 @@
 #pragma once
+#include "Constants.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -7,27 +8,6 @@
 #include <vector>
 #include <array>
 
-#define BUFFER_SIZE 8192
-#define MAX_REQUEST_SIZE 24576
-
-enum e_state {
-	start = 1,
-	readingRequest = 2,
-	checkingRequest = 3,
-	parsingRequest = 4,
-	startBody = 5,
-	readingBody = 6,
-	parsingBody = 7,
-	done = 8,
-	error = 0
-};
-
-enum e_http_method {
-	DELETE = 0,
-	GET = 1,
-	POST = 2,
-	UNKNOWN = 3
-};
 
 typedef std::unordered_map<std::string, std::string> map_t;
 
@@ -35,7 +15,7 @@ class HttpParser
 {
 	private:
 		// Variables
-		e_state				_state;
+		ParsingState		_state;
 		std::vector<char>	_request;
 		size_t				_pos;
 		size_t				_totalBytesRead;
