@@ -140,12 +140,10 @@ void HttpResponse::generate() {
 		response << "Content-Type: " << getMimeType(m_mime) << "\r\n";
 	}
 	if (m_headers.find("Content-Length") == m_headers.end()) {
-		if (m_body.empty() && m_statusCode != 204) {
+		if (m_body.empty() && m_statusCode != 204) 
 			m_body = getReasonPhrase();
-			response << "Content-Length: " << m_body.size() << "\r\n";
-		}
-		if (!m_body.empty())
-        	response << "Content-Length: " << m_body.size() << "\r\n";
+		if (m_statusCode != 204)
+		response << "Content-Length: " << m_body.size() << "\r\n";
     }
 
 	for (const auto& [key, value] : m_headers) {
@@ -175,7 +173,6 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 		{
 		std::cout << "should be cgi response\n";
 		if (!cgi->waitpidCheck(*this))
-
 			return false;
 		else {
 			setBody(cgi->getCgiOut());
@@ -188,7 +185,9 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	}
 	catch (std::exception &e) {
 		returnErrorPage(*this);
+		bodySize = m_responsestr.size();
 	}
+		std::cout << "response is \n" << m_responsestr << "\n";
         ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, 2000000, MSG_NOSIGNAL);
 		//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
 		std::cout <<  "\n bytes to send\n" <<bytesSent << "\n";
