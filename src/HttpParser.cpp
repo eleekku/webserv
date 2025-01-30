@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0), _method_enum(UNKNOWN), _status(200), _contentLength(0) {}
+HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0), _method_enum(UNKNOWN), _status(200), _max_body_size(0), _contentLength(0) {}
 
 // Getters
 map_t		HttpParser::getHeaders() { return _headers;}
@@ -412,7 +412,7 @@ void HttpParser::readRequest(int clientfd, bool body)
 			else if (_totalBytesRead < _contentLength && body)
 				_state = readingBody;
 		}
-		if (body && _request.size() > MAX_BODY_SIZE)
+		if (body && _request.size() > _max_body_size)
 		{
 			_state = error;
 			_status = 413;
@@ -427,8 +427,9 @@ void HttpParser::readRequest(int clientfd, bool body)
 	}
 }
 
-bool	HttpParser::startParsing(int clientfd)
+bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 {
+	_max_body_size = maxBodySize;
 	try {
 		while (true)
 		{

@@ -156,7 +156,6 @@ void HttpResponse::generate() {
 		response << m_body;
 	else if (m_statusCode != 204) {
 		response << getReasonPhrase();
-		
 	}
 	m_responsestr = response.str();
 }
@@ -189,7 +188,7 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	catch (std::exception &e) {
 		returnErrorPage(*this);
 	}
-        ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, 2000000, MSG_NOSIGNAL);
+        ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, m_responsestr.size(), MSG_NOSIGNAL);
 		//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
 		std::cout <<  "\n bytes to send\n" <<bytesSent << "\n";
         if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
