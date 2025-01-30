@@ -218,7 +218,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         createNewParserObject(i);
                         if (_requests[i].startParsing(client) == true)
                         {
-                            events[i].events = EPOLLOUT;
+                            event.events = EPOLLOUT;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
                             std::cout << "Not yet..." << std::endl;
                         }
@@ -228,7 +228,8 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         //handleClientConnection(serverIndex, conf, client, epollFd, event, i);
                         if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
                         {
-                            events[i].events = EPOLLOUT;
+                            std::cout << "\n\n vine aki\n\n";
+                            event.events = EPOLLOUT;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
                         }
                     }
@@ -277,7 +278,7 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         if (response.sendResponse(clientFd, eventIndex) != true)//getStatus for to check if we already send evething
         {
             _response[eventIndex] = response;
-            _sending[clientFd] = true;
+            _sending[eventIndex] = true;
             return false;
         }
     }
@@ -298,11 +299,12 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         bodySize = body.size();
     */
     releaseVectors(eventIndex);
-    _sending.erase(clientFd);
+    _sending.erase(eventIndex);
     event.data.fd = clientFd;
     epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
     close(clientFd);
     client_activity.erase(clientFd);
+    std::cout << "\n\n respuesta lista\n\n";
     return true;
 }
 

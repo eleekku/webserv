@@ -163,11 +163,16 @@ void HttpResponse::generate() {
 
 bool HttpResponse::sendResponse(int serverSocket, int i)
 {
-	std::cout << "\nhola\n";
 	(void)i;
     //struct epoll_event events[10];
 	size_t bodySize = m_responsestr.size();
-	std::cout << "socket \n" << m_totalBytesSent << "\n";
+	int bufferSize = bodySize - m_totalBytesSent;
+	std::cout << "\n\n----------------------------\n\n";
+	std::cout << "m_totalBytesSent \n" << m_totalBytesSent << "\n";
+	std::cout << "bodySize \n" << bodySize << "\n";
+	std::cout << "bufferSize \n" << bufferSize << "\n";
+	std::cout << "\n\n----------------------------\n\n";
+	
     //if (events[i].events & EPOLLOUT)
     //{
 	try {
@@ -189,20 +194,23 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	catch (std::exception &e) {
 		returnErrorPage(*this);
 	}
-        ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, 2000000, MSG_NOSIGNAL);
-		//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
-		std::cout <<  "\n bytes to send\n" <<bytesSent << "\n";
-        if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
-        {
-            std::cout << "Send fail to response client " << serverSocket << "\n";
-        }
-        else
-            m_totalBytesSent += bytesSent;
-        if (m_totalBytesSent < bodySize)
-        {
-            //readytoanswer[serverSocket] = true;
-			return false;
-        }
+
+	if (bufferSize > MAX_SIZE_SEND)
+		bufferSize = MAX_SIZE_SEND;
+	ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, bufferSize, MSG_NOSIGNAL);
+	//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
+	std::cout <<  "\n bytes to send\n" <<bytesSent << "\n";
+	if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
+	{
+		std::cout << "Send fail to response client " << serverSocket << "\n";
+	}
+	else
+		m_totalBytesSent += bytesSent;
+	if (m_totalBytesSent < bodySize)
+	{
+		//readytoanswer[serverSocket] = true;
+		return false;
+	}
     //}
 	m_sent = true;
 	return true;

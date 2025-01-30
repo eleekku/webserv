@@ -15,6 +15,8 @@
 #include "Server.hpp"
 #include "HandleRequest.hpp"
 
+static const int MAX_SIZE_SEND = 20000000;
+
 class HttpResponse
 {
 	public:
