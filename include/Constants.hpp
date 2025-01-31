@@ -48,12 +48,11 @@ enum ServerState {
 enum ParsingState {
 	start = 1,
 	readingRequest = 2,
-	checkingRequest = 3,
-	parsingRequest = 4,
-	startBody = 5,
-	readingBody = 6,
-	parsingBody = 7,
-	done = 8,
+	parsingRequest = 3,
+	startBody = 4,
+	readingBody = 5,
+	parsingBody = 6,
+	done = 7,
 	error = 0
 };
 
