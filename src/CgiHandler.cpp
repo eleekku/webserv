@@ -169,7 +169,6 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     if (WIFSIGNALED(status))
     {
         std::cerr << "script terminated by signal " << "\n";
-        close(fdPipe[1]);
         close(fdPipe[0]);
         response.setStatusCode(504);
         throw std::runtime_error("script terminated by signal\n");
@@ -187,7 +186,6 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         std::cout << "bites read is " << bitesRead << "\n";
         buffer[bitesRead] = '\0';
         cgiOut += buffer;
-        close(fdPipe[1]);
         close(fdPipe[0]);
         response.setStatusCode(200);
         std::cerr << "script executed\n";
