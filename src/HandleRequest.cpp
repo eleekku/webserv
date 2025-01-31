@@ -219,8 +219,7 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 		return;
 }
 
-HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex) {
-	HttpResponse response;
+void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
 	response.cgidone = false;
 	response.setHeader("Server", confile.getServerName(serverIndex));
 	response.setErrorpath(confile.getErrorPage(serverIndex));
@@ -233,20 +232,20 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 		response.setStatusCode(status);
 		response.errorPage();
 //		response.setBody("Bad Request");
-		return response;
+		return;
 	}
 	switch (request.getMethod()) {
 		case DELETE:
 			response.setStatusCode(status);
 			handleDelete(request, confile, serverIndex, response);
 		//	response.setBody("Not found");
-			return response;
+			return;
 		case GET:
 	//		std::cout << "entering response with status :" << response.getStatus() << std::endl;
 			locateAndReadFile(request, confile, serverIndex, response);
 	//		std::cout << "child id in receieve request is " << response.getchildid() << std::endl;;
 	//		std::cout << "returning from response with status :" << response.getStatus() << std::endl;
-			return response;
+			return;
 		case POST:
 			response.setHeader("Server", confile.getServerName(serverIndex));
 			if (status == 201) {
@@ -256,11 +255,11 @@ HttpResponse receiveRequest(HttpParser& request, ConfigFile &confile, int server
 			}
 			else
 				handlePost(request, confile, serverIndex, response);
-			return response;
+			return;
 		default:
 			response.setStatusCode(405);
 			response.errorPage();
 		//	response.setBody("Not found");
-			return response;
+			return;
 	}
 }

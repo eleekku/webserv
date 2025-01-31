@@ -17,4 +17,4 @@ void			handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, H
 std::string		getExtension(const std::string_view& url);
 void			locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex, HttpResponse &response);
 void 			handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpResponse &response);
-HttpResponse	receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex);
+void			receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response);
