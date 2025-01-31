@@ -95,7 +95,7 @@ class HttpParser
 				}();
 
 		// Parsing
-		void				readRequest(int clientfd, bool body);
+		void				readRequest(int clientfd);
 		std::stringstream	getVectorLine();
 		std::vector<char>	getBodyData();
 		void				extractReqLine();
@@ -114,6 +114,7 @@ class HttpParser
 		void	checkReadRequest();
 		bool	checkRequest(std::stringstream& line);
 		void	checkHeaders(std::string_view key, std::string_view value);
+		void	checkBody();
 
 	public:
 		// Constructor

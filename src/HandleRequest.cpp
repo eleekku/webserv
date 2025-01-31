@@ -207,9 +207,7 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 	std::string locationStr = condenceLocation(request.getTarget());
 	if (locationStr != "/cgi") {
 		response.setStatusCode(400);
-		response.setMimeType(".html");
-		response.setHeader("Server", confile.getServerName(serverIndex));
-		response.setBody("Bad Request");
+		response.errorPage();
 		return;
 	}
 	location = findKey(locationStr, serverIndex, confile);
