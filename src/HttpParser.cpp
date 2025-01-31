@@ -397,7 +397,6 @@ void HttpParser::readRequest(int clientfd)
 	}
 	else if (bytesRead == -1)
 	{
-		std::cout << "Finished reading..." << std::endl;
 		_state = error;
 		perror("Error reading from client socket");
 		throw std::runtime_error("Error reading from client socket");
