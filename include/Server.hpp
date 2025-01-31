@@ -21,18 +21,19 @@ class Server
 {
     private:
 
-    std::vector<int> 		serveSocket;
-    std::vector<HttpParser> _requests;
-    std::vector<bool>		_is_used;
+    std::vector<int> 		    serveSocket;
+    std::vector<HttpParser>     _requests;
+    std::vector<bool>		    _is_used;
+    int                         eventCgi;
     //ConfigFile &fileC;
     int epollfd;
     int fdClient;
-    std::map<int, time_t> client_activity;
-    std::map<int, bool> _sending;
+    std::map<int, time_t>       client_activity;
+    std::map<int, bool>         _sending;
     std::vector <HttpResponse> _response;
-    size_t totalBytesSent;
-    size_t bodySize;
-    int contador;
+    size_t                      totalBytesSent;
+    size_t                      bodySize;
+    int                         contador;
     //int clientFd[10];
     //int fdGeneral;
 

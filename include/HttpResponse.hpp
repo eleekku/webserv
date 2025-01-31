@@ -40,11 +40,14 @@ class HttpResponse
 
 		std::string getBody() const;
 		int		getStatus();
+		void setCgiFd(int i);
+		int getCgiFd();
 		std::string getMimeType(const std::string& extension) const;
 		std::string getMimeKey() const;
 		std::string getReasonPhrase() const;
 		std::string getErrorpath() const;
 		std::string getCgiBody() const;
+		bool getCgiStatus();
 		void 		errorPage();
 		bool		cgidone;
 
@@ -52,6 +55,7 @@ class HttpResponse
 
 	private:
 
+		int 											cgiFd;
 		std::optional<CgiHandler> 						cgi; 
 		int												m_statusCode;
 		bool											m_sent;

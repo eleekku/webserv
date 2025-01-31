@@ -12,6 +12,7 @@ Server* g_serverInstance = nullptr;
 Server::Server()  { _response.resize(MAX_EVENTS);
 	_requests.resize(MAX_EVENTS);
 	_is_used.resize(MAX_EVENTS, false);
+    eventCgi = -1;
 }
 
 Server::~Server(){}
@@ -225,21 +226,22 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         //handleClientConnection(serverIndex, conf, client, epollFd, event, i);
                         if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
                         {
-                            if (!_response.cgi) {
+                            if (eventCgi == -1) {
                                 event.events = EPOLLOUT;
                                 epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
                             }
                         }
                     }
                 }
-                if (_response.cgi) {
-                    if (_response.cgi.waitpidCheck(_response)) {
-                        event.events = EPOLLOUT;
-                        epoll.ctl(epollFd, EPOLL_CTL_MOD, client, &event);
-                    }
-                }
                 client = 0;
                 socketS = 0;
+            }
+            if (eventCgi != -1) {
+                std::cout << "\n\ncgi report\n\n";
+                if (_response[eventCgi].enterCgiWaitpid()) {
+                    event.events = EPOLLOUT;
+                    epoll_ctl(epollFd, EPOLL_CTL_MOD, _response[eventCgi].getCgiFd(), &event);
+                }
             }
         }
     }
@@ -281,6 +283,12 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         response.generate();
         if (response.sendResponse(clientFd, eventIndex) != true)//getStatus for to check if we already send evething
         {
+            if (response.getCgiStatus())
+            {
+                response.setCgiFd(clientFd);
+                eventCgi = eventIndex;
+            }
+
             _response[eventIndex] = response;
             _sending[eventIndex] = true;
             return false;
@@ -292,8 +300,17 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         if (it != _sending.end() && it->second == true)
         {
             if (_response[eventIndex].sendResponse(clientFd, eventIndex) != true)
+            {
+                std::cout << "returning ffalse when shulndt\n";
                 return false;
+            }
         }
+    }
+    std::cout << "\ncgidone value : " << _response[eventIndex].cgidone <<"\n";
+    if (_response[eventIndex].cgidone)
+    {
+        std::cout << "\n\n------------------------\n\n" << "cgi done\n";
+        eventCgi = -1;
     }
     /*
         HttpResponse response = receiveRequest(request, conf, serverIndex);

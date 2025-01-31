@@ -15,6 +15,7 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 	else
 		m_reasonPhrase = "Unknown";
 	m_totalBytesSent = 0;
+	cgiFd = -1;
 }
 
 HttpResponse::~HttpResponse() {
@@ -37,6 +38,8 @@ HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 	m_totalBytesSent = other.m_totalBytesSent;
 	m_errorpath = other.m_errorpath;
 	m_responsestr = other.m_responsestr;
+	cgidone = other.cgidone;
+	cgiFd = other.cgiFd;
 	return *this;
 }
 
@@ -87,6 +90,11 @@ std::string HttpResponse::getBody() const
 {
 	return m_body;
 }
+bool HttpResponse::getCgiStatus(){
+	if (cgi)
+		return true;
+	return false;
+}
 
 void HttpResponse::setStatusCode(int code)
 {
@@ -102,6 +110,12 @@ void HttpResponse::setStatusCode(int code)
 int HttpResponse::getStatus() {
 	return m_statusCode;
 }
+
+void HttpResponse::setCgiFd(int i)
+{
+	cgiFd = i;
+}
+int HttpResponse::getCgiFd() { return cgiFd; }
 
 void HttpResponse::setMimeType(const std::string& mime)
 {
@@ -189,6 +203,7 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	int bufferSize = bodySize - m_totalBytesSent;
     //if (events[i].events & EPOLLOUT)
     //{
+	/*
 	try {
 		if (cgi && cgidone == false)
 		{
@@ -206,6 +221,14 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	catch (std::exception &e) {
 		errorPage();
 		bodySize = m_responsestr.size();
+	}*/
+	if (cgi)
+		std::cerr << "cgidone value is: " << cgidone;
+	if (cgi && cgidone)
+	{
+			generate();
+			bodySize = m_responsestr.size();
+			bufferSize = bodySize - m_totalBytesSent;
 	}
 
 	if (bufferSize > MAX_SIZE_SEND)
