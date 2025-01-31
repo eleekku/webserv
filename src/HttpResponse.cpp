@@ -15,7 +15,6 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 	else
 		m_reasonPhrase = "Unknown";
 	m_totalBytesSent = 0;
-	cgiFd = -1;
 }
 
 HttpResponse::~HttpResponse() {
@@ -38,8 +37,7 @@ HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 	m_totalBytesSent = other.m_totalBytesSent;
 	m_errorpath = other.m_errorpath;
 	m_responsestr = other.m_responsestr;
-	cgidone = other.cgidone;
-	cgiFd = other.cgiFd;
+	m_epoll = other.m_epoll;
 	return *this;
 }
 
@@ -90,11 +88,6 @@ std::string HttpResponse::getBody() const
 {
 	return m_body;
 }
-bool HttpResponse::getCgiStatus(){
-	if (cgi)
-		return true;
-	return false;
-}
 
 void HttpResponse::setStatusCode(int code)
 {
@@ -111,12 +104,6 @@ int HttpResponse::getStatus() {
 	return m_statusCode;
 }
 
-void HttpResponse::setCgiFd(int i)
-{
-	cgiFd = i;
-}
-int HttpResponse::getCgiFd() { return cgiFd; }
-
 void HttpResponse::setMimeType(const std::string& mime)
 {
 	m_mime = mime;
@@ -132,6 +119,9 @@ std::string HttpResponse::getErrorpath() const
 	return m_errorpath;
 }
 
+int HttpResponse::getEpoll() { return m_epoll; }
+void HttpResponse::setEpoll(int epoll) { m_epoll = epoll; }
+
 void HttpResponse::createCgi() {
 	if (!cgi)
 		cgi.emplace();
@@ -140,12 +130,6 @@ void HttpResponse::createCgi() {
 void	HttpResponse::startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response) {
 	if (cgi)
 		cgi->executeCGI(scriptPath, queryString, body, method, response);
-}
-
-bool HttpResponse::enterCgiWaitpid() {
-	if (cgi)
-		return cgi->waitpidCheck(*this);
-	return false;
 }
 
 void HttpResponse::generate() {
@@ -203,10 +187,10 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	int bufferSize = bodySize - m_totalBytesSent;
     //if (events[i].events & EPOLLOUT)
     //{
-	/*
 	try {
-		if (cgi && cgidone == false)
+		if (cgi)
 		{
+		std::cout << "should be cgi response\n";
 		if (!cgi->waitpidCheck(*this))
 			return false;
 		else {
@@ -221,14 +205,6 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 	catch (std::exception &e) {
 		errorPage();
 		bodySize = m_responsestr.size();
-	}*/
-	if (cgi)
-		std::cerr << "cgidone value is: " << cgidone;
-	if (cgi && cgidone)
-	{
-			generate();
-			bodySize = m_responsestr.size();
-			bufferSize = bodySize - m_totalBytesSent;
 	}
 
 	if (bufferSize > MAX_SIZE_SEND)

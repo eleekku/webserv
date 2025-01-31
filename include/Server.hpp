@@ -22,6 +22,7 @@ class Server
     private:
 
     std::vector<int> 		    serveSocket;
+    int statusCgi;
     std::vector<HttpParser>     _requests;
     std::vector<bool>		    _is_used;
     int                         eventCgi;

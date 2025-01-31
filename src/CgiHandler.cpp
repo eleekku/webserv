@@ -67,7 +67,7 @@ std::string getPythonName(std::string& path)
 
 void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
 {
-
+    struct epoll_event event;
     std::cout << "\ncgi runing\n";
     if (scriptPath.size() == 0)
     {
@@ -89,6 +89,10 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
         throw std::runtime_error("Pipe fail\n");
     }
     fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
+    event.events = EPOLLOUT;
+    event.data.fd = fdPipe[0];
+    event.data.u32 = (0 << 16) | fdPipe[0];
+    epoll_ctl(response.getEpoll(), EPOLL_CTL_ADD, fdPipe[0], &event);
     pid = fork();
     childid = pid;
     if (pid == -1)

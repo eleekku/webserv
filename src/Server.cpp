@@ -12,7 +12,6 @@ Server* g_serverInstance = nullptr;
 Server::Server()  { _response.resize(MAX_EVENTS);
 	_requests.resize(MAX_EVENTS);
 	_is_used.resize(MAX_EVENTS, false);
-    eventCgi = -1;
 }
 
 Server::~Server(){}
@@ -172,6 +171,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 int currentData = events[i].data.u32;
                 int serverIndex = currentData >> 16;
                 int fdCurrentData = currentData & 0xFFFF;
+                std::cout << "\n\nfd in epoll\n\n" << fdCurrentData << "\n\n";
                 if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
                     socketS = fdCurrentData;
                 else
@@ -197,7 +197,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         continue;
                     }
                     // Associate client with server index
-                    event.events = EPOLLIN | EPOLLOUT;
+                    event.events = EPOLLIN;// | EPOLLOUT;
                     event.data.fd = clientFd;
                     event.data.u32 = (serverIndex << 16) | clientFd;
                     if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1)
@@ -207,18 +207,20 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         continue;
                     }
                     client_activity[fdClient] = time(NULL);
-                    event.events = EPOLLIN;
-                    epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &event);
+                    //event.events = EPOLLIN;
+                    //epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &event);
                 }
                 else
                 {
                     if (events[i].events & EPOLLIN)
                     {
+                        std::cout << "\nin\n";
                         createNewParserObject(i);
                         if (_requests[i].startParsing(client, conf.getMax_body(serverIndex)) == true)
                         {
                             event.events = EPOLLOUT;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
+                            std::cout << "Not yet..." << std::endl;
                         }
                     }
                     if (events[i].events & EPOLLOUT)
@@ -226,22 +228,14 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         //handleClientConnection(serverIndex, conf, client, epollFd, event, i);
                         if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
                         {
-                            if (eventCgi == -1) {
-                                event.events = EPOLLOUT;
-                                epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
-                            }
+                            std::cout << "\n\ncgi\n\n";
+                            //event.events = EPOLLOUT;
+                            //epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
                         }
                     }
                 }
                 client = 0;
                 socketS = 0;
-            }
-            if (eventCgi != -1) {
-                std::cout << "\n\ncgi report\n\n";
-                if (_response[eventCgi].enterCgiWaitpid()) {
-                    event.events = EPOLLOUT;
-                    epoll_ctl(epollFd, EPOLL_CTL_MOD, _response[eventCgi].getCgiFd(), &event);
-                }
             }
         }
     }
@@ -278,17 +272,12 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
     if (_sending.find(eventIndex) == _sending.end())
     {
         HttpResponse response;
+        response.setEpoll(epollFd);
         response = receiveRequest(_requests[eventIndex], conf, serverIndex);
 //        std::cout << "child id in handle client connection is " << response.getchildid() << std::endl;
         response.generate();
         if (response.sendResponse(clientFd, eventIndex) != true)//getStatus for to check if we already send evething
         {
-            if (response.getCgiStatus())
-            {
-                response.setCgiFd(clientFd);
-                eventCgi = eventIndex;
-            }
-
             _response[eventIndex] = response;
             _sending[eventIndex] = true;
             return false;
@@ -300,17 +289,8 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         if (it != _sending.end() && it->second == true)
         {
             if (_response[eventIndex].sendResponse(clientFd, eventIndex) != true)
-            {
-                std::cout << "returning ffalse when shulndt\n";
                 return false;
-            }
         }
-    }
-    std::cout << "\ncgidone value : " << _response[eventIndex].cgidone <<"\n";
-    if (_response[eventIndex].cgidone)
-    {
-        std::cout << "\n\n------------------------\n\n" << "cgi done\n";
-        eventCgi = -1;
     }
     /*
         HttpResponse response = receiveRequest(request, conf, serverIndex);
@@ -325,6 +305,7 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
     epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
     close(clientFd);
     client_activity.erase(clientFd);
+    std::cout << "\n\n respuesta lista\n\n";
     return true;
 }
 
