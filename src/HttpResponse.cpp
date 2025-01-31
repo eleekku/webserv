@@ -128,6 +128,12 @@ void	HttpResponse::startCgi(std::string scriptPath, std::string queryString, std
 		cgi->executeCGI(scriptPath, queryString, body, method, response);
 }
 
+bool HttpResponse::enterCgiWaitpid() {
+	if (cgi)
+		return cgi->waitpidCheck(*this);
+	return false;
+}
+
 void HttpResponse::generate() {
 
 	std::ostringstream response;

@@ -36,6 +36,7 @@ class HttpResponse
 		void	startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
 		void 	generate();
 		bool	sendResponse(int serverSocket, int i);                      //int clientFd, int epollFd,;
+		bool	enterCgiWaitpid();
 
 		std::string getBody() const;
 		int		getStatus();
