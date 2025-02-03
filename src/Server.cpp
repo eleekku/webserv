@@ -101,6 +101,7 @@ void Server::run(ConfigFile& conf)
 
     struct epoll_event event, events[MAX_EVENTS];
     int epollFd = epoll_create1(0);
+    std::cout << "\nmy epoll id\n" << epollFd << "\n";
     if (epollFd == -1)
     {
         cleaningServerFd();
@@ -151,10 +152,12 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
 {
     int socketS = 0;
     int client = 0;
+    std::cout << "\nmy epoll id2\n" << epollFd << "\n";
     while (true)
     {
         std::cout << "Main loop..." << std::endl;
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
+        std::cout << "\nmy epoll id3\n" << epollFd << "\n";
         if (nfds == -1)
         {
             cleaningServerFd();
@@ -171,7 +174,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 int currentData = events[i].data.u32;
                 int serverIndex = currentData >> 16;
                 int fdCurrentData = currentData & 0xFFFF;
-                std::cout << "\n\nfd in epoll\n\n" << fdCurrentData << "\n\n";
+                std::cout << "\n\n(for loop)fd in epoll\n\n" << fdCurrentData << "\n\n";
                 if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
                     socketS = fdCurrentData;
                 else
@@ -228,7 +231,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         //handleClientConnection(serverIndex, conf, client, epollFd, event, i);
                         if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
                         {
-                            std::cout << "\n\ncgi\n\n";
+                            std::cout << "\n\nfalse\n\n";
                             //event.events = EPOLLOUT;
                             //epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
                         }
@@ -272,6 +275,7 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
     if (_sending.find(eventIndex) == _sending.end())
     {
         HttpResponse response;
+        std::cout << "\nepoll in hadle :  "<< epollFd << "\n";
         response.setEpoll(epollFd);
         response = receiveRequest(_requests[eventIndex], conf, serverIndex);
 //        std::cout << "child id in handle client connection is " << response.getchildid() << std::endl;
@@ -280,6 +284,8 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         {
             _response[eventIndex] = response;
             _sending[eventIndex] = true;
+            event.data.fd = clientFd;
+            epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
             return false;
         }
     }

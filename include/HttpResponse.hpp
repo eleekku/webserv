@@ -47,6 +47,7 @@ class HttpResponse
 		std::string getCgiBody() const;
 		void 		errorPage();
 		bool		cgidone;
+		bool		getIfCgi();
 
 		int	getchildid();
 		int getEpoll();

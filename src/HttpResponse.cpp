@@ -15,6 +15,7 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 	else
 		m_reasonPhrase = "Unknown";
 	m_totalBytesSent = 0;
+	m_epoll = 0;
 }
 
 HttpResponse::~HttpResponse() {
@@ -117,6 +118,13 @@ void HttpResponse::setErrorpath(std::string errorpath)
 std::string HttpResponse::getErrorpath() const
 {
 	return m_errorpath;
+}
+
+bool HttpResponse::getIfCgi() {
+	if (cgi)
+		return true;
+	return false;
+
 }
 
 int HttpResponse::getEpoll() { return m_epoll; }
