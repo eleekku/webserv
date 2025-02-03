@@ -69,7 +69,7 @@ bool validateFile(std::string path, HttpResponse &response, LocationConfig &conf
 	if (!std::filesystem::exists(path)) {
 		response.setStatusCode(404);
 		response.errorPage();
-		std::cout << "File not found" << std::endl;
+		std::cerr << "File not found" << std::endl;
 		return false;
 	}
 	// Check file status
@@ -85,7 +85,7 @@ bool validateFile(std::string path, HttpResponse &response, LocationConfig &conf
 	}
 	if (config.limit_except.find(convertMethod(method)) == std::string::npos) {
 		response.setStatusCode(405);
-		std::cout << "Method not allowed" << std::endl;
+		std::cerr << "Method not allowed" << std::endl;
 		response.errorPage();
 		return false;
 	}
