@@ -16,6 +16,7 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 		m_reasonPhrase = "Unknown";
 	m_totalBytesSent = 0;
 	m_epoll = 0;
+	cgiFdtoSend = 0;
 }
 
 HttpResponse::~HttpResponse() {
@@ -39,6 +40,7 @@ HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 	m_errorpath = other.m_errorpath;
 	m_responsestr = other.m_responsestr;
 	m_epoll = other.m_epoll;
+	cgiFdtoSend = other.cgiFdtoSend;
 	return *this;
 }
 
@@ -192,15 +194,22 @@ bool HttpResponse::sendResponse(int serverSocket)
     //struct epoll_event events[10];
     //if (events[i].events & EPOLLOUT)
     //{
+	std::cout << "sendResponse\n";
 	if (cgi)
 	{
 		if (!cgi->waitpidCheck(*this))
+		{
+			cgiFdtoSend = serverSocket;
+			std::cout << "\ncgi to send " << cgiFdtoSend << "\n";
 			return false;
+		}
 		else {
 			setBody(cgi->getCgiOut());
 //			std::cout << "body to send\n" << m_body << "\n";
 		//	setHeader("Server", confile.getServerName(serverIndex));
 			generate();
+			serverSocket = cgiFdtoSend;
+			std::cout << "new servesocket\n" << serverSocket << "\n";
 			}
 	}
 	size_t bodySize = m_responsestr.size();
@@ -225,6 +234,10 @@ bool HttpResponse::sendResponse(int serverSocket)
 	}
 //	std::cout << "bytes sent is " << bytesSent << "\n";
     //}
+	if (cgi)
+	{
+		close(cgiFdtoSend);
+	}
 	m_sent = true;
 	return true;
 }

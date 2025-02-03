@@ -55,6 +55,7 @@ class HttpResponse
 
 	private:
 
+		int 											cgiFdtoSend;
 		std::optional<CgiHandler> 						cgi;
 		int												m_epoll;
 		int												m_statusCode;

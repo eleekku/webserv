@@ -101,7 +101,6 @@ void Server::run(ConfigFile& conf)
 
     struct epoll_event event, events[MAX_EVENTS];
     int epollFd = epoll_create1(0);
-    std::cout << "\nmy epoll id\n" << epollFd << "\n";
     if (epollFd == -1)
     {
         cleaningServerFd();
@@ -152,12 +151,10 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
 {
     int socketS = 0;
     int client = 0;
-    std::cout << "\nmy epoll id2\n" << epollFd << "\n";
     while (true)
     {
         std::cout << "Main loop..." << std::endl;
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
-        std::cout << "\nmy epoll id3\n" << epollFd << "\n";
         if (nfds == -1)
         {
             cleaningServerFd();
@@ -174,7 +171,6 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 int currentData = events[i].data.u32;
                 int serverIndex = currentData >> 16;
                 int fdCurrentData = currentData & 0xFFFF;
-                std::cout << "\n\n(for loop)fd in epoll\n\n" << fdCurrentData << "\n\n";
                 if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
                     socketS = fdCurrentData;
                 else
@@ -200,7 +196,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         continue;
                     }
                     // Associate client with server index
-                    event.events = EPOLLIN;// | EPOLLOUT;
+                    event.events = EPOLLIN;
                     event.data.fd = clientFd;
                     event.data.u32 = (serverIndex << 16) | clientFd;
                     if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1)
@@ -210,31 +206,26 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         continue;
                     }
                     client_activity[fdClient] = time(NULL);
-                    //event.events = EPOLLIN;
-                    //epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &event);
                 }
                 else
                 {
                     if (events[i].events & EPOLLIN)
                     {
-                        std::cout << "\nin\n";
                         createNewParserObject(i);
                         if (_requests[i].startParsing(client, conf.getMax_body(serverIndex)) == true)
                         {
                             event.events = EPOLLOUT;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
-                            std::cout << "Not yet..." << std::endl;
                         }
                     }
                     if (events[i].events & EPOLLOUT)
                     {
-                        //handleClientConnection(serverIndex, conf, client, epollFd, event, i);
-                        if (!handleClientConnection(serverIndex, conf, client, epollFd, event, i))
-                        {
-                            std::cout << "\n\nfalse\n\n";
-                            //event.events = EPOLLOUT;
-                            //epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
-                        }
+                       handleClientConnection(serverIndex, conf, client, epollFd, event, i))
+
+                    }
+                    if (events[i].events & EPOLLHUP)
+                    { 
+                        handleClientConnection(serverIndex, conf, client, epollFd, event, i);
                     }
                 }
                 client = 0;
@@ -267,24 +258,17 @@ void Server::releaseVectors(size_t index)
 bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clientFd, int epollFd, struct epoll_event event,  int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
 {
 
-    //std::cout << request[eventIndex].getMethodString() << " " << request[eventIndex].getTarget() << std::endl;
-    //std::cout << "\nserver index = " << serverIndex << "\n";
-    //if (serverSocket < 8)
-    //    return ;
     std::cout << "Accepted connection on server \n" << serverIndex << "\n" << clientFd << "\n";
     if (_sending.find(eventIndex) == _sending.end())
     {
         HttpResponse response;
-        std::cout << "\nepoll in hadle :  "<< epollFd << "\n";
         response.setEpoll(epollFd);
         receiveRequest(_requests[eventIndex], conf, serverIndex, response);
-//        std::cout << "child id in handle client connection is " << response.getchildid() << std::endl;
         response.generate();
         if (response.sendResponse(clientFd) != true)//getStatus for to check if we already send evething
         {
             _response[eventIndex] = response;
             _sending[eventIndex] = true;
-            event.data.fd = clientFd;
             epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
             return false;
         }
@@ -298,13 +282,6 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
                 return false;
         }
     }
-    /*
-        HttpResponse response = receiveRequest(request, conf, serverIndex);
-        body = response.generate();
-        bodyready[serverSocket] = body;
-        totalBytesSent = 0;
-        bodySize = body.size();
-    */
     releaseVectors(eventIndex);
     _sending.erase(eventIndex);
     event.data.fd = clientFd;
