@@ -12,13 +12,14 @@
 HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0), _method_enum(UNKNOWN), _status(200), _maxBodySize(0), _contentLength(0) {}
 
 // Getters
-map_t		HttpParser::getHeaders() { return _headers;}
-std::string	HttpParser::getMethodString() { return _method;}
-std::string	HttpParser::getTarget() { return _target;}
-uint8_t		HttpParser::getMethod() { return _method_enum;}
-int			HttpParser::getStatus() { return _status;}
-std::string	HttpParser::getQuery() { return _query;}
-std::string HttpParser::getBody() { return _body;}
+map_t			HttpParser::getHeaders() { return _headers;}
+std::string		HttpParser::getMethodString() { return _method;}
+std::string		HttpParser::getTarget() { return _target;}
+uint8_t			HttpParser::getMethod() { return _method_enum;}
+int				HttpParser::getStatus() { return _status;}
+std::string		HttpParser::getQuery() { return _query;}
+std::string		HttpParser::getBody() { return _body;}
+ParsingState	HttpParser::getState() { return _state;}
 
 std::stringstream HttpParser::getVectorLine()
 {
@@ -372,6 +373,12 @@ void	HttpParser::checkReadRequest()
 
 void	HttpParser::checkBody()
 {
+	if (_contentLength > _maxBodySize)
+	{
+		_state = error;
+		_status = 413;
+		throw std::runtime_error("Payload too large");
+	}
 	if (_request.size() > _maxBodySize)
 	{
 		_state = error;
@@ -402,11 +409,13 @@ void HttpParser::readRequest(int clientfd)
 		throw std::runtime_error("Error reading from client socket");
 	}
 	_request.insert(_request.end(), buffer, buffer + bytesRead);
+	std::cout << _totalBytesRead << "/" <<  _contentLength << std::endl;
 }
 
 bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 {
 	_maxBodySize = maxBodySize;
+	std::cout << _maxBodySize << std::endl;
 	try {
 		while (true)
 		{
@@ -450,6 +459,7 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 					checkBody();
 					break;
 				case readingBody:
+					std::cout << "Reading body..." << std::endl;
 					readRequest(clientfd);
 					checkBody();
 					break;
