@@ -94,6 +94,7 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
     event.data.fd = fdPipe[0];
     event.data.u32 = (0 << 16) | fdPipe[0];
     epoll_ctl(response.getEpoll(), EPOLL_CTL_ADD, fdPipe[0], &event);
+  //  std::cout << "in cgi the epoll and pipe fd is " << response.getEpoll() << " " << fdPipe[0] << "\n";
     pid = fork();
     childid = pid;
     if (pid == -1)
@@ -134,7 +135,7 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
         exit(1);
     }
     close(fdPipe[1]);
-    std::cerr << "read fd is in response " << fdPipe[0] << "\n";
+ //   std::cerr << "read fd is in response " << fdPipe[0] << "\n";
 //    std::cerr << "child id is " << pid << "\n";
     int executeTimeOut = 5;
     signal(SIGALRM, timeoutHandler);
@@ -183,18 +184,18 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     {
         std::cerr << "script executed\n";
         char buffer[1024];
-        std::cerr << "fdPipe[0] is " << fdPipe[0] << "\n";
+  //      std::cerr << "fdPipe[0] is " << fdPipe[0] << "\n";
         int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
         if (bitesRead == -1) {
             throw std::runtime_error("bites to read failt");
         }
-        std::cout << "bites read is " << bitesRead << "\n";
+//        std::cout << "bites read is " << bitesRead << "\n";
         buffer[bitesRead] = '\0';
         cgiOut += buffer;
         close(fdPipe[0]);
         response.setStatusCode(200);
-        std::cerr << "script executed\n";
-        std::cout << cgiOut << "\n";
+//        std::cerr << "script executed\n";
+//        std::cout << cgiOut << "\n";
         response.cgidone = true;
         return true;
     } 

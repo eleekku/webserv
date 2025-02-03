@@ -277,10 +277,10 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         HttpResponse response;
         std::cout << "\nepoll in hadle :  "<< epollFd << "\n";
         response.setEpoll(epollFd);
-        response = receiveRequest(_requests[eventIndex], conf, serverIndex);
+        receiveRequest(_requests[eventIndex], conf, serverIndex, response);
 //        std::cout << "child id in handle client connection is " << response.getchildid() << std::endl;
         response.generate();
-        if (response.sendResponse(clientFd, eventIndex) != true)//getStatus for to check if we already send evething
+        if (response.sendResponse(clientFd) != true)//getStatus for to check if we already send evething
         {
             _response[eventIndex] = response;
             _sending[eventIndex] = true;
@@ -294,7 +294,7 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         auto it = _sending.find(eventIndex);
         if (it != _sending.end() && it->second == true)
         {
-            if (_response[eventIndex].sendResponse(clientFd, eventIndex) != true)
+            if (_response[eventIndex].sendResponse(clientFd) != true)
                 return false;
         }
     }

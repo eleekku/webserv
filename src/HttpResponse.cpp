@@ -187,39 +187,30 @@ void HttpResponse::errorPage() {
 	setMimeType(".html");
 }
 
-bool HttpResponse::sendResponse(int serverSocket, int i)
+bool HttpResponse::sendResponse(int serverSocket)
 {
-	(void)i;
     //struct epoll_event events[10];
-	size_t bodySize = m_responsestr.size();
-	int bufferSize = bodySize - m_totalBytesSent;
     //if (events[i].events & EPOLLOUT)
     //{
-	try {
-		if (cgi)
-		{
-		std::cout << "should be cgi response\n";
+	if (cgi)
+	{
 		if (!cgi->waitpidCheck(*this))
 			return false;
 		else {
 			setBody(cgi->getCgiOut());
-			std::cout << "body to send\n" << m_body << "\n";
+//			std::cout << "body to send\n" << m_body << "\n";
 		//	setHeader("Server", confile.getServerName(serverIndex));
 			generate();
-			bodySize = m_responsestr.size();
-		}
-		}
+			}
 	}
-	catch (std::exception &e) {
-		errorPage();
-		bodySize = m_responsestr.size();
-	}
+	size_t bodySize = m_responsestr.size();
+	int bufferSize = bodySize - m_totalBytesSent;
 
 	if (bufferSize > MAX_SIZE_SEND)
 		bufferSize = MAX_SIZE_SEND;
 	ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, bufferSize, MSG_NOSIGNAL);
 	//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
-	std::cout <<  "\n bytes to send\n" <<bytesSent << "\n";
+//	std::cout << "bytes to send so the body size is " << bodySize << "and buffer is " << bufferSize << "\n";
 	if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
 	{
 		std::cout << "Send fail to response client " << serverSocket << "\n";
@@ -228,9 +219,11 @@ bool HttpResponse::sendResponse(int serverSocket, int i)
 		m_totalBytesSent += bytesSent;
 	if (m_totalBytesSent < bodySize)
 	{
+//		std::cout << "bytes sent is " << bytesSent << "\n";
 		//readytoanswer[serverSocket] = true;
 		return false;
 	}
+//	std::cout << "bytes sent is " << bytesSent << "\n";
     //}
 	m_sent = true;
 	return true;
