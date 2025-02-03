@@ -75,7 +75,10 @@ bool validateFile(std::string path, HttpResponse &response, LocationConfig &conf
 	// Check file status
 	struct stat filestat;
 	if (stat(path.c_str(), &filestat) == -1) {
-		response.setStatusCode(500);
+		if (errno == EACCES)
+			response.setStatusCode(403);
+		else
+			response.setStatusCode(500);
 		response.errorPage();
 		std::cerr << "Error: Unable to stat file " << path << std::endl;
 		return false;
