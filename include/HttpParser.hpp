@@ -128,6 +128,7 @@ class HttpParser
 		std::string getBody();
 		uint8_t		getMethod();
 		int			getStatus();
+		ParsingState getState();
 
 		bool	startParsing(int clientfd, long maxBodySize);
 };
