@@ -220,7 +220,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     }
                     if (events[i].events & EPOLLOUT)
                     {
-                       handleClientConnection(serverIndex, conf, client, epollFd, event, i))
+                       handleClientConnection(serverIndex, conf, client, epollFd, event, i);
 
                     }
                     if (events[i].events & EPOLLHUP)
