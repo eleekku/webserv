@@ -50,8 +50,10 @@ class HttpResponse
 		bool		getIfCgi();
 
 		int	getchildid();
+		int getFdPipe();
 		int getEpoll();
 		void setEpoll(int epoll);
+		bool checkCgiStatus();
 
 	private:
 

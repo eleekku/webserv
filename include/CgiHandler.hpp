@@ -7,8 +7,9 @@
 #include <regex>
 #include <string>
 #include <set>
+#include "Server.hpp"
 
-
+//class Server;
 class HttpResponse;
 
 class CgiHandler
@@ -34,4 +35,5 @@ class CgiHandler
 	bool waitpidCheck(HttpResponse &response);
 	std::string getCgiOut() const;
 	int getchildid();
+	int getFdPipe();
 };

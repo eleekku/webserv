@@ -111,7 +111,12 @@ void HttpResponse::setMimeType(const std::string& mime)
 {
 	m_mime = mime;
 }
-
+bool HttpResponse::checkCgiStatus()
+{
+	if (cgi)
+		return true;
+	return false;
+}
 void HttpResponse::setErrorpath(std::string errorpath)
 {
 	m_errorpath = errorpath;
@@ -246,3 +251,5 @@ int	HttpResponse::getchildid()
 {
 	return cgi->getchildid();
 }
+
+int HttpResponse::getFdPipe() { return cgi->getFdPipe(); }
