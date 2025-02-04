@@ -134,7 +134,7 @@ void Server::check_inactive_connections(int epollFd)
             int client_fd = it->first;
             std::cout << "Closing client connection (inactivity): " << client_fd << std::endl;
 
-            for (int i = 0; i < _response.size(); i++)
+            /*for (int i = 0; i < _response.size(); i++)
             {
                 if (_response[i].checkCgiStatus())
                 {
@@ -145,7 +145,7 @@ void Server::check_inactive_connections(int epollFd)
                     it = client_activity.erase(it);
                     return ;
                 }
-            }
+            }*/
 ;
             event.data.fd = client_fd;
             epoll_ctl(epollFd, EPOLL_CTL_DEL, client_fd, nullptr);
