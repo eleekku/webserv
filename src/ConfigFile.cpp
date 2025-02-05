@@ -16,9 +16,13 @@ void ConfigFile::printParam() //remenber to delete when project is done
     }
 }
 
+ConfigFile::ConfigFile() {}
+
 ConfigFile::ConfigFile(std::string file) : _fileName(file), openBracket(0), closeBracket(0), indexServer(0) {}
 
 ConfigFile::~ConfigFile() {}
+
+
 
 std::string ConfigFile::trim(const std::string &str) 
 {
@@ -28,6 +32,28 @@ std::string ConfigFile::trim(const std::string &str)
         return "";
     }
     return str.substr(start, end - start + 1);
+}
+
+ConfigFile& ConfigFile::operator=(const ConfigFile& other)
+{
+    if (this != &other)
+    {
+        port = other.port;
+        _fileName = other._fileName;
+        ip_server = other.ip_server;
+        server_name = other.server_name;
+        max_body = other.max_body;
+        errorPage = other.errorPage;
+        locations = other.locations;
+        indexLocations = other.indexLocations;
+        serverConfig = other.serverConfig;
+        openBracket = other.openBracket;
+        closeBracket = other.closeBracket;
+        insideServerBlock = other.insideServerBlock;
+        indexServer = other.indexServer;
+        return (*this);
+    }
+    return (*this);
 }
 
 static bool isValIp(const std::string& ip) 

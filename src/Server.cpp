@@ -9,12 +9,14 @@
 
 Server* g_serverInstance = nullptr;
 
-Server::Server()  { _response.resize(MAX_EVENTS);
+Server::Server()  
+{
+    _response.resize(MAX_EVENTS);
 	_requests.resize(MAX_EVENTS);
 	_is_used.resize(MAX_EVENTS, false);
 }
 
-Server::~Server(){}
+Server::~Server() {}
 
 int setNonBlocking(int fd)
 {
@@ -77,10 +79,11 @@ void Server::closeServerFd()
 }
 
 
-void Server::initialize(ConfigFile& conf)
+void Server::initialize(ConfigFile& config)
 {
-    std::vector<std::string> ips = conf.getIpServer();
-    std::vector<int> portServer = conf.getPort();
+    conf = config;
+    std::vector<std::string> ips = config.getIpServer();
+    std::vector<int> portServer = config.getPort();
     int sizeIP = ips.size();
     for (int i = 0; i < sizeIP; i++)
     {
@@ -92,21 +95,19 @@ void Server::initialize(ConfigFile& conf)
     {
         std::cout << "Server [" << i + 1 << "] initialized on " << ips[i] << ":" << portServer[i] << std::endl;
     }
-    run(conf);
+    run();
 }
 
-void Server::run(ConfigFile& conf)
+void Server::run()
 {
     std::cout << "Server running. Waiting for connections..." << std::endl;
 
-    struct epoll_event event, events[MAX_EVENTS];
-    int epollFd = epoll_create1(0);
+    epollFd = epoll_create1(0);
     if (epollFd == -1)
     {
         cleaningServerFd();
         throw std::runtime_error("run = Error creating epoll instance");
     }
-    epollfd = epollFd;
     g_serverInstance = this;
     int socketSize = serveSocket.size();
     for (int i = 0; i < socketSize; ++i)
@@ -119,10 +120,10 @@ void Server::run(ConfigFile& conf)
             throw std::runtime_error("run = Error adding server socket to epoll");
         }
     }
-    runLoop(conf, &events[MAX_EVENTS], event, epollFd);
+    runLoop();
 }
 
-void Server::check_inactive_connections(int epollFd)
+/*void Server::check_inactive_connections(int epollFd)//no in use
 {
     struct epoll_event event;
     time_t now = time(NULL);
@@ -133,20 +134,6 @@ void Server::check_inactive_connections(int epollFd)
         {
             int client_fd = it->first;
             std::cout << "Closing client connection (inactivity): " << client_fd << std::endl;
-
-            /*for (int i = 0; i < _response.size(); i++)
-            {
-                if (_response[i].checkCgiStatus())
-                {
-                    std::cout << "\nkill step and PID is :" << _response[i].getchildid() << "\n";
-                    kill(_response[i].getchildid(), SIGTERM);
-                    event.events = EPOLLOUT;
-                    epoll_ctl(epollFd, EPOLL_CTL_MOD, client_fd, &event);
-                    it = client_activity.erase(it);
-                    return ;
-                }
-            }*/
-;
             event.data.fd = client_fd;
             epoll_ctl(epollFd, EPOLL_CTL_DEL, client_fd, nullptr);
             close(client_fd);
@@ -158,10 +145,10 @@ void Server::check_inactive_connections(int epollFd)
         }
     }
 
-}
+}*/
 // In this function, fdCurrentClient can be the server's socket or the client's file descriptor since it comes
 // from int currentData = events[i].data.u32 (the first 16 bits contain the file descriptor, and the other 16 bits contain the index of the associated server).
-void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event event, int epollFd)
+void Server::runLoop()
 {
     int socketS = 0;
     int client = 0;
@@ -171,19 +158,8 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
         if (nfds == -1)
         {
-            //cleaningServerFd();
-            /*
-            if (errno == EINTR || errno == 9)
-            {
-                    std::cerr << "epoll_wait interrumpido por una señal\n";
-                    continue;
-            }*/
-            std::cerr << "\nerrno" << errno << "\n";
-            throw std::runtime_error("run = Error in epoll_wait");
-        }
-        else if (nfds == 0)
-        {
-            check_inactive_connections(epollfd);
+            std::cerr << "\nrun = Error in epoll_wait" << "\n";
+            continue;
         }
         else
         {
@@ -192,29 +168,25 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 int currentData = events[i].data.u32;
                 int serverIndex = currentData >> 16;
                 int fdCurrentData = currentData & 0xFFFF;
-                std::cout << "for loop\n";
                 if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
                     socketS = fdCurrentData;
                 else
                     client = fdCurrentData;
                 if (socketS != 0)
                 {
-                    // New connection on server socket
-                    std::cout << "\nindex event before accept\n" << i << "\n";
+                    std::cout << "\nNew connection on server\n" << i << "\n";
                     sockaddr_in clientAddr{};
                     socklen_t clientLen = sizeof(clientAddr);
                     int clientFd = accept(socketS, (sockaddr*)&clientAddr, &clientLen);
                     if (clientFd == -1)
                     {
-                        cleaningServerFd();
                         std::cerr << "\nAccept failed\n";
                         continue;
                     }
                     g_serverInstance = this;
                     if (setNonBlocking(clientFd) == -1)
                     {
-                        cleaningServerFd();
-                        throw std::runtime_error("Fail setNonBlocking() in runLoop\n");
+                        std::cerr << "Fail setNonBlocking() in runLoop\n";
                         continue;
                     }
                     // Associate client with server index
@@ -223,11 +195,10 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     event.data.u32 = (serverIndex << 16) | clientFd;
                     if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) == -1)
                     {
-                        cleaningServerFd();
-                        throw std::runtime_error ("Failed to add client to epoll\n");
+                        close(clientFd);
+                        std::cerr << "Failed to add client to epoll\n";
                         continue;
                     }
-                    //client_activity[clientFd] = time(NULL);
                 }
                 else
                 {
@@ -237,17 +208,21 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         if (_requests[i].startParsing(client, conf.getMax_body(serverIndex)) == true)
                         {
                             event.events = EPOLLOUT;
-                            epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
+                            if (epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event) == -1)
+                            {
+                                std::cerr << "Fail epoll_ctl() in parsing\n";
+                                continue;
+                            }
                         }
                     }
                     if (events[i].events & EPOLLOUT)
                     {
-                       handleClientConnection(serverIndex, conf, client, epollFd, event, i);
+                       handleClientConnection(serverIndex, client, i);
 
                     }
                     if (events[i].events & EPOLLHUP)
                     { 
-                        handleClientConnection(serverIndex, conf, client, epollFd, event, i);
+                        handleClientConnection(serverIndex, client, i);
                     }
                 }
                 client = 0;
@@ -266,9 +241,6 @@ void    Server::createNewParserObject(size_t index)
 {
 	if (index < _requests.size() && !_is_used[index])
 	{
-        std::cout << "\n-------------------------------\n";
-        std::cerr << "new parsing\n";
-        std::cout << "\n-------------------------------\n";
 		_is_used[index] = true;
 		_requests[index] = HttpParser();
 	}
@@ -279,23 +251,25 @@ void Server::releaseVectors(size_t index)
 	if (index < _requests.size())
 		_is_used[index] = false;
 }
-
-bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clientFd, int epollFd, struct epoll_event event,  int eventIndex) // tengo que hacer los epoll event EPOLLIN y EPOLLOUT
+//this funtion will handle the response for eatch client if its not posible to send the response in ones,
+//the response  object will store for later continuos sending the response to that client until everything is sended.
+bool Server::handleClientConnection(int serverIndex, int clientFd, int eventIndex)
 {
-
-    std::cout << "Accepted connection on server \n" << serverIndex << "\n" << clientFd << "\n";
     if (_sending.find(clientFd) == _sending.end())
     {
         HttpResponse response;
         response.setEpoll(epollFd);
         receiveRequest(_requests[eventIndex], conf, serverIndex, response);
         response.generate();
-        if (response.sendResponse(clientFd) != true)//getStatus for to check if we already send evething
+        if (response.sendResponse(clientFd) != true)
         {
             if (response.checkCgiStatus())
             {
-                epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
-                client_activity[_response[eventIndex].getFdPipe()] = time(NULL);
+                if(epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr) == -1)
+                {
+                    std::cerr << "Fail epoll_ctl() in handleClientConnection\n";
+                    return false;
+                }
                 _response[response.getFdPipe()] = response;
                 _sending[response.getFdPipe()] = true;
                 releaseVectors(eventIndex);
@@ -317,28 +291,27 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         }
     }
     releaseVectors(eventIndex);
-    _sending.erase(clientFd);
     event.data.fd = clientFd;
-    epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
+    if(epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr) == -1)
+    {
+        std::cerr << "Fail epoll_ctl() in handleClientConnection\n";
+        return false;
+    }
     close(clientFd);
-    client_activity.erase(clientFd);
-    std::cout << "\n\n respuesta lista\n\n";
+    _sending.erase(clientFd);
+    std::cout << "\nclosed conection to client \n" << clientFd << "\n"; 
     return true;
 }
 
 
 std::vector<int>  Server::getServerSocket() { return serveSocket; }
 
-int Server::getEpollFd() { return epollfd; }
-
-
-int Server::getClientFd() { return fdClient; }
+int Server::getEpollFd() { return epollFd; }
 
 void Server::cleaningServerFd()
 {
 
     for (int fd : serveSocket)
         close(fd);
-    close(fdClient);
-    close(epollfd);
+    close(epollFd);
 }

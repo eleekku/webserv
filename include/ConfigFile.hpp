@@ -50,8 +50,10 @@ public:
             }
     };
 
+    ConfigFile();
     ConfigFile(std::string file);
     ~ConfigFile();
+    ConfigFile& operator=(const ConfigFile& other);
 
     void finalCheck();
     std::string trim(const std::string &str);

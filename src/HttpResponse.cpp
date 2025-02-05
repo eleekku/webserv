@@ -199,6 +199,8 @@ bool HttpResponse::sendResponse(int serverSocket)
     //struct epoll_event events[10];
     //if (events[i].events & EPOLLOUT)
     //{
+	if (m_sent)
+		return true;
 	std::cout << "sendResponse\n";
 	if (cgi)
 	{

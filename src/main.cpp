@@ -13,10 +13,6 @@ void globalSignalHandler(int signum)
                 close(socket);
             }
         }
-        if (g_serverInstance->getClientFd() >= 0) 
-        {
-            close(g_serverInstance->getClientFd());
-        }
         if (g_serverInstance->getEpollFd() >= 0) 
         {
             close(g_serverInstance->getEpollFd());
