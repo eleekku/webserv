@@ -168,7 +168,7 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 	std::string error = confile.getErrorPage(serverIndex);
 	if (request.getTarget() == "/")
 		path += location.index;
-//	std::cout << "path is " << path << std::endl;
+	std::cout << "path is " << path << std::endl;
 	if (!validateFile(path, response, location, GET))
 		return;
 //	std::cout << "locationstr is " << locationStr << std::endl;
@@ -179,9 +179,11 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 		try {
 			response.startCgi(path, request.getQuery(), "", GET, response);
 			response.setStatusCode(102);
+			std::cerr << "parent about to return\n";
 			return;
 		}
 		catch (std::runtime_error &e) {
+			std::cerr << "parent catched\n";
 			response.errorPage();
 			return;
 		}

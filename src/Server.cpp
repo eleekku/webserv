@@ -124,16 +124,29 @@ void Server::run(ConfigFile& conf)
 
 void Server::check_inactive_connections(int epollFd)
 {
+    struct epoll_event event;
     time_t now = time(NULL);
-
+    std::cout << "aqui checking the conecctions\n";
     for (auto it = client_activity.begin(); it != client_activity.end(); )
     {
-        if (now - it->second > 20)
+        if (now - it->second > 10)
         {
             int client_fd = it->first;
             std::cout << "Closing client connection (inactivity): " << client_fd << std::endl;
 
-            struct epoll_event event;
+            /*for (int i = 0; i < _response.size(); i++)
+            {
+                if (_response[i].checkCgiStatus())
+                {
+                    std::cout << "\nkill step and PID is :" << _response[i].getchildid() << "\n";
+                    kill(_response[i].getchildid(), SIGTERM);
+                    event.events = EPOLLOUT;
+                    epoll_ctl(epollFd, EPOLL_CTL_MOD, client_fd, &event);
+                    it = client_activity.erase(it);
+                    return ;
+                }
+            }*/
+;
             event.data.fd = client_fd;
             epoll_ctl(epollFd, EPOLL_CTL_DEL, client_fd, nullptr);
             close(client_fd);
@@ -144,6 +157,7 @@ void Server::check_inactive_connections(int epollFd)
             ++it;
         }
     }
+
 }
 // In this function, fdCurrentClient can be the server's socket or the client's file descriptor since it comes
 // from int currentData = events[i].data.u32 (the first 16 bits contain the file descriptor, and the other 16 bits contain the index of the associated server).
@@ -157,7 +171,13 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
         if (nfds == -1)
         {
-            cleaningServerFd();
+            //cleaningServerFd();
+            if (errno == EINTR || errno == 9)
+            {
+                    std::cout << "epoll_wait interrumpido por una señal\n";
+                    continue;
+            }
+            std::cerr << "\nerrno" << errno << "\n";
             throw std::runtime_error("run = Error in epoll_wait");
         }
         else if (nfds == 0)
@@ -171,6 +191,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                 int currentData = events[i].data.u32;
                 int serverIndex = currentData >> 16;
                 int fdCurrentData = currentData & 0xFFFF;
+                std::cout << "for loop\n";
                 if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
                     socketS = fdCurrentData;
                 else
@@ -205,7 +226,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                         throw std::runtime_error ("Failed to add client to epoll\n");
                         continue;
                     }
-                    client_activity[fdClient] = time(NULL);
+                    //client_activity[clientFd] = time(NULL);
                 }
                 else
                 {
@@ -244,6 +265,9 @@ void    Server::createNewParserObject(size_t index)
 {
 	if (index < _requests.size() && !_is_used[index])
 	{
+        std::cout << "\n-------------------------------\n";
+        std::cout << "new parsing\n";
+        std::cout << "\n-------------------------------\n";
 		_is_used[index] = true;
 		_requests[index] = HttpParser();
 	}
@@ -259,7 +283,7 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
 {
 
     std::cout << "Accepted connection on server \n" << serverIndex << "\n" << clientFd << "\n";
-    if (_sending.find(eventIndex) == _sending.end())
+    if (_sending.find(clientFd) == _sending.end())
     {
         HttpResponse response;
         response.setEpoll(epollFd);
@@ -267,23 +291,32 @@ bool Server::handleClientConnection(int serverIndex, ConfigFile& conf, int clien
         response.generate();
         if (response.sendResponse(clientFd) != true)//getStatus for to check if we already send evething
         {
-            _response[eventIndex] = response;
-            _sending[eventIndex] = true;
-            epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
+            if (response.checkCgiStatus())
+            {
+                epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
+                client_activity[_response[eventIndex].getFdPipe()] = time(NULL);
+                _response[response.getFdPipe()] = response;
+                _sending[response.getFdPipe()] = true;
+                releaseVectors(eventIndex);
+                return false;
+            }
+            _response[clientFd] = response;
+            _sending[clientFd] = true;
+            releaseVectors(eventIndex);
             return false;
         }
     }
     else
     {
-        auto it = _sending.find(eventIndex);
+        auto it = _sending.find(clientFd);
         if (it != _sending.end() && it->second == true)
         {
-            if (_response[eventIndex].sendResponse(clientFd) != true)
+            if (_response[clientFd].sendResponse(clientFd) != true)
                 return false;
         }
     }
     releaseVectors(eventIndex);
-    _sending.erase(eventIndex);
+    _sending.erase(clientFd);
     event.data.fd = clientFd;
     epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr);
     close(clientFd);
