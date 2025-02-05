@@ -5,7 +5,7 @@
 /*To use the HttpResponse declare HttpResponse object and define it with receiveRequest funciton which takes HttpParser object.
 Then call HttpParser member function generate which will return the response as string.*/
 
-HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0) {}
+HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0), m_defaulterrorpath("/www/error.html") {}
 
 HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_sent(false), m_mime(mime) {
 	auto it = HTTP_STATUS_MESSAGES.find(code);
@@ -119,19 +119,20 @@ bool HttpResponse::checkCgiStatus()
 }
 void HttpResponse::setErrorpath(std::string errorpath)
 {
-	m_errorpath = errorpath;
+	if (errorpath.empty())
+		m_errorpath = m_defaulterrorpath;
+	if (!std::filesystem::exists(errorpath))
+		m_errorpath = m_defaulterrorpath;
+	struct stat filestat;
+	if (stat(errorpath.c_str(), &filestat) == -1)
+		m_errorpath = m_defaulterrorpath;
+	else
+		m_errorpath = errorpath;
 }
 
 std::string HttpResponse::getErrorpath() const
 {
 	return m_errorpath;
-}
-
-bool HttpResponse::getIfCgi() {
-	if (cgi)
-		return true;
-	return false;
-
 }
 
 int HttpResponse::getEpoll() { return m_epoll; }

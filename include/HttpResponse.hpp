@@ -36,7 +36,6 @@ class HttpResponse
 		void	startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
 		void 	generate();
 		bool	sendResponse(int serverSocket);                      //int clientFd, int epollFd,;
-		bool	enterCgiWaitpid();
 
 		std::string getBody() const;
 		int		getStatus();
@@ -46,8 +45,6 @@ class HttpResponse
 		std::string getErrorpath() const;
 		std::string getCgiBody() const;
 		void 		errorPage();
-		bool		cgidone;
-		bool		getIfCgi();
 
 		int	getchildid();
 		int getFdPipe();
@@ -70,6 +67,7 @@ class HttpResponse
 		std::string 									m_errorpath;
 		std::string 									m_responsestr;
 		std::string										getCurrentDate() const;
+		std::string										m_defaulterrorpath;
 		static const std::map<int, std::string>			m_statusMap;
 		static const std::map<std::string, std::string>	m_mimeTypes;
 };

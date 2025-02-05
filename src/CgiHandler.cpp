@@ -177,13 +177,11 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         response.setBody(cgiOut);
 //        std::cerr << "script executed\n";
 //        std::cout << cgiOut << "\n";
-        response.cgidone = true;
         return true;
     } 
     else
     {
         std::cerr << "script terminated with error\n";
-        response.cgidone = true;
         response.setStatusCode(502);
         response.errorPage();
         throw std::runtime_error("script can not execute\n");
