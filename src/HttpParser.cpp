@@ -5,21 +5,19 @@
 #include <fstream>
 #include <stdexcept>
 #include <filesystem>
-#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0), _method_enum(UNKNOWN), _status(200), _maxBodySize(0), _contentLength(0) {}
 
 // Getters
-map_t			HttpParser::getHeaders() { return _headers;}
-std::string		HttpParser::getMethodString() { return _method;}
-std::string		HttpParser::getTarget() { return _target;}
-uint8_t			HttpParser::getMethod() { return _method_enum;}
-int				HttpParser::getStatus() { return _status;}
-std::string		HttpParser::getQuery() { return _query;}
-std::string		HttpParser::getBody() { return _body;}
-ParsingState	HttpParser::getState() { return _state;}
+map_t		HttpParser::getHeaders() { return _headers;}
+std::string	HttpParser::getMethodString() { return _method;}
+std::string	HttpParser::getTarget() { return _target;}
+uint8_t		HttpParser::getMethod() { return _method_enum;}
+int			HttpParser::getStatus() { return _status;}
+std::string	HttpParser::getQuery() { return _query;}
+std::string HttpParser::getBody() { return _body;}
 
 std::stringstream HttpParser::getVectorLine()
 {
@@ -183,7 +181,13 @@ void	HttpParser::extractContentLength()
 		ss >> _contentLength;
 	} else {
 		_status = 411;
+		_state = error;
 	}
+	// if (_contentLength == 0)
+	// {
+	// 	_state = error;
+	// 	_status = 400;
+	// }
 }
 
 void	HttpParser::extractBody()
@@ -354,68 +358,99 @@ void	HttpParser::parseQuery()
 
 void	HttpParser::checkReadRequest()
 {
-	std::cout << "Checking request..." << std::endl;
+	_state = parsingRequest;
 	if (_request.size() >= 4)
 	{
 		std::string end(_request.end() - 4, _request.end());
-		if (end == "\r\n\r\n")
+		if (end != "\r\n\r\n")
 		{
-			_state = parsingRequest;
-		}
-		else if (_request.size() > MAX_REQUEST_SIZE)
-		{
-			const char *needle = "\r\n\r\n";
-			_request.insert(_request.end(), needle, needle + 4);
-			_state = parsingRequest;
+			_status = 400;
+			_state = error;
+			return ;
 		}
 	}
 }
 
-void	HttpParser::checkBody()
+void HttpParser::readBody(int clientfd)
 {
-	if (_contentLength > _maxBodySize)
+	int bytesRead = 0;
+	char buffer[BUFFER_SIZE] = {0};
+
+	std::cout << "Reading body..." << std::endl;
+	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
+	if (bytesRead > 0)
 	{
-		_state = error;
-		_status = 413;
-		throw std::runtime_error("Payload too large");
-	}
-	if (_request.size() > _maxBodySize)
-	{
-		_state = error;
-		_status = 413;
-		throw std::runtime_error("Payload too large");
+		_totalBytesRead += bytesRead;
+		_request.insert(_request.end(), buffer, buffer + bytesRead);
 	}
 	if (_totalBytesRead == _contentLength)
 		_state = parsingBody;
 }
 
-void HttpParser::readRequest(int clientfd)
+void HttpParser::readRequest(int clientfd, bool body)
 {
 	int bytesRead = 0;
 	char buffer[BUFFER_SIZE] = {0};
 
 	std::cout << "Reading request..." << std::endl;
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
-	_totalBytesRead += bytesRead;
 	if (bytesRead == 0)
 	{
 		std::cout << "Finished reading..." << std::endl;
+		if (body)
+			if (_totalBytesRead == _contentLength)
+				_state = parsingBody;
+			else
+			{
+				_state = error;
+				throw std::runtime_error("Unexpected end of request");
+			}
+		else
+			_state = checkingRequest;
 		return ;
 	}
 	else if (bytesRead == -1)
 	{
+		std::cout << "Finished reading..." << std::endl;
 		_state = error;
 		perror("Error reading from client socket");
 		throw std::runtime_error("Error reading from client socket");
 	}
-	_request.insert(_request.end(), buffer, buffer + bytesRead);
-	std::cout << _totalBytesRead << "/" <<  _contentLength << std::endl;
+	else
+	{
+		_totalBytesRead += bytesRead;
+		std::cout << _totalBytesRead << " / " << _contentLength << std::endl;
+		_request.insert(_request.end(), buffer, buffer + bytesRead);
+		if (_request.size() >= 4)
+		{
+			std::string end(_request.end() - 4, _request.end());
+			if (end == "\r\n\r\n" && !body)
+				_state = checkingRequest;
+			else if (end == "\r\n\r\n" && body)
+				_state = parsingBody;
+			else if (_totalBytesRead == _contentLength && body)
+				_state = parsingBody;
+			else if (_totalBytesRead < _contentLength && body)
+				_state = readingBody;
+		}
+		if (body && _request.size() > _maxBodySize)
+		{
+			_state = error;
+			_status = 413;
+			throw std::runtime_error("Request too large");
+		}
+		if (!body && _request.size() > MAX_REQUEST_SIZE)
+		{
+			const char *needle = "\r\n\r\n";
+			_request.insert(_request.end(), needle, needle + 4);
+			_state = checkingRequest;
+		}
+	}
 }
 
 bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 {
 	_maxBodySize = maxBodySize;
-	std::cout << _maxBodySize << std::endl;
 	try {
 		while (true)
 		{
@@ -425,11 +460,13 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 					std::cout << "Starting parsing..." << std::endl;
 					_request.reserve(BUFFER_SIZE);
 					_state = readingRequest;
-					readRequest(clientfd);
-					checkReadRequest();
+					readRequest(clientfd, false);
 					break;
 				case readingRequest:
-					readRequest(clientfd);
+					readRequest(clientfd, false);
+					break;
+				case checkingRequest:
+					std::cout << "Checking request..." << std::endl;
 					checkReadRequest();
 					break;
 				case parsingRequest:
@@ -445,23 +482,17 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 				case startBody:
 					std::cout << "Starting body..." << std::endl;
 					extractContentLength();
-					if (_contentLength == 0)
-					{
-						_state = error;
-						break ;
-					}
+					// if (_contentLength == 0)
+					// 	break;
 					_request.clear();
 					_request.reserve(_contentLength);
 					_pos = 0;
 					_totalBytesRead = 0;
 					_state = readingBody;
-					readRequest(clientfd);
-					checkBody();
+					readBody(clientfd);
 					break;
 				case readingBody:
-					std::cout << "Reading body..." << std::endl;
-					readRequest(clientfd);
-					checkBody();
+					readBody(clientfd);
 					break;
 				case parsingBody:
 					if (_request.size() > 0)
@@ -471,7 +502,7 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 					}
 					break;
 				case done:
-					std::cout << "Done parsing..." << std::endl;
+					std::cout << "Parsing done..." << std::endl;
 					break;
 				case error:
 					break;
