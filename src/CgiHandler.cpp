@@ -27,10 +27,10 @@ void timeoutHandler(int signal)
 {
     if (signal == SIGALRM)
     {
-        std::cout << "pipetoclose " << pipetoclose << "\n";
+  //      std::cerr << "pipetoclose " << pipetoclose << "\n";
         close(pipetoclose);
         kill(childid, SIGINT);
-        std::cerr << "Timeout reached. Killing child process: " << childid << std::endl;
+  //      std::cerr << "Timeout reached. Killing child process: " << childid << std::endl;
     }
 }
 
@@ -92,6 +92,8 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
 
     if (pid == 0)  // Child process
     {
+        std::cerr << "child running\n";
+      //  setpgid(0, 0);
         if (method == POST)
         {
             int pipeWrite[2];
@@ -113,23 +115,23 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
         dup2(fdPipe[1], STDOUT_FILENO);
         close(fdPipe[1]);
         close(fdPipe[0]);
+            struct sigaction sa;
+        sa.sa_handler = timeoutHandler;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_RESTART;  // Prevent `epoll_wait` from failing with EINTR
+        if (sigaction(SIGALRM, &sa, NULL) == -1)
+            std::cerr << "Error setting signal handler\n";
+    //    std::cerr << "signal set\n";
+        int executeTimeOut = 8;
+        alarm(executeTimeOut);
 
         char *argv[] = {const_cast<char *>(scriptPath.c_str()), nullptr};
         execvp(scriptPath.c_str(), argv);
 
         exit(1);
     }
-
+    std::cerr << "parent start here\n";
     close(fdPipe[1]);
-
-    struct sigaction sa;
-    sa.sa_handler = timeoutHandler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;  // Prevent `epoll_wait` from failing with EINTR
-    sigaction(SIGALRM, &sa, NULL);
-
-    int executeTimeOut = 8;
-    alarm(executeTimeOut);
 }
 
 
@@ -152,6 +154,8 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         std::cerr << "script terminated by signal " << "\n";
         //close(fdPipe[0]);
         response.setStatusCode(504);
+        response.errorPage();
+     //   alarm(0);
         return true;
         //throw std::runtime_error("script terminated by signal\n");
     }
@@ -170,6 +174,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         cgiOut += buffer;
         close(fdPipe[0]);
         response.setStatusCode(200);
+        response.setBody(cgiOut);
 //        std::cerr << "script executed\n";
 //        std::cout << cgiOut << "\n";
         response.cgidone = true;

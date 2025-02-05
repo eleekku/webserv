@@ -209,7 +209,7 @@ bool HttpResponse::sendResponse(int serverSocket)
 			return false;
 		}
 		else {
-			setBody(cgi->getCgiOut());
+		//	setBody(cgi->getCgiOut());
 //			std::cout << "body to send\n" << m_body << "\n";
 		//	setHeader("Server", confile.getServerName(serverIndex));
 			generate();

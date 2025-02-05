@@ -174,12 +174,11 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 //	std::cout << "locationstr is " << locationStr << std::endl;
 //	std::cout << "path is " << path << std::endl;
 	if (locationStr == "/cgi") { //calls the cgi executor
-		std::cout << "its cgi! " << std::endl;
+		std::cerr << "its cgi! " << std::endl;
 		response.createCgi();
 		try {
 			response.startCgi(path, request.getQuery(), "", GET, response);
 			response.setStatusCode(102);
-			std::cerr << "parent about to return\n";
 			return;
 		}
 		catch (std::runtime_error &e) {

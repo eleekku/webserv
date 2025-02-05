@@ -172,11 +172,12 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
         if (nfds == -1)
         {
             //cleaningServerFd();
+            /*
             if (errno == EINTR || errno == 9)
             {
-                    std::cout << "epoll_wait interrumpido por una señal\n";
+                    std::cerr << "epoll_wait interrumpido por una señal\n";
                     continue;
-            }
+            }*/
             std::cerr << "\nerrno" << errno << "\n";
             throw std::runtime_error("run = Error in epoll_wait");
         }
@@ -266,7 +267,7 @@ void    Server::createNewParserObject(size_t index)
 	if (index < _requests.size() && !_is_used[index])
 	{
         std::cout << "\n-------------------------------\n";
-        std::cout << "new parsing\n";
+        std::cerr << "new parsing\n";
         std::cout << "\n-------------------------------\n";
 		_is_used[index] = true;
 		_requests[index] = HttpParser();
