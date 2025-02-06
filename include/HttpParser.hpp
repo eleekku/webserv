@@ -17,6 +17,7 @@ class HttpParser
 		// Variables
 		ParsingState		_state;
 		std::vector<char>	_request;
+		std::vector<char>	_tmp;
 		size_t				_pos;
 		size_t				_totalBytesRead;
 		uint8_t				_method_enum;
@@ -95,7 +96,7 @@ class HttpParser
 				}();
 
 		// Parsing
-		void				readRequest(int clientfd, bool body);
+		void				readRequest(int clientfd);
 		void				readBody(int clientfd);
 		std::stringstream	getVectorLine();
 		std::vector<char>	getBodyData();
