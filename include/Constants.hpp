@@ -5,7 +5,7 @@
 
 // Network Constants
 static const int    MAX_EVENTS = 32;
-static const int    BUFFER_SIZE = 64000;
+static const int    BUFFER_SIZE = 8192;
 static const int    MAX_REQUEST_SIZE = 24576;
 static const int    CONNECTION_TIMEOUT = 20;    // seconds
 static const int    CGI_TIMEOUT = 5;           // seconds
