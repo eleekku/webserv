@@ -1,5 +1,5 @@
 #include "HttpParser.hpp"
-#include "Constants.hpp"
+#include "HandleRequest.hpp"
 #include <algorithm>
 #include <cerrno>
 #include <iostream>
@@ -196,12 +196,34 @@ void	HttpParser::extractContentLength()
 	}
 }
 
+void	HttpParser::extractStringBody()
+{
+	std::vector<char>	content(_contentLength);
+	std::vector<char>	lineVec;
+
+	while (true)
+	{
+		std::cout << "Looping..." << std::endl;
+		lineVec.clear();
+		lineVec = getBodyData();
+		content.insert(content.end(), lineVec.begin(), lineVec.end());
+		if (content.size() >= _contentLength)
+			break;
+	}
+	content.pop_back();
+	content.pop_back();
+	_body.assign(content.begin(), content.end());
+	_status = 200;
+}
+
 void	HttpParser::extractBody()
 {
 	if (_headers.contains("Content-Type"))
 	{
 		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
-			 extractMultipartFormData();
+			extractMultipartFormData();
+		else
+			extractStringBody();
 	}
 	else if (_headers.contains("Transfer-Encoding") &&
 		_headers["Transfer-Encoding"] == "chunked")
@@ -293,12 +315,11 @@ void	HttpParser::extractMultipartFormData()
 {
 	std::string							filename;
 	std::stringstream					line;
-	std::vector<char>					content;
+	std::vector<char>					content(_contentLength);
 	std::vector<char>					lineVec;
 	size_t								vecSize;
 	std::string							lineStr;
 
-	content.reserve(_contentLength);
 	if (!std::filesystem::exists("www/uploads"))
 		std::filesystem::create_directory("www/uploads");
 	extractBoundary();
@@ -336,17 +357,17 @@ void	HttpParser::extractMultipartFormData()
 			content.pop_back();
 			if (!filename.empty())
 			{
+				std::cout << "Creating file\n";
 				std::ofstream outFile("www/uploads/" + filename, std::ios::binary);
 				if (!outFile)
 					throw std::runtime_error("Failed to open file for writing: " + filename);
 				outFile.write(content.data(), content.size());
 				outFile.close();
-			} else {
-				_body.assign(content.begin(), content.end());
+				_status = 201;
 			}
-		}
 		if (lineStr == _boundary + "--")
 			break;
+		}
 	}
 }
 
@@ -398,7 +419,19 @@ void HttpParser::readBody(int clientfd)
 	// }
 }
 
-void HttpParser::readRequest(int clientfd)
+void	HttpParser::checkLimitMethods(ConfigFile& conf, int serverIndex)
+{
+	std::cout << "Checking limit methods..." << std::endl;
+	std::string location(condenceLocation(_target));
+	LocationConfig locConfig = findKey(location, serverIndex, conf);
+	if (locConfig.limit_except.find(_method) == locConfig.limit_except.npos)
+	{
+		_status = 405;
+		throw std::runtime_error("Method not allowed");
+	}
+}
+
+void	HttpParser::readRequest(int clientfd)
 {
 	int			bytesRead = 0;
 	char		buffer[BUFFER_SIZE] = {0};
@@ -452,9 +485,8 @@ void HttpParser::readRequest(int clientfd)
 	}
 }
 
-bool	HttpParser::startParsing(int clientfd, long maxBodySize)
+bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 {
-	_maxBodySize = maxBodySize;
 	try {
 		while (true)
 		{
@@ -462,6 +494,7 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 			{
 				case start:
 					std::cout << "Starting parsing..." << std::endl;
+					_maxBodySize = conf.getMax_body(serverIndex);
 					_state = readingRequest;
 					readRequest(clientfd);
 					break;
@@ -475,6 +508,7 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 				case parsingRequest:
 					std::cout << "Parsing request..." << std::endl;
 					extractReqLine();
+					checkLimitMethods(conf, serverIndex);
 					parseQuery();
 					extractHeaders(false);
 					if (_method_enum == POST)
@@ -500,11 +534,9 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 					readBody(clientfd);
 					break;
 				case parsingBody:
+					std::cout << "Parsing body..." << std::endl;
 					if (_request.size() > 0)
-					{
 						extractBody();
-						_status = 201;
-					}
 					break;
 				case done:
 					std::cout << "Parsing done..." << std::endl;
