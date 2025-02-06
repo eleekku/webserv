@@ -364,14 +364,6 @@ void	HttpParser::extractMultipartFormData()
 				outFile.write(content.data(), content.size());
 				outFile.close();
 				_status = 201;
-<<<<<<< HEAD
-			} else {
-				std::cout << "im here\n";
-				_body.assign(content.begin(), content.end());
-				std::cout << "body is " << _body << std::endl;
-				_status = 200;
-=======
->>>>>>> main
 			}
 		if (lineStr == _boundary + "--")
 			break;
