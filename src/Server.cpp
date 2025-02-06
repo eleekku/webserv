@@ -234,7 +234,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
                     if (events[i].events & EPOLLIN)
                     {
                         createNewParserObject(i);
-                        if (_requests[i].startParsing(client, conf.getMax_body(serverIndex)) == true)
+                        if (_requests[i].startParsing(client, conf, serverIndex) == true)
                         {
                             event.events = EPOLLOUT;
                             epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event);
@@ -246,7 +246,7 @@ void Server::runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_
 
                     }
                     if (events[i].events & EPOLLHUP)
-                    { 
+                    {
                         handleClientConnection(serverIndex, conf, client, epollFd, event, i);
                     }
                 }
