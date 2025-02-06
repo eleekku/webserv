@@ -2,10 +2,6 @@
 
 import time
 
-# Output required headers to avoid a malformed response
-#print("Content-Type: text/plain")
-print()
-
 # Start the infinite loop
 i = 0
 while True:

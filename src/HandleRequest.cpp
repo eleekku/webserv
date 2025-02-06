@@ -154,11 +154,12 @@ void listDirectory(HttpParser &request, std::string &path, LocationConfig &locat
 		struct dirent *ent;
 		if ((dir = opendir(path.c_str())) != NULL) {
 			while ((ent = readdir(dir)) != NULL) {
-				buffer << "<a href=\"" << ent->d_name << "\">" << ent->d_name << "</a><br>";
+				buffer << "<a href=\"" << request.getTarget() << "/" << ent->d_name << "\">" << ent->d_name << "</a><br>";
 			}
 			closedir(dir);
 		}
 		buffer << "</pre><hr></body></html>";
+		response.setBody(buffer.str());
 		response.setMimeType(".html");
 		return;
 	}
@@ -179,7 +180,7 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 		response.errorPage();
 		return;
 		}
-	std::string path;       // = "." + location.root;
+	std::string path;
 	path = formPath(request.getTarget(), location);
 	std::string error = confile.getErrorPage(serverIndex);
 	if (request.getTarget() == "/")
@@ -207,8 +208,12 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 	struct stat fileStat;
 	stat(path.c_str(), &fileStat);
 	response.setMimeType(getExtension(path));
-	if (S_ISDIR(fileStat.st_mode))
+	if (S_ISDIR(fileStat.st_mode)) {
+		if (path.back() != '/')
+			path += "/";
+		std::cout << "path is " << path << std::endl;
 		return (listDirectory(request, path, location, response));
+	}
 	std::ifstream file(path, std::ios::binary);
 	if (!file){
 		response.setStatusCode(500);
@@ -238,8 +243,12 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 		response.errorPage();
 		return;
 	}
+	std::string path = formPath(request.getTarget(), location);
+	if (request.getTarget() == "/")
+		path += location.index;
 	response.createCgi();
-	response.startCgi(location.root, request.getQuery(), request.getBody(), POST, response);
+	std::cout << "body about to go cgi is " << request.getBody() << std::endl;
+	response.startCgi(path, request.getQuery(), request.getBody(), POST, response);
 		response.setStatusCode(102);
 		return;
 }
@@ -274,7 +283,11 @@ void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, H
 				response.setBody("Created");
 			}
 			else
+			{
+				
+			std::cout << "path is " << request.getTarget() << std::endl;
 				handlePost(request, confile, serverIndex, response);
+			}
 			return;
 		default:
 			response.setStatusCode(405);

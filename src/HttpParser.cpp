@@ -200,7 +200,7 @@ void	HttpParser::extractBody()
 {
 	if (_headers.contains("Content-Type"))
 	{
-		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
+	//	if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
 			 extractMultipartFormData();
 	}
 	else if (_headers.contains("Transfer-Encoding") &&
@@ -341,8 +341,12 @@ void	HttpParser::extractMultipartFormData()
 					throw std::runtime_error("Failed to open file for writing: " + filename);
 				outFile.write(content.data(), content.size());
 				outFile.close();
+				_status = 201;
 			} else {
+				std::cout << "im here\n";
 				_body.assign(content.begin(), content.end());
+				std::cout << "body is " << _body << std::endl;
+				_status = 200;
 			}
 		}
 		if (lineStr == _boundary + "--")
@@ -501,10 +505,7 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 					break;
 				case parsingBody:
 					if (_request.size() > 0)
-					{
 						extractBody();
-						_status = 201;
-					}
 					break;
 				case done:
 					std::cout << "Parsing done..." << std::endl;
