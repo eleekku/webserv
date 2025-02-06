@@ -422,9 +422,12 @@ void HttpParser::readBody(int clientfd)
 void	HttpParser::checkLimitMethods(ConfigFile& conf, int serverIndex)
 {
 	std::cout << "Checking limit methods..." << std::endl;
-	std::string location(condenceLocation(_target));
+	std::string location = _target.substr(0, _target.find('/', 1) - 1);
+	std::cout << "Location: " << location << std::endl;
 	LocationConfig locConfig = findKey(location, serverIndex, conf);
-	if (locConfig.limit_except.find(_method) == locConfig.limit_except.npos)
+	std::string_view limit = locConfig.limit_except;
+	std::cout << "Limit methods: " << limit << std::endl;
+	if (limit.find(_method) == limit.npos)
 	{
 		_status = 405;
 		throw std::runtime_error("Method not allowed");
