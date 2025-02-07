@@ -202,7 +202,7 @@ void	HttpParser::extractStringBody()
 {
 	std::vector<char>	content(_contentLength);
 	std::vector<char>	lineVec;
-	extractHeaders(true);
+
 	while (true)
 	{
 		std::cout << "Looping..." << std::endl;
