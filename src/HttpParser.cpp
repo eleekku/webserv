@@ -202,15 +202,22 @@ void	HttpParser::extractStringBody()
 {
 	std::vector<char>	content(_contentLength);
 	std::vector<char>	lineVec;
-	extractHeaders(true);
+
+	//getVectorLine();
 	while (true)
 	{
+//		std::cerr << "content size in begining " << content.size() << "\n";
 		std::cout << "Looping..." << std::endl;
 		lineVec.clear();
 		lineVec = getBodyData();
+//		std::cerr << "body data is: " << std::string(lineVec.begin(), lineVec.end()) << "\n";
 		content.insert(content.end(), lineVec.begin(), lineVec.end());
+//		std::cerr << "content size is " << content.size() << "\n";
 		if (content.size() >= _contentLength)
+		{
+//			std::cerr << "breaking\n";
 			break;
+		}
 	}
 	_body.assign(content.begin(), content.end());
 	_status = 200;

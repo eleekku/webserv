@@ -12,7 +12,7 @@ body = sys.stdin.read(content_length)
 sys.stderr.write(f"Body read: {body}\n")
 
 # Define a file where we store the received data
-upload_dir = "cgi-bin/cgi_uploads"
+upload_dir = "cgi_uploads"
 os.makedirs(upload_dir, exist_ok=True)  # Ensure the directory exists
 file_path = os.path.join(upload_dir, "uploaded_data.txt")
 

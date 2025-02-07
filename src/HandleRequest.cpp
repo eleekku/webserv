@@ -194,7 +194,7 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 		std::cerr << "its cgi! " << std::endl;
 		response.createCgi();
 		try {
-			response.startCgi(path, request.getQuery(), "", GET, response);
+			response.startCgi(path, request, response);
 			response.setStatusCode(102);
 			return;
 		}
@@ -247,13 +247,14 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 	if (request.getTarget() == "/")
 		path += location.index;
 	response.createCgi();
-	std::cout << "body about to go cgi is " << request.getBody() << std::endl;
-	response.startCgi(path, request.getQuery(), request.getBody(), POST, response);
+	std::cerr << "body about to go cgi is " << request.getBody() << std::endl;
+	response.startCgi(path, request, response);
 		response.setStatusCode(102);
 		return;
 }
 
 void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+	std::cerr << "body str size in begining " << request.getBody().size() << "\n";
 	response.setHeader("Server", confile.getServerName(serverIndex));
 	response.setErrorpath(confile.getErrorPage(serverIndex));
 	unsigned int status = request.getStatus();
