@@ -327,6 +327,7 @@ void	HttpParser::extractMultipartFormData()
 		throw std::runtime_error("No boundary found in multipart/form-data");
 	while (true)
 	{
+		std::cout << "Looping ..." << std::endl;
 		line = getVectorLine();
 		lineStr = line.str();
 		if (lineStr.back() == '\r')
@@ -386,16 +387,6 @@ void	HttpParser::parseQuery()
 void	HttpParser::checkReadRequest()
 {
 	_state = parsingRequest;
-	if (_request.size() >= 4)
-	{
-		// std::string end(_request.end() - 4, _request.end());
-		// if (end != "\r\n\r\n")
-		// {
-		// 	_status = 400;
-		// 	_state = error;
-		// 	return ;
-		// }
-	}
 }
 
 void HttpParser::readBody(int clientfd)
@@ -411,12 +402,22 @@ void HttpParser::readBody(int clientfd)
 		_request.insert(_request.end(), buffer, buffer + bytesRead);
 		std::cout << "Bytes read : " << _totalBytesRead << " / " << _contentLength << std::endl;
 	}
+	if (bytesRead == 0)
+		_state = parsingBody;
+	if (bytesRead == -1)
+	{
+		_state = error;
+		perror("Error reading from client socket");
+		throw std::runtime_error("Error reading from client socket");
+	}
 	if (_totalBytesRead == _contentLength)
 		_state = parsingBody;
-	// if (bytesRead < BUFFER_SIZE)
-	// {
-	// 	_state = parsingBody;
-	// }
+	if (_totalBytesRead > _maxBodySize)
+	{
+		_status = 413;
+		_state = error;
+		throw std::runtime_error("Request entity too large");
+	}
 }
 
 void	HttpParser::checkLimitMethods(ConfigFile& conf, int serverIndex)
@@ -468,23 +469,16 @@ void	HttpParser::readRequest(int clientfd)
 			{
 				std::cout << "Finished reading..." << std::endl;
 				std::copy(it + 4, _request.end(), std::back_inserter(_tmp));
-			//	_request.erase(_request.end() - _tmp.size(), _request.end());
 				_state = checkingRequest;
 				return ;
 			}
 		}
-		// if (body && _request.size() > _maxBodySize)
-		// {
-		// 	_state = error;
-		// 	_status = 413;
-		// 	throw std::runtime_error("Request too large");
-		// }
-		// if (!body && _request.size() > MAX_REQUEST_SIZE)
-		// {
-		// 	const char *needle = "\r\n\r\n";
-		// 	_request.insert(_request.end(), needle, needle + 4);
-		// 	_state = checkingRequest;
-		// }
+		if (_request.size() > MAX_REQUEST_SIZE)
+		{
+			const char *needle = "\r\n\r\n";
+			_request.insert(_request.end(), needle, needle + 4);
+			_state = checkingRequest;
+		}
 	}
 }
 
@@ -549,7 +543,7 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					break;
 			}
 			if (_state == done || _state == error || _state == readingRequest
-				|| _state == readingBody)
+				|| _state == readingBody || _state == startBody)
 				break;
 		}
 	} catch (std::exception &e) {
