@@ -101,27 +101,32 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
                 exit(1);
 
             fcntl(pipeWrite[1], F_SETFL, O_NONBLOCK);
-            body = "helloo";
+    //       body = "helloo";
             std::cerr << "body is " << body << "\n";
-            write(pipeWrite[1], body.c_str(), body.size());
+            std::cerr << "write return: " << (write(pipeWrite[1], body.c_str(), body.size())) << std::endl;
+            setenv("CONTENT_LENGTH", std::to_string(body.size()).c_str(), 1);
             close(pipeWrite[1]);
             dup2(pipeWrite[0], STDIN_FILENO);
             close(pipeWrite[0]);
         }
         setenv("REQUEST_METHOD", method == GET ? "GET" : "POST", 1);
         setenv("QUERY_STRING", queryString.c_str(), 1);
-
-        freopen("/dev/null", "w", stderr);  // Redirect errors to avoid printing on terminal
-
+        
+  //      freopen("/dev/null", "w", stderr);  // Redirect errors to avoid printing on terminal
         dup2(fdPipe[1], STDOUT_FILENO);
         close(fdPipe[1]);
         close(fdPipe[0]);
+        std::cerr << "pipe done\n";
             struct sigaction sa;
         sa.sa_handler = timeoutHandler;
         sigemptyset(&sa.sa_mask);
         sa.sa_flags = SA_RESTART;  // Prevent `epoll_wait` from failing with EINTR
         if (sigaction(SIGALRM, &sa, NULL) == -1)
             std::cerr << "Error setting signal handler\n";
+        std::string line;
+        std::cerr << "helloo\n";
+     //   std::getline(std::cin, line);
+    //    std::cerr << "line is " << line << "\n";
         int executeTimeOut = 8;
         alarm(executeTimeOut);
 

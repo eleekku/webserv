@@ -200,7 +200,7 @@ void	HttpParser::extractStringBody()
 {
 	std::vector<char>	content(_contentLength);
 	std::vector<char>	lineVec;
-
+	extractHeaders(true);
 	while (true)
 	{
 		std::cout << "Looping..." << std::endl;
@@ -210,8 +210,6 @@ void	HttpParser::extractStringBody()
 		if (content.size() >= _contentLength)
 			break;
 	}
-	content.pop_back();
-	content.pop_back();
 	_body.assign(content.begin(), content.end());
 	_status = 200;
 }
