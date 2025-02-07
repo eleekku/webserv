@@ -132,6 +132,7 @@ class HttpParser
 		std::string getBody();
 		uint8_t		getMethod();
 		int			getStatus();
+		size_t		getContentLength();
 
 		bool	startParsing(int clientfd, ConfigFile& conf, int serverIndex);
 };
