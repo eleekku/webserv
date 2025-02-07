@@ -2,6 +2,7 @@
 #include "HandleRequest.hpp"
 #include <algorithm>
 #include <cerrno>
+#include <cstddef>
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
@@ -23,6 +24,7 @@ uint8_t		HttpParser::getMethod() { return _method_enum;}
 int			HttpParser::getStatus() { return _status;}
 std::string	HttpParser::getQuery() { return _query;}
 std::string HttpParser::getBody() { return _body;}
+size_t		HttpParser::getContentLength() { return _contentLength;}
 
 std::stringstream HttpParser::getVectorLine()
 {
