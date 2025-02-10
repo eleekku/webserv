@@ -200,12 +200,12 @@ void	HttpParser::extractContentLength()
 
 void	HttpParser::extractStringBody()
 {
-	std::vector<char>	content(_contentLength);
+	std::vector<char>	content;
 	std::vector<char>	lineVec;
 
+	content.reserve(_contentLength);
 	while (true)
 	{
-		std::cout << "Looping..." << std::endl;
 		lineVec.clear();
 		lineVec = getBodyData();
 		content.insert(content.end(), lineVec.begin(), lineVec.end());
@@ -423,7 +423,8 @@ void HttpParser::readBody(int clientfd)
 void	HttpParser::checkLimitMethods(ConfigFile& conf, int serverIndex)
 {
 	std::cout << "Checking limit methods..." << std::endl;
-	std::string location = _target.substr(0, _target.find('/', 1) - 1);
+	std::cout << _target << std::endl;
+	std::string location = _target.substr(0, _target.find('/', 1));
 	std::cout << "Location: " << location << std::endl;
 	LocationConfig locConfig = findKey(location, serverIndex, conf);
 	std::string_view limit = locConfig.limit_except;
@@ -524,8 +525,10 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					_tmp.clear();
 					_pos = 0;
 					_totalBytesRead = _request.size();
-					_state = readingBody;
-					readBody(clientfd);
+					if (_request.size() == _contentLength)
+						_state = parsingBody;
+					else
+						_state = readingBody;
 					break;
 				case readingBody:
 					readBody(clientfd);
@@ -543,7 +546,7 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					break;
 			}
 			if (_state == done || _state == error || _state == readingRequest
-				|| _state == readingBody || _state == startBody)
+				|| _state == readingBody)
 				break;
 		}
 	} catch (std::exception &e) {
