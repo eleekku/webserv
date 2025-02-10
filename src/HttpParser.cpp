@@ -208,12 +208,9 @@ void	HttpParser::extractStringBody()
 	{
 		lineVec.clear();
 		lineVec = getBodyData();
-//		std::cerr << "body data is: " << std::string(lineVec.begin(), lineVec.end()) << "\n";
 		content.insert(content.end(), lineVec.begin(), lineVec.end());
-//		std::cerr << "content size is " << content.size() << "\n";
 		if (content.size() >= _contentLength)
 		{
-//			std::cerr << "breaking\n";
 			break;
 		}
 	}
