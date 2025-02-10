@@ -102,33 +102,10 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
                 exit(1);
 
             fcntl(pipeWrite[1], F_SETFL, O_NONBLOCK);
-    //       body = "helloo";
-            std::cerr << "body str size " << request.getBody().size() << "\n";
-            std::cerr << "body is " << request.getBody() << "\n";
-            std::cerr << "content length is " << request.getContentLength() << "\n";
-            std::cerr << "body is " << request.getBody() << std::endl;
-            std::cerr << "body is " << request.getBody().c_str() << std::endl;
-
             std::string body = request.getBody();
-std::cerr << "body is " << body << "\n";
-std::cerr << "content length is " << request.getContentLength() << "\n";
-std::cerr << "body size is " << body.size() << std::endl;
-std::cerr << "body (c_str) is " << body.c_str() << std::endl;
-std::cerr << "body length is " << body.length() << std::endl;
-std::cerr << "body size is " << body.size() << std::endl;
-std::cerr << "body data is " << std::string(body.data(), body.size()) << std::endl;
 
-            write(pipeWrite[1], request.getBody().c_str(), request.getBody().size());
-                    // Read back from the pipe to verify the data
-        char verifyBuffer[1024];
-        ssize_t bytesRead = read(pipeWrite[0], verifyBuffer, sizeof(verifyBuffer) - 1);
-        if (bytesRead == -1) {
-            std::cerr << "Error reading from pipe: " << strerror(errno) << "\n";
-            exit(1);
-        }
-        std::cerr << "bytes read is " << bytesRead << "\n";
-        verifyBuffer[bytesRead] = '\0';  // Null-terminate the buffer
-        std::cerr << "Data read back from pipe: " << verifyBuffer << "\n";
+            if (write(pipeWrite[1], request.getBody().c_str(), request.getContentLength()) == -1)
+                exit(1);
             std::string contentLengthStr = std::to_string(request.getContentLength());
             setenv("CONTENT_LENGTH", contentLengthStr.c_str(), 1);
             close(pipeWrite[1]);

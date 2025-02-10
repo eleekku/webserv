@@ -247,7 +247,6 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 	if (request.getTarget() == "/")
 		path += location.index;
 	response.createCgi();
-	std::cerr << "body about to go cgi is " << request.getBody() << std::endl;
 	response.startCgi(path, request, response);
 		response.setStatusCode(102);
 		return;
@@ -284,11 +283,7 @@ void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, H
 				response.setBody("Created");
 			}
 			else
-			{
-				
-			std::cout << "path is " << request.getTarget() << std::endl;
 				handlePost(request, confile, serverIndex, response);
-			}
 			return;
 		default:
 			response.setStatusCode(405);
