@@ -208,12 +208,9 @@ void	HttpParser::extractStringBody()
 	{
 		lineVec.clear();
 		lineVec = getBodyData();
-//		std::cerr << "body data is: " << std::string(lineVec.begin(), lineVec.end()) << "\n";
 		content.insert(content.end(), lineVec.begin(), lineVec.end());
-//		std::cerr << "content size is " << content.size() << "\n";
 		if (content.size() >= _contentLength)
 		{
-//			std::cerr << "breaking\n";
 			break;
 		}
 	}
@@ -227,6 +224,8 @@ void	HttpParser::extractBody()
 	{
 		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
 			extractMultipartFormData();
+		// else if (_headers["Content-Type"].find("application") != std::string::npos)
+		// 	extractMultipartFormData();
 		else
 			extractStringBody();
 	}
@@ -488,6 +487,55 @@ void	HttpParser::readRequest(int clientfd)
 	}
 }
 
+bool isValidMethodChar(char c) {
+    return (c >= 'A' && c <= 'Z');
+}
+
+bool isValidTargetChar(char c) {
+    return (c >= 'A' && c <= 'Z') ||
+           (c >= 'a' && c <= 'z') ||
+           (c >= '0' && c <= '9') ||
+           c == '-' || c == '.' || c == '_' || c == '~' ||
+           c == '/' || c == '?' || c == '=' || c == '&';
+}
+
+bool isValidHeaderKeyChar(char c) {
+    return (c >= 33 && c <= 126) && c != ':';
+}
+
+bool isValidHeaderValueChar(char c) {
+    return (c >= 32 && c <= 126) || c == '\t';
+}
+
+bool	HttpParser::checkValidCharacters()
+{
+	for (char c : _method)
+	{
+		if (!isValidMethodChar(c))
+			return false;
+	}
+	for (char c : _target)
+	{
+		if (!isValidTargetChar(c))
+			return false;
+	}
+	for (const auto& pair : _headers)
+	{
+		for (char c : pair.first)
+		{
+			if (!isValidHeaderKeyChar(c))
+				return false;
+		}
+		for (char c : pair.second)
+		{
+			if (!isValidHeaderValueChar(c))
+				return false;
+		}
+	}
+	return true;
+}
+
+
 bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 {
 	try {
@@ -514,6 +562,12 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					checkLimitMethods(conf, serverIndex);
 					parseQuery();
 					extractHeaders(false);
+					if (checkValidCharacters() == false)
+					{
+						_status = 400;
+						_state = error;
+						break;
+					}
 					if (_method_enum == POST)
 						_state = startBody;
 					else

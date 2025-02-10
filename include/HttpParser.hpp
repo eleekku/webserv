@@ -119,6 +119,7 @@ class HttpParser
 		bool	checkRequest(std::stringstream& line);
 		void	checkHeaders(std::string_view key, std::string_view value);
 		void	checkLimitMethods(ConfigFile& conf, int serverIndex);
+		bool	checkValidCharacters();
 
 	public:
 		// Constructor
