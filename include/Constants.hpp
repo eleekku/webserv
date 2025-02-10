@@ -59,6 +59,7 @@ enum ParsingState {
 
 // HTTP Status Messages
 static const std::map<int, std::string> HTTP_STATUS_MESSAGES = {
+	{100, "Continue"},
     {102, "Processing"},
     {200, "OK"},
     {201, "Created"},

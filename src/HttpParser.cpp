@@ -222,6 +222,8 @@ void	HttpParser::extractBody()
 	{
 		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
 			extractMultipartFormData();
+		// else if (_headers["Content-Type"].find("application") != std::string::npos)
+		// 	extractMultipartFormData();
 		else
 			extractStringBody();
 	}
@@ -509,6 +511,12 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					checkLimitMethods(conf, serverIndex);
 					parseQuery();
 					extractHeaders(false);
+					// if (_headers["Expect"].find("100-continue") != std::string::npos)
+					// {
+					// 	_status = 100;
+					// 	_state = done;
+					// 	break;
+					// }
 					if (_method_enum == POST)
 						_state = startBody;
 					else
