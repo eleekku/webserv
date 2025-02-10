@@ -200,14 +200,12 @@ void	HttpParser::extractContentLength()
 
 void	HttpParser::extractStringBody()
 {
-	std::vector<char>	content(_contentLength);
+	std::vector<char>	content;
 	std::vector<char>	lineVec;
 
-	//getVectorLine();
+	content.reserve(_contentLength);
 	while (true)
 	{
-//		std::cerr << "content size in begining " << content.size() << "\n";
-		std::cout << "Looping..." << std::endl;
 		lineVec.clear();
 		lineVec = getBodyData();
 //		std::cerr << "body data is: " << std::string(lineVec.begin(), lineVec.end()) << "\n";
@@ -334,6 +332,7 @@ void	HttpParser::extractMultipartFormData()
 		throw std::runtime_error("No boundary found in multipart/form-data");
 	while (true)
 	{
+		std::cout << "Looping ..." << std::endl;
 		line = getVectorLine();
 		lineStr = line.str();
 		if (lineStr.back() == '\r')
@@ -393,16 +392,6 @@ void	HttpParser::parseQuery()
 void	HttpParser::checkReadRequest()
 {
 	_state = parsingRequest;
-	if (_request.size() >= 4)
-	{
-		// std::string end(_request.end() - 4, _request.end());
-		// if (end != "\r\n\r\n")
-		// {
-		// 	_status = 400;
-		// 	_state = error;
-		// 	return ;
-		// }
-	}
 }
 
 void HttpParser::readBody(int clientfd)
@@ -418,18 +407,29 @@ void HttpParser::readBody(int clientfd)
 		_request.insert(_request.end(), buffer, buffer + bytesRead);
 		std::cout << "Bytes read : " << _totalBytesRead << " / " << _contentLength << std::endl;
 	}
+	if (bytesRead == 0)
+		_state = parsingBody;
+	if (bytesRead == -1)
+	{
+		_state = error;
+		perror("Error reading from client socket");
+		throw std::runtime_error("Error reading from client socket");
+	}
 	if (_totalBytesRead == _contentLength)
 		_state = parsingBody;
-	// if (bytesRead < BUFFER_SIZE)
-	// {
-	// 	_state = parsingBody;
-	// }
+	if (_totalBytesRead > _maxBodySize)
+	{
+		_status = 413;
+		_state = error;
+		throw std::runtime_error("Request entity too large");
+	}
 }
 
 void	HttpParser::checkLimitMethods(ConfigFile& conf, int serverIndex)
 {
 	std::cout << "Checking limit methods..." << std::endl;
-	std::string location = _target.substr(0, _target.find('/', 1) - 1);
+	std::cout << _target << std::endl;
+	std::string location = _target.substr(0, _target.find('/', 1));
 	std::cout << "Location: " << location << std::endl;
 	LocationConfig locConfig = findKey(location, serverIndex, conf);
 	std::string_view limit = locConfig.limit_except;
@@ -475,23 +475,16 @@ void	HttpParser::readRequest(int clientfd)
 			{
 				std::cout << "Finished reading..." << std::endl;
 				std::copy(it + 4, _request.end(), std::back_inserter(_tmp));
-			//	_request.erase(_request.end() - _tmp.size(), _request.end());
 				_state = checkingRequest;
 				return ;
 			}
 		}
-		// if (body && _request.size() > _maxBodySize)
-		// {
-		// 	_state = error;
-		// 	_status = 413;
-		// 	throw std::runtime_error("Request too large");
-		// }
-		// if (!body && _request.size() > MAX_REQUEST_SIZE)
-		// {
-		// 	const char *needle = "\r\n\r\n";
-		// 	_request.insert(_request.end(), needle, needle + 4);
-		// 	_state = checkingRequest;
-		// }
+		if (_request.size() > MAX_REQUEST_SIZE)
+		{
+			const char *needle = "\r\n\r\n";
+			_request.insert(_request.end(), needle, needle + 4);
+			_state = checkingRequest;
+		}
 	}
 }
 
@@ -537,8 +530,10 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					_tmp.clear();
 					_pos = 0;
 					_totalBytesRead = _request.size();
-					_state = readingBody;
-					readBody(clientfd);
+					if (_request.size() == _contentLength)
+						_state = parsingBody;
+					else
+						_state = readingBody;
 					break;
 				case readingBody:
 					readBody(clientfd);
