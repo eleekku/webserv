@@ -26,31 +26,30 @@ class HttpResponse
 		HttpResponse(const HttpResponse& other);
 		HttpResponse& operator=(const HttpResponse& other);
 
-		void 	setHeader(const std::string& key, const std::string& value);
-		void 	setBody(const std::string& body);
-		void 	setStatusCode(int code);
-		void 	setMimeType(const std::string& mime);
-		void 	setErrorpath(std::string errorpath);
+		void 		setHeader(const std::string& key, const std::string& value);
+		void 		setBody(const std::string& body);
+		void 		setStatusCode(int code);
+		void 		setMimeType(const std::string& mime);
+		void 		setErrorpath(std::string errorpath);
+		void		setEpoll(int epoll);
 
-		void 	createCgi();
-		void	startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response);
-		void 	generate();
-		bool	sendResponse(int serverSocket);                      //int clientFd, int epollFd,;
-
-		std::string getBody() const;
-		int		getStatus();
+		std::string	getBody() const;
+		int			getStatus();
 		std::string getMimeType(const std::string& extension) const;
 		std::string getMimeKey() const;
 		std::string getReasonPhrase() const;
 		std::string getErrorpath() const;
 		std::string getCgiBody() const;
-		void 		errorPage();
+		int			getchildid();
+		int 		getFdPipe();
+		int 		getEpoll();
 
-		int	getchildid();
-		int getFdPipe();
-		int getEpoll();
-		void setEpoll(int epoll);
-		bool checkCgiStatus();
+		void		createCgi();
+		void		startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response);
+		void		generate();
+		bool		sendResponse(int serverSocket);
+		void 		errorPage();
+		bool		checkCgiStatus();
 
 	private:
 
@@ -60,6 +59,7 @@ class HttpResponse
 		int												m_statusCode;
 		bool											m_sent;
 		size_t											m_totalBytesSent;
+		size_t											m_bodySize;
 		std::map<std::string, std::string>				m_headers;
 		std::string										m_reasonPhrase;
 		std::string										m_body;
