@@ -485,6 +485,55 @@ void	HttpParser::readRequest(int clientfd)
 	}
 }
 
+bool isValidMethodChar(char c) {
+    return (c >= 'A' && c <= 'Z');
+}
+
+bool isValidTargetChar(char c) {
+    return (c >= 'A' && c <= 'Z') ||
+           (c >= 'a' && c <= 'z') ||
+           (c >= '0' && c <= '9') ||
+           c == '-' || c == '.' || c == '_' || c == '~' ||
+           c == '/' || c == '?' || c == '=' || c == '&';
+}
+
+bool isValidHeaderKeyChar(char c) {
+    return (c >= 33 && c <= 126) && c != ':';
+}
+
+bool isValidHeaderValueChar(char c) {
+    return (c >= 32 && c <= 126) || c == '\t';
+}
+
+bool	HttpParser::checkValidCharacters()
+{
+	for (char c : _method)
+	{
+		if (!isValidMethodChar(c))
+			return false;
+	}
+	for (char c : _target)
+	{
+		if (!isValidTargetChar(c))
+			return false;
+	}
+	for (const auto& pair : _headers)
+	{
+		for (char c : pair.first)
+		{
+			if (!isValidHeaderKeyChar(c))
+				return false;
+		}
+		for (char c : pair.second)
+		{
+			if (!isValidHeaderValueChar(c))
+				return false;
+		}
+	}
+	return true;
+}
+
+
 bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 {
 	try {
@@ -511,12 +560,12 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					checkLimitMethods(conf, serverIndex);
 					parseQuery();
 					extractHeaders(false);
-					// if (_headers["Expect"].find("100-continue") != std::string::npos)
-					// {
-					// 	_status = 100;
-					// 	_state = done;
-					// 	break;
-					// }
+					if (checkValidCharacters() == false)
+					{
+						_status = 400;
+						_state = error;
+						break;
+					}
 					if (_method_enum == POST)
 						_state = startBody;
 					else
