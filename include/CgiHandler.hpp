@@ -31,7 +31,7 @@ class CgiHandler
 	CgiHandler(const CgiHandler&); // = default;
     CgiHandler& operator=(const CgiHandler&); // = default;
 
-	void executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
+	void executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response);
 	bool waitpidCheck(HttpResponse &response);
 	std::string getCgiOut() const;
 	int getchildid();

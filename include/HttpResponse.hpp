@@ -33,7 +33,7 @@ class HttpResponse
 		void 	setErrorpath(std::string errorpath);
 
 		void 	createCgi();
-		void	startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response);
+		void	startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response);
 		void 	generate();
 		bool	sendResponse(int serverSocket);                      //int clientFd, int epollFd,;
 

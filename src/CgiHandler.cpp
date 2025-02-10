@@ -1,4 +1,5 @@
 #include "../include/HttpResponse.hpp"
+#include "../include/HttpParser.hpp"
 #include "Constants.hpp"
 
 CgiHandler::CgiHandler() : pid(0), pidResult(0), status(0), cgiOut("") { }
@@ -66,7 +67,7 @@ std::string getPythonName(std::string& path)
     return path.substr(pos + 1);
 }
 
-void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
+void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response)
 {
     struct epoll_event event;
     std::cout << "\nCGI running\n";
@@ -93,7 +94,7 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
     {
         std::cerr << "child running\n";
       //  setpgid(0, 0);
-        if (method == POST)
+        if (request.getMethod() == POST)
         {
             std::cerr << "post method cgi\n";
             int pipeWrite[2];
@@ -101,36 +102,39 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
                 exit(1);
 
             fcntl(pipeWrite[1], F_SETFL, O_NONBLOCK);
-    //       body = "helloo";
-            std::cerr << "body is " << body << "\n";
-            std::cerr << "write return: " << (write(pipeWrite[1], body.c_str(), body.size())) << std::endl;
-            setenv("CONTENT_LENGTH", std::to_string(body.size()).c_str(), 1);
+            std::string body = request.getBody();
+
+            if (write(pipeWrite[1], request.getBody().c_str(), request.getContentLength()) == -1)
+                exit(1);
+            std::string contentLengthStr = std::to_string(request.getContentLength());
+            setenv("CONTENT_LENGTH", contentLengthStr.c_str(), 1);
             close(pipeWrite[1]);
             dup2(pipeWrite[0], STDIN_FILENO);
             close(pipeWrite[0]);
         }
-        setenv("REQUEST_METHOD", method == GET ? "GET" : "POST", 1);
-        setenv("QUERY_STRING", queryString.c_str(), 1);
+        setenv("REQUEST_METHOD", request.getMethod() == GET ? "GET" : "POST", 1);
+        setenv("QUERY_STRING", request.getQuery().c_str(), 1);
         
   //      freopen("/dev/null", "w", stderr);  // Redirect errors to avoid printing on terminal
         dup2(fdPipe[1], STDOUT_FILENO);
         close(fdPipe[1]);
         close(fdPipe[0]);
-        std::cerr << "pipe done\n";
             struct sigaction sa;
         sa.sa_handler = timeoutHandler;
         sigemptyset(&sa.sa_mask);
         sa.sa_flags = SA_RESTART;  // Prevent `epoll_wait` from failing with EINTR
         if (sigaction(SIGALRM, &sa, NULL) == -1)
             std::cerr << "Error setting signal handler\n";
-        std::string line;
-        std::cerr << "helloo\n";
+  //      std::string line;
      //   std::getline(std::cin, line);
     //    std::cerr << "line is " << line << "\n";
         int executeTimeOut = 8;
         alarm(executeTimeOut);
 
         char *argv[] = {const_cast<char *>(scriptPath.c_str()), nullptr};
+    //    std::string line;
+    //    std::getline(std::cin, line);
+    //    std::cerr << "line is " << line << "\n";
         execvp(scriptPath.c_str(), argv);
         exit(1);
     }

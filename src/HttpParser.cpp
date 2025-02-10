@@ -210,7 +210,9 @@ void	HttpParser::extractStringBody()
 		lineVec = getBodyData();
 		content.insert(content.end(), lineVec.begin(), lineVec.end());
 		if (content.size() >= _contentLength)
+		{
 			break;
+		}
 	}
 	_body.assign(content.begin(), content.end());
 	_status = 200;

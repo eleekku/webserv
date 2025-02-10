@@ -143,9 +143,9 @@ void HttpResponse::createCgi() {
 		cgi.emplace();
 }
 
-void	HttpResponse::startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response) {
+void	HttpResponse::startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response) {
 	if (cgi)
-		cgi->executeCGI(scriptPath, queryString, body, method, response);
+		cgi->executeCGI(scriptPath, request, response);
 }
 
 void HttpResponse::generate() {
