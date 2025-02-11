@@ -111,6 +111,7 @@ class HttpParser
 		void		extractBoundary();
 		void		extractContentLength();
 		void		extractMultipartFormData();
+		void		extractOctetStream();
 		void		extractStringBody();
 		std::string	extractFilename();
 
