@@ -1,4 +1,5 @@
 #pragma once
+#include "ConfigFile.hpp"
 #include "Constants.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -17,6 +18,7 @@ class HttpParser
 		// Variables
 		ParsingState		_state;
 		std::vector<char>	_request;
+		std::vector<char>	_tmp;
 		size_t				_pos;
 		size_t				_totalBytesRead;
 		uint8_t				_method_enum;
@@ -95,7 +97,7 @@ class HttpParser
 				}();
 
 		// Parsing
-		void				readRequest(int clientfd, bool body);
+		void				readRequest(int clientfd);
 		void				readBody(int clientfd);
 		std::stringstream	getVectorLine();
 		std::vector<char>	getBodyData();
@@ -109,12 +111,15 @@ class HttpParser
 		void		extractBoundary();
 		void		extractContentLength();
 		void		extractMultipartFormData();
+		void		extractStringBody();
 		std::string	extractFilename();
 
 		// Checking functions
 		void	checkReadRequest();
 		bool	checkRequest(std::stringstream& line);
 		void	checkHeaders(std::string_view key, std::string_view value);
+		void	checkLimitMethods(ConfigFile& conf, int serverIndex);
+		bool	checkValidCharacters();
 
 	public:
 		// Constructor
@@ -128,6 +133,7 @@ class HttpParser
 		std::string getBody();
 		uint8_t		getMethod();
 		int			getStatus();
+		size_t		getContentLength();
 
-		bool	startParsing(int clientfd, long maxBodySize);
+		bool	startParsing(int clientfd, ConfigFile& conf, int serverIndex);
 };

@@ -3,9 +3,6 @@
 # Importar módulo CGI
 import cgi
 
-# Encabezado HTTP
-  print("Content-Type: text/html\n")
-
 # Contenido HTML
 print("""
 <html>

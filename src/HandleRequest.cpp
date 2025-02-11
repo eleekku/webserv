@@ -64,12 +64,20 @@ std::string condenceLocation(const std::string_view &input) {
 	return (std::string)input.substr(pos, pos2 - pos);
 }
 
-bool validateFile(std::string path, HttpResponse &response, LocationConfig &config, int method) { //if the file exists and all is ok
+bool validateFile(std::string path, HttpResponse &response, LocationConfig &config, int method) {
+	//if the file exists and all is ok
 	// Check if the file exists
 	if (!std::filesystem::exists(path)) {
 		response.setStatusCode(404);
 		response.errorPage();
 		std::cerr << "File not found" << std::endl;
+		return false;
+	}
+	// Check if the file is a symbolic link
+	if (std::filesystem::is_symlink(path)) {
+		response.setStatusCode(403);
+		response.errorPage();
+		std::cerr << "Forbidden: Symbolic link not allowed" << std::endl;
 		return false;
 	}
 	// Check file status
@@ -93,7 +101,15 @@ bool validateFile(std::string path, HttpResponse &response, LocationConfig &conf
 }
 
 void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) { //deletes a file
-	LocationConfig locationConfig = findKey(condenceLocation(request.getTarget()), serverIndex, confile);
+	LocationConfig locationConfig;
+	try {
+		locationConfig = findKey(condenceLocation(request.getTarget()), serverIndex, confile);
+	}
+	catch (const std::runtime_error& e) {
+		response.setStatusCode(500);
+		response.errorPage();
+		return;	
+	}
 	std::string path = formPath(request.getTarget(), locationConfig);
 //	std::cout << "path is " << path << std::endl;
 	if (response.getStatus() == 404 || response.getStatus() == 405) {
@@ -138,11 +154,12 @@ void listDirectory(HttpParser &request, std::string &path, LocationConfig &locat
 		struct dirent *ent;
 		if ((dir = opendir(path.c_str())) != NULL) {
 			while ((ent = readdir(dir)) != NULL) {
-				buffer << "<a href=\"" << ent->d_name << "\">" << ent->d_name << "</a><br>";
+				buffer << "<a href=\"" << request.getTarget() << "/" << ent->d_name << "\">" << ent->d_name << "</a><br>";
 			}
 			closedir(dir);
 		}
 		buffer << "</pre><hr></body></html>";
+		response.setBody(buffer.str());
 		response.setMimeType(".html");
 		return;
 	}
@@ -163,7 +180,7 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 		response.errorPage();
 		return;
 		}
-	std::string path;       // = "." + location.root;
+	std::string path;
 	path = formPath(request.getTarget(), location);
 	std::string error = confile.getErrorPage(serverIndex);
 	if (request.getTarget() == "/")
@@ -177,7 +194,7 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 		std::cerr << "its cgi! " << std::endl;
 		response.createCgi();
 		try {
-			response.startCgi(path, request.getQuery(), "", GET, response);
+			response.startCgi(path, request, response);
 			response.setStatusCode(102);
 			return;
 		}
@@ -191,8 +208,12 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 	struct stat fileStat;
 	stat(path.c_str(), &fileStat);
 	response.setMimeType(getExtension(path));
-	if (S_ISDIR(fileStat.st_mode))
+	if (S_ISDIR(fileStat.st_mode)) {
+		if (path.back() != '/')
+			path += "/";
+		std::cout << "path is " << path << std::endl;
 		return (listDirectory(request, path, location, response));
+	}
 	std::ifstream file(path, std::ios::binary);
 	if (!file){
 		response.setStatusCode(500);
@@ -214,15 +235,25 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 		response.errorPage();
 		return;
 	}
+	try {
 	location = findKey(locationStr, serverIndex, confile);
+	}
+	catch (std::runtime_error &e) {
+		response.setStatusCode(500);
+		response.errorPage();
+		return;
+	}
+	std::string path = formPath(request.getTarget(), location);
+	if (request.getTarget() == "/")
+		path += location.index;
 	response.createCgi();
-	response.startCgi(location.root, request.getQuery(), request.getBody(), POST, response);
+	response.startCgi(path, request, response);
 		response.setStatusCode(102);
 		return;
 }
 
 void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
-	response.cgidone = false;
+	std::cerr << "body str size in begining " << request.getBody().size() << "\n";
 	response.setHeader("Server", confile.getServerName(serverIndex));
 	response.setErrorpath(confile.getErrorPage(serverIndex));
 	unsigned int status = request.getStatus();
@@ -230,7 +261,6 @@ void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, H
 	std::cout << "status is " << status << std::endl;
 	if (status != 200 && status != 201 && status != 204)
 	{
-		std::cout << "status is ll" << status << std::endl;
 		response.setStatusCode(status);
 		response.errorPage();
 //		response.setBody("Bad Request");
@@ -243,10 +273,7 @@ void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, H
 		//	response.setBody("Not found");
 			return;
 		case GET:
-	//		std::cout << "entering response with status :" << response.getStatus() << std::endl;
 			locateAndReadFile(request, confile, serverIndex, response);
-	//		std::cout << "child id in receieve request is " << response.getchildid() << std::endl;;
-	//		std::cout << "returning from response with status :" << response.getStatus() << std::endl;
 			return;
 		case POST:
 			response.setHeader("Server", confile.getServerName(serverIndex));

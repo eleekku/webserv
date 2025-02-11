@@ -5,8 +5,6 @@ import sys
 from urllib.parse import parse_qs
 
 def main():
-    # Ensure the script outputs proper HTTP headers
-    print("Content-Type: text/plain\n")
 
     # Get the query string from the environment
     query_string = os.environ.get("QUERY_STRING", "")

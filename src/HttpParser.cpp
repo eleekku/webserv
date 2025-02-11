@@ -1,6 +1,8 @@
 #include "HttpParser.hpp"
-#include "Constants.hpp"
+#include "HandleRequest.hpp"
+#include <algorithm>
 #include <cerrno>
+#include <cstddef>
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
@@ -8,7 +10,11 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0), _method_enum(UNKNOWN), _status(200), _maxBodySize(0), _contentLength(0) {}
+HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0),
+	_method_enum(UNKNOWN), _status(200), _maxBodySize(0), _contentLength(0)
+{
+	_request.reserve(BUFFER_SIZE);
+}
 
 // Getters
 map_t		HttpParser::getHeaders() { return _headers;}
@@ -18,6 +24,7 @@ uint8_t		HttpParser::getMethod() { return _method_enum;}
 int			HttpParser::getStatus() { return _status;}
 std::string	HttpParser::getQuery() { return _query;}
 std::string HttpParser::getBody() { return _body;}
+size_t		HttpParser::getContentLength() { return _contentLength;}
 
 std::stringstream HttpParser::getVectorLine()
 {
@@ -182,12 +189,33 @@ void	HttpParser::extractContentLength()
 	} else {
 		_status = 411;
 		_state = error;
+		return;
 	}
-	// if (_contentLength == 0)
-	// {
-	// 	_state = error;
-	// 	_status = 400;
-	// }
+	if (_contentLength == 0)
+	{
+		_state = error;
+		_status = 400;
+	}
+}
+
+void	HttpParser::extractStringBody()
+{
+	std::vector<char>	content;
+	std::vector<char>	lineVec;
+
+	content.reserve(_contentLength);
+	while (true)
+	{
+		lineVec.clear();
+		lineVec = getBodyData();
+		content.insert(content.end(), lineVec.begin(), lineVec.end());
+		if (content.size() >= _contentLength)
+		{
+			break;
+		}
+	}
+	_body.assign(content.begin(), content.end());
+	_status = 200;
 }
 
 void	HttpParser::extractBody()
@@ -195,7 +223,11 @@ void	HttpParser::extractBody()
 	if (_headers.contains("Content-Type"))
 	{
 		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
-			 extractMultipartFormData();
+			extractMultipartFormData();
+		// else if (_headers["Content-Type"].find("application") != std::string::npos)
+		// 	extractMultipartFormData();
+		else
+			extractStringBody();
 	}
 	else if (_headers.contains("Transfer-Encoding") &&
 		_headers["Transfer-Encoding"] == "chunked")
@@ -287,12 +319,11 @@ void	HttpParser::extractMultipartFormData()
 {
 	std::string							filename;
 	std::stringstream					line;
-	std::vector<char>					content;
+	std::vector<char>					content(_contentLength);
 	std::vector<char>					lineVec;
 	size_t								vecSize;
 	std::string							lineStr;
 
-	content.reserve(_contentLength);
 	if (!std::filesystem::exists("www/uploads"))
 		std::filesystem::create_directory("www/uploads");
 	extractBoundary();
@@ -300,6 +331,7 @@ void	HttpParser::extractMultipartFormData()
 		throw std::runtime_error("No boundary found in multipart/form-data");
 	while (true)
 	{
+		std::cout << "Looping ..." << std::endl;
 		line = getVectorLine();
 		lineStr = line.str();
 		if (lineStr.back() == '\r')
@@ -330,17 +362,17 @@ void	HttpParser::extractMultipartFormData()
 			content.pop_back();
 			if (!filename.empty())
 			{
+				std::cout << "Creating file\n";
 				std::ofstream outFile("www/uploads/" + filename, std::ios::binary);
 				if (!outFile)
 					throw std::runtime_error("Failed to open file for writing: " + filename);
 				outFile.write(content.data(), content.size());
 				outFile.close();
-			} else {
-				_body.assign(content.begin(), content.end());
+				_status = 201;
 			}
-		}
 		if (lineStr == _boundary + "--")
 			break;
+		}
 	}
 }
 
@@ -359,16 +391,6 @@ void	HttpParser::parseQuery()
 void	HttpParser::checkReadRequest()
 {
 	_state = parsingRequest;
-	if (_request.size() >= 4)
-	{
-		std::string end(_request.end() - 4, _request.end());
-		if (end != "\r\n\r\n")
-		{
-			_status = 400;
-			_state = error;
-			return ;
-		}
-	}
 }
 
 void HttpParser::readBody(int clientfd)
@@ -382,31 +404,54 @@ void HttpParser::readBody(int clientfd)
 	{
 		_totalBytesRead += bytesRead;
 		_request.insert(_request.end(), buffer, buffer + bytesRead);
+		std::cout << "Bytes read : " << _totalBytesRead << " / " << _contentLength << std::endl;
+	}
+	if (bytesRead == 0)
+		_state = parsingBody;
+	if (bytesRead == -1)
+	{
+		_state = error;
+		perror("Error reading from client socket");
+		throw std::runtime_error("Error reading from client socket");
 	}
 	if (_totalBytesRead == _contentLength)
 		_state = parsingBody;
+	if (_totalBytesRead > _maxBodySize)
+	{
+		_status = 413;
+		_state = error;
+		throw std::runtime_error("Request entity too large");
+	}
 }
 
-void HttpParser::readRequest(int clientfd, bool body)
+void	HttpParser::checkLimitMethods(ConfigFile& conf, int serverIndex)
 {
-	int bytesRead = 0;
-	char buffer[BUFFER_SIZE] = {0};
+	std::cout << "Checking limit methods..." << std::endl;
+	std::cout << _target << std::endl;
+	std::string location = _target.substr(0, _target.find('/', 1));
+	std::cout << "Location: " << location << std::endl;
+	LocationConfig locConfig = findKey(location, serverIndex, conf);
+	std::string_view limit = locConfig.limit_except;
+	std::cout << "Limit methods: " << limit << std::endl;
+	if (limit.find(_method) == limit.npos)
+	{
+		_status = 405;
+		throw std::runtime_error("Method not allowed");
+	}
+}
+
+void	HttpParser::readRequest(int clientfd)
+{
+	int			bytesRead = 0;
+	char		buffer[BUFFER_SIZE] = {0};
+	std::string	str("\r\n\r\n");
 
 	std::cout << "Reading request..." << std::endl;
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
 	if (bytesRead == 0)
 	{
 		std::cout << "Finished reading..." << std::endl;
-		if (body)
-			if (_totalBytesRead == _contentLength)
-				_state = parsingBody;
-			else
-			{
-				_state = error;
-				throw std::runtime_error("Unexpected end of request");
-			}
-		else
-			_state = checkingRequest;
+		_state = checkingRequest;
 		return ;
 	}
 	else if (bytesRead == -1)
@@ -419,27 +464,21 @@ void HttpParser::readRequest(int clientfd, bool body)
 	else
 	{
 		_totalBytesRead += bytesRead;
-		std::cout << _totalBytesRead << " / " << _contentLength << std::endl;
+		std::cout << "Bytes read : " << _totalBytesRead << std::endl;
 		_request.insert(_request.end(), buffer, buffer + bytesRead);
 		if (_request.size() >= 4)
 		{
-			std::string end(_request.end() - 4, _request.end());
-			if (end == "\r\n\r\n" && !body)
+			// Possible optimization starting from previous end - 4
+			auto it = std::search(_request.begin(), _request.end(), str.begin(), str.end());
+			if (it != _request.end())
+			{
+				std::cout << "Finished reading..." << std::endl;
+				std::copy(it + 4, _request.end(), std::back_inserter(_tmp));
 				_state = checkingRequest;
-			else if (end == "\r\n\r\n" && body)
-				_state = parsingBody;
-			else if (_totalBytesRead == _contentLength && body)
-				_state = parsingBody;
-			else if (_totalBytesRead < _contentLength && body)
-				_state = readingBody;
+				return ;
+			}
 		}
-		if (body && _request.size() > _maxBodySize)
-		{
-			_state = error;
-			_status = 413;
-			throw std::runtime_error("Request too large");
-		}
-		if (!body && _request.size() > MAX_REQUEST_SIZE)
+		if (_request.size() > MAX_REQUEST_SIZE)
 		{
 			const char *needle = "\r\n\r\n";
 			_request.insert(_request.end(), needle, needle + 4);
@@ -448,9 +487,57 @@ void HttpParser::readRequest(int clientfd, bool body)
 	}
 }
 
-bool	HttpParser::startParsing(int clientfd, long maxBodySize)
+bool isValidMethodChar(char c) {
+    return (c >= 'A' && c <= 'Z');
+}
+
+bool isValidTargetChar(char c) {
+    return (c >= 'A' && c <= 'Z') ||
+           (c >= 'a' && c <= 'z') ||
+           (c >= '0' && c <= '9') ||
+           c == '-' || c == '.' || c == '_' || c == '~' ||
+           c == '/' || c == '?' || c == '=' || c == '&';
+}
+
+bool isValidHeaderKeyChar(char c) {
+    return (c >= 33 && c <= 126) && c != ':';
+}
+
+bool isValidHeaderValueChar(char c) {
+    return (c >= 32 && c <= 126) || c == '\t';
+}
+
+bool	HttpParser::checkValidCharacters()
 {
-	_maxBodySize = maxBodySize;
+	for (char c : _method)
+	{
+		if (!isValidMethodChar(c))
+			return false;
+	}
+	for (char c : _target)
+	{
+		if (!isValidTargetChar(c))
+			return false;
+	}
+	for (const auto& pair : _headers)
+	{
+		for (char c : pair.first)
+		{
+			if (!isValidHeaderKeyChar(c))
+				return false;
+		}
+		for (char c : pair.second)
+		{
+			if (!isValidHeaderValueChar(c))
+				return false;
+		}
+	}
+	return true;
+}
+
+
+bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
+{
 	try {
 		while (true)
 		{
@@ -458,12 +545,12 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 			{
 				case start:
 					std::cout << "Starting parsing..." << std::endl;
-					_request.reserve(BUFFER_SIZE);
+					_maxBodySize = conf.getMax_body(serverIndex);
 					_state = readingRequest;
-					readRequest(clientfd, false);
+					readRequest(clientfd);
 					break;
 				case readingRequest:
-					readRequest(clientfd, false);
+					readRequest(clientfd);
 					break;
 				case checkingRequest:
 					std::cout << "Checking request..." << std::endl;
@@ -472,8 +559,15 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 				case parsingRequest:
 					std::cout << "Parsing request..." << std::endl;
 					extractReqLine();
+					checkLimitMethods(conf, serverIndex);
 					parseQuery();
 					extractHeaders(false);
+					if (checkValidCharacters() == false)
+					{
+						_status = 400;
+						_state = error;
+						break;
+					}
 					if (_method_enum == POST)
 						_state = startBody;
 					else
@@ -482,27 +576,30 @@ bool	HttpParser::startParsing(int clientfd, long maxBodySize)
 				case startBody:
 					std::cout << "Starting body..." << std::endl;
 					extractContentLength();
-					// if (_contentLength == 0)
-					// 	break;
+					 if (_contentLength == 0)
+					 	break;
 					_request.clear();
 					_request.reserve(_contentLength);
+					std::copy(_tmp.begin(), _tmp.end(), std::back_inserter(_request));
+					_tmp.clear();
 					_pos = 0;
-					_totalBytesRead = 0;
-					_state = readingBody;
-					readBody(clientfd);
+					_totalBytesRead = _request.size();
+					if (_request.size() == _contentLength)
+						_state = parsingBody;
+					else
+						_state = readingBody;
 					break;
 				case readingBody:
 					readBody(clientfd);
 					break;
 				case parsingBody:
+					std::cout << "Parsing body..." << std::endl;
 					if (_request.size() > 0)
-					{
 						extractBody();
-						_status = 201;
-					}
 					break;
 				case done:
 					std::cout << "Parsing done..." << std::endl;
+					_request.clear();
 					break;
 				case error:
 					break;

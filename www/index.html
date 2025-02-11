@@ -169,6 +169,27 @@
 					grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 				}
 			}
+
+			.navigation-section {
+				text-align: center;
+				margin-top: 2rem;
+				padding: 2rem;
+			}
+
+			.nav-link {
+				display: inline-block;
+				padding: 1rem 2rem;
+				background: #ff3e3e;
+				color: white;
+				text-decoration: none;
+				border-radius: 5px;
+				font-size: 1.2rem;
+				transition: background 0.3s ease;
+			}
+
+			.nav-link:hover {
+				background: #ff6060;
+			}
 		</style>
 	</head>
 	<body>
@@ -253,6 +274,9 @@
 						<button class="select-btn">Select Character</button>
 					</div>
 				</div>
+			</div>
+			<div class="navigation-section">
+				<a href="upload.html" class="nav-link">Go to Upload Page</a>
 			</div>
 		</div>
 	</body>

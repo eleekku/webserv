@@ -2,10 +2,10 @@
 #include "../include/CgiHandler.hpp"
 #include "Constants.hpp"
 
-/*To use the HttpResponse declare HttpResponse object and define it with receiveRequest funciton which takes HttpParser object.
+/*To use the HttpResponse declare HttpResponse object and send it to receiverequest funciton which takes HttpParser object.
 Then call HttpParser member function generate which will return the response as string.*/
 
-HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0) {}
+HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0), m_defaulterrorpath("/www/error.html") {}
 
 HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_sent(false), m_mime(mime) {
 	auto it = HTTP_STATUS_MESSAGES.find(code);
@@ -19,8 +19,7 @@ HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_
 	cgiFdtoSend = 0;
 }
 
-HttpResponse::~HttpResponse() {
-}
+HttpResponse::~HttpResponse() {}
 
 HttpResponse::HttpResponse(const HttpResponse& other) {
 	*this = other;
@@ -44,56 +43,13 @@ HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 	return *this;
 }
 
-std::string HttpResponse::getCurrentDate() const
-{
-	char buffer[128];
-	time_t now = time(nullptr);
-	struct tm tm = *gmtime(&now);
-	strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S GMT", &tm);
-	return std::string(buffer);
-}
+// SETTERS
 
-std::string HttpResponse::getMimeType(const std::string& extension) const
-{
-	auto it = MIME_TYPES.find(extension);
-	if (it != MIME_TYPES.end()) {
-		return it->second;
-	}
-	return "text/plain";
-}
+void HttpResponse::setHeader(const std::string& key, const std::string& value) { m_headers[key] = value; }
 
-std::string HttpResponse::getMimeKey() const
-{
-	return m_mime;
-}
+void HttpResponse::setBody(const std::string& body) { m_body = body; }
 
-std::string HttpResponse::getReasonPhrase() const
-{
-	return m_reasonPhrase;
-}
-
-std::string HttpResponse::getCgiBody() const
-{
-	return cgi->getCgiOut();
-}
-
-void HttpResponse::setHeader(const std::string& key, const std::string& value)
-{
-	m_headers[key] = value;
-}
-
-void HttpResponse::setBody(const std::string& body)
-{
-	m_body = body;
-}
-
-std::string HttpResponse::getBody() const
-{
-	return m_body;
-}
-
-void HttpResponse::setStatusCode(int code)
-{
+void HttpResponse::setStatusCode(int code) {
 	m_statusCode = code;
 	auto it = HTTP_STATUS_MESSAGES.find(code);
 	if (it != HTTP_STATUS_MESSAGES.end()) {
@@ -103,48 +59,74 @@ void HttpResponse::setStatusCode(int code)
 		m_reasonPhrase = "Unknown";
 }
 
-int HttpResponse::getStatus() {
-	return m_statusCode;
+void HttpResponse::setMimeType(const std::string& mime) { m_mime = mime; }
+
+void HttpResponse::setErrorpath(std::string errorpath) {
+	if (errorpath.empty())
+		m_errorpath = m_defaulterrorpath;
+	if (!std::filesystem::exists(errorpath))
+		m_errorpath = m_defaulterrorpath;
+	struct stat filestat;
+	if (stat(errorpath.c_str(), &filestat) == -1)
+		m_errorpath = m_defaulterrorpath;
+	else
+		m_errorpath = errorpath;
 }
 
-void HttpResponse::setMimeType(const std::string& mime)
-{
-	m_mime = mime;
-}
-bool HttpResponse::checkCgiStatus()
-{
-	if (cgi)
-		return true;
-	return false;
-}
-void HttpResponse::setErrorpath(std::string errorpath)
-{
-	m_errorpath = errorpath;
+void HttpResponse::setEpoll(int epoll) { m_epoll = epoll; }
+
+// GETTERS
+
+std::string HttpResponse::getCurrentDate() const {
+	char buffer[128];
+	time_t now = time(nullptr);
+	struct tm tm = *gmtime(&now);
+	strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S GMT", &tm);
+	return std::string(buffer);
 }
 
-std::string HttpResponse::getErrorpath() const
-{
-	return m_errorpath;
+std::string HttpResponse::getMimeType(const std::string& extension) const {
+	auto it = MIME_TYPES.find(extension);
+	if (it != MIME_TYPES.end()) {
+		return it->second;
+	}
+	return "text/plain";
 }
 
-bool HttpResponse::getIfCgi() {
-	if (cgi)
-		return true;
-	return false;
+std::string HttpResponse::getMimeKey() const { return m_mime; }
 
-}
+std::string HttpResponse::getReasonPhrase() const { return m_reasonPhrase; }
+
+std::string HttpResponse::getCgiBody() const { return cgi->getCgiOut(); }
+
+std::string HttpResponse::getBody() const { return m_body; }
+
+int	HttpResponse::getchildid() { return cgi->getchildid(); }
+
+int HttpResponse::getFdPipe() { return cgi->getFdPipe(); }
+
+int HttpResponse::getStatus() { return m_statusCode; }
+
+std::string HttpResponse::getErrorpath() const { return m_errorpath; }
 
 int HttpResponse::getEpoll() { return m_epoll; }
-void HttpResponse::setEpoll(int epoll) { m_epoll = epoll; }
+
+// METHODS
 
 void HttpResponse::createCgi() {
 	if (!cgi)
 		cgi.emplace();
 }
 
-void	HttpResponse::startCgi(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response) {
+void HttpResponse::startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response) {
 	if (cgi)
-		cgi->executeCGI(scriptPath, queryString, body, method, response);
+		cgi->executeCGI(scriptPath, request, response);
+}
+
+bool HttpResponse::checkCgiStatus() {
+	if (cgi)
+		return true;
+	return false;
 }
 
 void HttpResponse::generate() {
@@ -164,7 +146,6 @@ void HttpResponse::generate() {
 		if (m_statusCode != 204)
 		response << "Content-Length: " << m_body.size() << "\r\n";
     }
-
 	for (const auto& [key, value] : m_headers) {
 		response << key << ": " << value << "\r\n";
 	}
@@ -175,6 +156,7 @@ void HttpResponse::generate() {
 		response << getReasonPhrase();
 	}
 	m_responsestr = response.str();
+	m_bodySize = m_responsestr.size();
 }
 
 void HttpResponse::errorPage() {
@@ -196,62 +178,39 @@ void HttpResponse::errorPage() {
 
 bool HttpResponse::sendResponse(int serverSocket)
 {
-    //struct epoll_event events[10];
-    //if (events[i].events & EPOLLOUT)
-    //{
-	if (m_sent)
-		return true;
 	std::cout << "sendResponse\n";
 	if (cgi)
 	{
-		if (!cgi->waitpidCheck(*this))
-		{
+		if (!cgi->waitpidCheck(*this)) {
 			cgiFdtoSend = serverSocket;
 			std::cout << "\ncgi to send " << cgiFdtoSend << "\n";
 			return false;
 		}
 		else {
-		//	setBody(cgi->getCgiOut());
-//			std::cout << "body to send\n" << m_body << "\n";
-		//	setHeader("Server", confile.getServerName(serverIndex));
 			generate();
 			serverSocket = cgiFdtoSend;
 			std::cout << "new servesocket\n" << serverSocket << "\n";
-			}
+		}
 	}
-	size_t bodySize = m_responsestr.size();
-	int bufferSize = bodySize - m_totalBytesSent;
-
+	int bufferSize = m_bodySize - m_totalBytesSent;
 	if (bufferSize > MAX_SIZE_SEND)
 		bufferSize = MAX_SIZE_SEND;
 	ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, bufferSize, MSG_NOSIGNAL);
-	//std::cout << "body\n" << m_responsestr.c_str() << "\nbytesSent\n" << bytesSent << "\n";
-//	std::cout << "bytes to send so the body size is " << bodySize << "and buffer is " << bufferSize << "\n";
 	if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
 	{
-		std::cout << "Send fail to response client " << serverSocket << "\n";
+		m_totalBytesSent = 0;
+		setStatusCode(500);
+		errorPage();
+		generate();
+		return false;
 	}
 	else
 		m_totalBytesSent += bytesSent;
-	if (m_totalBytesSent < bodySize)
-	{
-//		std::cout << "bytes sent is " << bytesSent << "\n";
-		//readytoanswer[serverSocket] = true;
+	if (m_totalBytesSent < m_bodySize)
 		return false;
-	}
-//	std::cout << "bytes sent is " << bytesSent << "\n";
-    //}
 	if (cgi)
-	{
 		close(cgiFdtoSend);
-	}
 	m_sent = true;
 	return true;
 }
-
-int	HttpResponse::getchildid()
-{
-	return cgi->getchildid();
-}
-
-int HttpResponse::getFdPipe() { return cgi->getFdPipe(); }
+int HttpResponse::getCgiFdtoSend() { return cgiFdtoSend; }

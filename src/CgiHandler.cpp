@@ -1,5 +1,5 @@
-// #include "../include/CgiHandler.hpp"
 #include "../include/HttpResponse.hpp"
+#include "../include/HttpParser.hpp"
 #include "Constants.hpp"
 
 CgiHandler::CgiHandler() : pid(0), pidResult(0), status(0), cgiOut("") { }
@@ -28,7 +28,7 @@ void timeoutHandler(int signal)
     if (signal == SIGALRM)
     {
   //      std::cerr << "pipetoclose " << pipetoclose << "\n";
-        close(pipetoclose);
+        //close(pipetoclose);
         kill(childid, SIGINT);
   //      std::cerr << "Timeout reached. Killing child process: " << childid << std::endl;
     }
@@ -67,7 +67,7 @@ std::string getPythonName(std::string& path)
     return path.substr(pos + 1);
 }
 
-void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std::string body, int method, HttpResponse &response)
+void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response)
 {
     struct epoll_event event;
     std::cout << "\nCGI running\n";
@@ -94,24 +94,28 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
     {
         std::cerr << "child running\n";
       //  setpgid(0, 0);
-        if (method == POST)
+        if (request.getMethod() == POST)
         {
+            std::cerr << "post method cgi\n";
             int pipeWrite[2];
             if (pipe(pipeWrite) == -1)
-                throw std::runtime_error("Pipe write failed\n");
+                exit(1);
 
             fcntl(pipeWrite[1], F_SETFL, O_NONBLOCK);
-            write(pipeWrite[1], body.c_str(), body.size());
+            std::string body = request.getBody();
+
+            if (write(pipeWrite[1], request.getBody().c_str(), request.getContentLength()) == -1)
+                exit(1);
+            std::string contentLengthStr = std::to_string(request.getContentLength());
+            setenv("CONTENT_LENGTH", contentLengthStr.c_str(), 1);
             close(pipeWrite[1]);
             dup2(pipeWrite[0], STDIN_FILENO);
             close(pipeWrite[0]);
         }
-
-        setenv("REQUEST_METHOD", method == GET ? "GET" : "POST", 1);
-        setenv("QUERY_STRING", queryString.c_str(), 1);
-
-        freopen("/dev/null", "w", stderr);  // Redirect errors to avoid printing on terminal
-
+        setenv("REQUEST_METHOD", request.getMethod() == GET ? "GET" : "POST", 1);
+        setenv("QUERY_STRING", request.getQuery().c_str(), 1);
+        
+  //      freopen("/dev/null", "w", stderr);  // Redirect errors to avoid printing on terminal
         dup2(fdPipe[1], STDOUT_FILENO);
         close(fdPipe[1]);
         close(fdPipe[0]);
@@ -121,16 +125,20 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
         sa.sa_flags = SA_RESTART;  // Prevent `epoll_wait` from failing with EINTR
         if (sigaction(SIGALRM, &sa, NULL) == -1)
             std::cerr << "Error setting signal handler\n";
-    //    std::cerr << "signal set\n";
+  //      std::string line;
+     //   std::getline(std::cin, line);
+    //    std::cerr << "line is " << line << "\n";
         int executeTimeOut = 8;
         alarm(executeTimeOut);
 
         char *argv[] = {const_cast<char *>(scriptPath.c_str()), nullptr};
+    //    std::string line;
+    //    std::getline(std::cin, line);
+    //    std::cerr << "line is " << line << "\n";
         execvp(scriptPath.c_str(), argv);
-
         exit(1);
     }
-    std::cerr << "parent start here\n";
+    //epoll_ctl(response.getEpoll(), EPOLL_CTL_DEL, fdPipe[0], &event);
     close(fdPipe[1]);
 }
 
@@ -138,7 +146,6 @@ void CgiHandler::executeCGI(std::string scriptPath, std::string queryString, std
 bool CgiHandler::waitpidCheck(HttpResponse &response)
 {
 //    std::cout << "pid is " << pid << "\n";
-    std::cout << "hola wait\n";
     pidResult =  waitpid(pid, &status, WNOHANG);
 //    std::cout << "pid result is " << pidResult << "\n";
 //    std::cout << errno << "\n";
@@ -149,44 +156,50 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         return false;
       //  throw std::runtime_error("cgi is still running");
     }
-    if (WIFSIGNALED(status))
+    else if (WIFSIGNALED(status))
     {
         std::cerr << "script terminated by signal " << "\n";
         //close(fdPipe[0]);
         response.setStatusCode(504);
         response.errorPage();
      //   alarm(0);
-        return true;
         //throw std::runtime_error("script terminated by signal\n");
     }
     //alarm(0);
-    if (pidResult == pid) 
+    else if (WIFEXITED(status)) 
     {
-        std::cerr << "script executed\n";
+        int exitStatus = WEXITSTATUS(status);
+        if (exitStatus == 0) {
+        std::cout << "script executed\n";
         char buffer[1024];
   //      std::cerr << "fdPipe[0] is " << fdPipe[0] << "\n";
         int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
         if (bitesRead == -1) {
-            throw std::runtime_error("bites to read failt");
+            std::cerr << "Error reading from pipe\n";
+            response.setStatusCode(502);
+            response.errorPage();
         }
 //        std::cout << "bites read is " << bitesRead << "\n";
         buffer[bitesRead] = '\0';
         cgiOut += buffer;
-        close(fdPipe[0]);
         response.setStatusCode(200);
         response.setBody(cgiOut);
 //        std::cerr << "script executed\n";
 //        std::cout << cgiOut << "\n";
-        response.cgidone = true;
-        return true;
+        }
+        else
+        {
+            std::cerr << "exit status is " << exitStatus << "\n";
+            std::cerr << "script terminated with error\n";
+            response.setStatusCode(502);
+            response.errorPage();
+        }
     } 
     else
     {
-        std::cerr << "script terminated with error\n";
-        response.cgidone = true;
+        std::cerr << "error with waitpid\n";
         response.setStatusCode(502);
         response.errorPage();
-        throw std::runtime_error("script can not execute\n");
     }
     return true;
 }

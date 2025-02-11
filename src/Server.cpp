@@ -163,21 +163,24 @@ void Server::runLoop()
         }
         else
         {
-            for (int i = 0; i < nfds; ++i)
+            for (int i = 0; i < nfds; i++)
             {
                 int currentData = events[i].data.u32;
                 int serverIndex = currentData >> 16;
                 int fdCurrentData = currentData & 0xFFFF;
+                std::cout << "for loop nfds: " << nfds << " and index is " << i <<"\n";
+                std::cout << "fdCurrentData: " << fdCurrentData << "\n";
                 if (std::find(serveSocket.begin(), serveSocket.end(), fdCurrentData) != serveSocket.end())
                     socketS = fdCurrentData;
                 else
                     client = fdCurrentData;
                 if (socketS != 0)
                 {
-                    std::cout << "\nNew connection on server\n" << i << "\n";
+                    std::cout << "\nNew connection on server : " << socketS << " lol" << "\n";
                     sockaddr_in clientAddr{};
                     socklen_t clientLen = sizeof(clientAddr);
                     int clientFd = accept(socketS, (sockaddr*)&clientAddr, &clientLen);
+                    std::cout << "fd en accept: " << clientFd << "\n";
                     if (clientFd == -1)
                     {
                         std::cerr << "\nAccept failed\n";
@@ -204,10 +207,11 @@ void Server::runLoop()
                 {
                     if (events[i].events & EPOLLIN)
                     {
-                        createNewParserObject(i);
-                        if (_requests[i].startParsing(client, conf.getMax_body(serverIndex)) == true)
+                        createNewParserObject(client);
+                        if (_requests[client].startParsing(client, conf, serverIndex) == true)
                         {
                             event.events = EPOLLOUT;
+                            event.data.fd = client;
                             if (epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event) == -1)
                             {
                                 std::cerr << "Fail epoll_ctl() in parsing\n";
@@ -215,13 +219,14 @@ void Server::runLoop()
                             }
                         }
                     }
-                    if (events[i].events & EPOLLOUT)
+                    else if (events[i].events & EPOLLOUT)
                     {
                        handleClientConnection(serverIndex, client, i);
 
                     }
-                    if (events[i].events & EPOLLHUP)
-                    { 
+                    else if (events[i].events & EPOLLHUP)
+                    {
+                        std::cout << "came to EPOLLHUP" << "\n";
                         handleClientConnection(serverIndex, client, i);
                     }
                 }
@@ -255,11 +260,12 @@ void Server::releaseVectors(size_t index)
 //the response  object will store for later continuos sending the response to that client until everything is sended.
 bool Server::handleClientConnection(int serverIndex, int clientFd, int eventIndex)
 {
+    std::cout << "handleClientConnection cliendfd: " << clientFd << "\n";
     if (_sending.find(clientFd) == _sending.end())
     {
         HttpResponse response;
         response.setEpoll(epollFd);
-        receiveRequest(_requests[eventIndex], conf, serverIndex, response);
+        receiveRequest(_requests[clientFd], conf, serverIndex, response);
         response.generate();
         if (response.sendResponse(clientFd) != true)
         {
@@ -290,8 +296,11 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
                 return false;
         }
     }
-    releaseVectors(eventIndex);
-    event.data.fd = clientFd;
+    if (_response[clientFd].checkCgiStatus())
+        releaseVectors(_response[clientFd].getCgiFdtoSend());
+    else
+        releaseVectors(clientFd);
+    std::cout << "deleted in poll" << clientFd << "\n";
     if(epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr) == -1)
     {
         std::cerr << "Fail epoll_ctl() in handleClientConnection\n";
