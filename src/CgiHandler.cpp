@@ -28,7 +28,7 @@ void timeoutHandler(int signal)
     if (signal == SIGALRM)
     {
   //      std::cerr << "pipetoclose " << pipetoclose << "\n";
-        close(pipetoclose);
+        //close(pipetoclose);
         kill(childid, SIGINT);
   //      std::cerr << "Timeout reached. Killing child process: " << childid << std::endl;
     }
@@ -138,6 +138,7 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
         execvp(scriptPath.c_str(), argv);
         exit(1);
     }
+    //epoll_ctl(response.getEpoll(), EPOLL_CTL_DEL, fdPipe[0], &event);
     close(fdPipe[1]);
 }
 
@@ -155,7 +156,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         return false;
       //  throw std::runtime_error("cgi is still running");
     }
-    if (WIFSIGNALED(status))
+    else if (WIFSIGNALED(status))
     {
         std::cerr << "script terminated by signal " << "\n";
         //close(fdPipe[0]);
@@ -165,7 +166,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         //throw std::runtime_error("script terminated by signal\n");
     }
     //alarm(0);
-    if (WIFEXITED(status)) 
+    else if (WIFEXITED(status)) 
     {
         int exitStatus = WEXITSTATUS(status);
         if (exitStatus == 0) {
@@ -181,7 +182,6 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
 //        std::cout << "bites read is " << bitesRead << "\n";
         buffer[bitesRead] = '\0';
         cgiOut += buffer;
-        close(fdPipe[0]);
         response.setStatusCode(200);
         response.setBody(cgiOut);
 //        std::cerr << "script executed\n";

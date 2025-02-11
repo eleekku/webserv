@@ -22,22 +22,15 @@ class Server
 {
     private:
 
+    ConfigFile                  conf;
+    int                         epollFd;
+    struct epoll_event          event;
+    struct epoll_event          events[10];
     std::vector<int> 		    serveSocket;
-    int statusCgi;
     std::vector<HttpParser>     _requests;
     std::vector<bool>		    _is_used;
-    int                         eventCgi;
-    //ConfigFile &fileC;
-    int epollfd;
-    int fdClient;
-    std::map<int, time_t>       client_activity;
     std::map<int, bool>         _sending;
     std::vector <HttpResponse> _response;
-    size_t                      totalBytesSent;
-    size_t                      bodySize;
-    int                         contador;
-    //int clientFd[10];
-    //int fdGeneral;
 
 
     public:
@@ -45,23 +38,20 @@ class Server
     Server();
     ~Server();
 
-    void initialize(ConfigFile& conf);
-    int createServerSocket(int port, std::string ipServer);
-    void run(ConfigFile& conf);
-    std::vector<int> getServerSocket();
-    bool handleClientConnection(int serverIndex, ConfigFile& conf, int serverSocket, int epollFd, struct epoll_event event, int i);
-    int getEpollFd();
-    int getClientFd();
-    int getfdGeneral();
-    void closeServerFd();
-    void runLoop(ConfigFile& conf, struct epoll_event* events, struct epoll_event eventint, int epollFd);
-    bool isCompleteRequest(const std::string& request);
-    void cleaningServerFd();
-    std::vector<char> getRequest(int serverSocket, int epollFd);
-    void check_inactive_connections(int epollfd);
-    void    createNewParserObject(size_t index);
-    void    releaseVectors(size_t index);
-    //ConfigFile& getFile();
+    void                initialize(ConfigFile& conf);
+    int                 createServerSocket(int port, std::string ipServer);
+    void                run();
+    std::vector<int>    getServerSocket();
+    bool                handleClientConnection(int serverIndex, int serverSocket, int i);
+    int                 getEpollFd();
+    int                 getClientFd();
+    void                closeServerFd();
+    void                runLoop();
+    void                cleaningServerFd();
+    void                check_inactive_connections(int epollfd);
+    void                createNewParserObject(size_t index);
+    void                releaseVectors(size_t index);
+
 };
 
 extern Server* g_serverInstance;

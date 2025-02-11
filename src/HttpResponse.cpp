@@ -213,3 +213,4 @@ bool HttpResponse::sendResponse(int serverSocket)
 	m_sent = true;
 	return true;
 }
+int HttpResponse::getCgiFdtoSend() { return cgiFdtoSend; }

@@ -50,6 +50,7 @@ class HttpResponse
 		bool		sendResponse(int serverSocket);
 		void 		errorPage();
 		bool		checkCgiStatus();
+		int			getCgiFdtoSend();
 
 	private:
 
