@@ -253,7 +253,6 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 }
 
 void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
-	std::cerr << "body str size in begining " << request.getBody().size() << "\n";
 	response.setHeader("Server", confile.getServerName(serverIndex));
 	response.setErrorpath(confile.getErrorPage(serverIndex));
 	unsigned int status = request.getStatus();
