@@ -218,14 +218,38 @@ void	HttpParser::extractStringBody()
 	_status = 200;
 }
 
+void	HttpParser::extractOctetStream()
+{
+	std::vector<char>	content;
+	std::vector<char>	lineVec;
+
+	content.reserve(_contentLength);
+	while (true)
+	{
+		lineVec.clear();
+		lineVec = getBodyData();
+		content.insert(content.end(), lineVec.begin(), lineVec.end());
+		if (content.size() >= _contentLength)
+		{
+			break;
+		}
+	}
+	std::ofstream outFile("www/uploads/upload", std::ios::binary);
+	if (!outFile)
+		throw std::runtime_error("Failed to open file for writing: upload");
+	outFile.write(content.data(), content.size());
+	outFile.close();
+	_status = 201;
+}
+
 void	HttpParser::extractBody()
 {
 	if (_headers.contains("Content-Type"))
 	{
 		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
 			extractMultipartFormData();
-		// else if (_headers["Content-Type"].find("application") != std::string::npos)
-		// 	extractMultipartFormData();
+		else if (_headers["Content-Type"].find("application/octet-stream") != std::string::npos)
+		 	extractOctetStream();
 		else
 			extractStringBody();
 	}
