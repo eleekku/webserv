@@ -148,6 +148,12 @@ void Server::run()
 }*/
 // In this function, fdCurrentClient can be the server's socket or the client's file descriptor since it comes
 // from int currentData = events[i].data.u32 (the first 16 bits contain the file descriptor, and the other 16 bits contain the index of the associated server).
+
+std::vector<int> Server::getClientActivity()
+{
+	return _client_activity;
+}
+
 void Server::runLoop()
 {
     int socketS = 0;
@@ -159,7 +165,7 @@ void Server::runLoop()
         if (nfds == -1)
         {
             std::cerr << "\nrun = Error in epoll_wait" << "\n";
-            continue;
+            throw std::runtime_error("Error in epoll_wait");
         } else if (nfds == 0)
         {
 			for (size_t i = 0; i < _client_activity.size(); i++)
@@ -319,22 +325,31 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
             }
         }
     }
-    if (_response[clientFd].checkCgiStatus())
+    if (_requests[clientFd].getKeepAlive() == false)
     {
-        releaseVectors(_response[clientFd].getCgiFdtoSend());
-       // releaseVectors(clientFd);
+	    if (_response[clientFd].checkCgiStatus())
+	    {
+	        releaseVectors(_response[clientFd].getCgiFdtoSend());
+	       // releaseVectors(clientFd);
+	    }
+	    else
+	        releaseVectors(clientFd);
+	    std::cout << "deleted in poll" << clientFd << "\n";
+	    if(epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr) == -1)
+	    {
+	        std::cerr << "Fail epoll_ctl() in handleClientConnection\n";
+	        return false;
+	    }
+	    close(clientFd);
+	    _sending.erase(clientFd);
+	    std::cout << "\nclosed conection to client \n" << clientFd << "\n";
+    } else {
+    	_requests[clientFd] = HttpParser();
+     	event.events = EPOLLIN;
+        event.data.fd = clientFd;
+        if (epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &event) == -1)
+        	throw std::runtime_error("Error adding client to epoll");
     }
-    else
-        releaseVectors(clientFd);
-    std::cout << "deleted in poll" << clientFd << "\n";
-    if(epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr) == -1)
-    {
-        std::cerr << "Fail epoll_ctl() in handleClientConnection\n";
-        return false;
-    }
-    close(clientFd);
-    _sending.erase(clientFd);
-    std::cout << "\nclosed conection to client \n" << clientFd << "\n";
     return true;
 }
 
