@@ -33,6 +33,7 @@ class HttpParser
 		std::string			_query;
 		size_t				_contentLength;
 		time_t				_lastSeen;
+		bool				_keepAlive;
 
 		// Parsing
 		void				readRequest(int clientfd);
@@ -59,6 +60,7 @@ class HttpParser
 		void	checkHeaders(std::string_view key, std::string_view value);
 		void	checkLimitMethods(ConfigFile& conf, int serverIndex);
 		bool	checkValidCharacters();
+		void	isKeepAlive();
 
 	public:
 		// Constructor
@@ -74,6 +76,7 @@ class HttpParser
 		int			getStatus();
 		size_t		getContentLength();
 		bool		checkTimeout();
+		bool		getKeepAlive();
 
 		bool	startParsing(int clientfd, ConfigFile& conf, int serverIndex);
 };
