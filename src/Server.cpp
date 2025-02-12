@@ -346,19 +346,6 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
         if (epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &event) == -1)
         	throw std::runtime_error("Error adding client to epoll");
     }
-<<<<<<< HEAD
-    releaseVectors(clientFd);
-    std::cout << "deleted in poll" << clientFd << "\n";
-    if(epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr) == -1)
-    {
-        std::cerr << "Fail epoll_ctl() in handleClientConnection\n";
-        return false;
-    }
-    close(clientFd);
-    _sending.erase(clientFd);
-    std::cout << "\nclosed conection to client \n" << clientFd << "\n";
-=======
->>>>>>> xavis_cool_parsing
     return true;
 }
 
