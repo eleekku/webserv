@@ -34,6 +34,7 @@ class HttpParser
 		size_t				_contentLength;
 		time_t				_lastSeen;
 		bool				_keepAlive;
+		std::string			_uploadFolder;
 
 		// Parsing
 		void				readRequest(int clientfd);
@@ -53,6 +54,7 @@ class HttpParser
 		void		extractOctetStream();
 		void		extractStringBody();
 		std::string	extractFilename();
+		std::string getUploadPath(ConfigFile& conf, int serverIndex);
 
 		// Checking functions
 		void	checkReadRequest();

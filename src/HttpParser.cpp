@@ -235,7 +235,7 @@ void	HttpParser::extractOctetStream()
 			break;
 		}
 	}
-	std::ofstream outFile("www/uploads/upload", std::ios::binary);
+	std::ofstream outFile(_uploadFolder + "/upload", std::ios::binary);
 	if (!outFile)
 		throw std::runtime_error("Failed to open file for writing: upload");
 	outFile.write(content.data(), content.size());
@@ -349,8 +349,8 @@ void	HttpParser::extractMultipartFormData()
 	size_t								vecSize;
 	std::string							lineStr;
 
-	if (!std::filesystem::exists("www/uploads"))
-		std::filesystem::create_directory("www/uploads");
+	if (!std::filesystem::exists(_uploadFolder))
+		std::filesystem::create_directory(_uploadFolder);
 	extractBoundary();
 	if (_boundary.empty())
 		throw std::runtime_error("No boundary found in multipart/form-data");
@@ -388,7 +388,7 @@ void	HttpParser::extractMultipartFormData()
 			if (!filename.empty())
 			{
 				std::cout << "Creating file\n";
-				std::ofstream outFile("www/uploads/" + filename, std::ios::binary);
+				std::ofstream outFile(_uploadFolder + filename, std::ios::binary);
 				if (!outFile)
 					throw std::runtime_error("Failed to open file for writing: " + filename);
 				outFile.write(content.data(), content.size());
@@ -449,15 +449,21 @@ void HttpParser::readBody(int clientfd)
 	}
 }
 
+std::string	HttpParser::getUploadPath(ConfigFile& conf, int serverIndex)
+{
+	std::string location = _target.substr(0, _target.find('/', 1));
+	LocationConfig locConfig = findKey(location, serverIndex, conf);
+	std::string root = locConfig.root;
+	root.erase(0, 1);
+	root.push_back('/');
+	return root;
+}
+
 void	HttpParser::checkLimitMethods(ConfigFile& conf, int serverIndex)
 {
-	std::cout << "Checking limit methods..." << std::endl;
-	std::cout << _target << std::endl;
 	std::string location = _target.substr(0, _target.find('/', 1));
-	std::cout << "Location: " << location << std::endl;
 	LocationConfig locConfig = findKey(location, serverIndex, conf);
 	std::string_view limit = locConfig.limit_except;
-	std::cout << "Limit methods: " << limit << std::endl;
 	if (limit.find(_method) == limit.npos)
 	{
 		_status = 405;
@@ -622,6 +628,13 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					break;
 				case startBody:
 					std::cout << "Starting body..." << std::endl;
+					_uploadFolder = getUploadPath(conf, serverIndex);
+					if (!std::filesystem::exists(_uploadFolder))
+					{
+						_status = 404;
+						_state = error;
+						throw std::runtime_error("Folder does not exist");
+					};
 					extractContentLength();
 					 if (_contentLength == 0)
 					 	break;
