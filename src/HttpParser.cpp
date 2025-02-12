@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0),
-	_method_enum(UNKNOWN), _status(200), _maxBodySize(0), _contentLength(0)
+	_method_enum(UNKNOWN), _status(200), _maxBodySize(0), _contentLength(0), _keepAlive(false)
 {
 	_request.reserve(BUFFER_SIZE);
 }
@@ -25,6 +25,7 @@ int			HttpParser::getStatus() { return _status;}
 std::string	HttpParser::getQuery() { return _query;}
 std::string HttpParser::getBody() { return _body;}
 size_t		HttpParser::getContentLength() { return _contentLength;}
+bool		HttpParser::getKeepAlive() { return _keepAlive;}
 
 std::stringstream HttpParser::getVectorLine()
 {
@@ -559,6 +560,15 @@ bool	HttpParser::checkValidCharacters()
 	return true;
 }
 
+void	HttpParser::isKeepAlive()
+{
+	if (_headers.contains("Connection"))
+	{
+		if (_headers["Connection"] == "keep-alive")
+			_keepAlive = true;
+	}
+}
+
 bool	HttpParser::checkTimeout()
 {
 	time_t now = time(nullptr);
@@ -604,6 +614,7 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 						_state = error;
 						break;
 					}
+					isKeepAlive();
 					if (_method_enum == POST)
 						_state = startBody;
 					else
