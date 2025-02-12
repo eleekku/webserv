@@ -169,6 +169,7 @@ void Server::runLoop()
 					if (_requests[_client_activity[i]].checkTimeout())
 					{
 						std::cout << "Timeout reached for client " << i << std::endl;
+						epoll_ctl(epollFd, EPOLL_CTL_DEL, _client_activity[i], nullptr);
 						close(_client_activity[i]);
 						releaseVectors(_client_activity[i]);
 					}
