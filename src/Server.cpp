@@ -328,12 +328,8 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
     if (_requests[clientFd].getKeepAlive() == false)
     {
 	    if (_response[clientFd].checkCgiStatus())
-	    {
 	        releaseVectors(_response[clientFd].getCgiFdtoSend());
-	       // releaseVectors(clientFd);
-	    }
-	    else
-	        releaseVectors(clientFd);
+	    releaseVectors(clientFd);
 	    std::cout << "deleted in poll" << clientFd << "\n";
 	    if(epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, nullptr) == -1)
 	    {
