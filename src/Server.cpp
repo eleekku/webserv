@@ -11,9 +11,9 @@ Server* g_serverInstance = nullptr;
 
 Server::Server()  
 {
-    _response.resize(MAX_EVENTS);
-	_requests.resize(MAX_EVENTS);
-	_is_used.resize(MAX_EVENTS, false);
+    _response.resize(200);
+	_requests.resize(200);
+	_is_used.resize(200, false);
 }
 
 Server::~Server() {}
@@ -236,6 +236,7 @@ void Server::runLoop()
         }
     }
     close(epollFd);
+  //  std::cout << "closed epollFD: " << epollFd << "\n";
     for (int fd : serveSocket)
     {
         close(fd);
@@ -276,6 +277,7 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
                     std::cerr << "Fail epoll_ctl() in handleClientConnection\n";
                     return false;
                 }
+                std::cout << "fdPipe to send: " << response.getFdPipe() << "\n";
                 _response[response.getFdPipe()] = response;
                 _sending[response.getFdPipe()] = true;
                 releaseVectors(eventIndex);
@@ -292,12 +294,16 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
         auto it = _sending.find(clientFd);
         if (it != _sending.end() && it->second == true)
         {
-            if (_response[clientFd].sendResponse(clientFd) != true)
+            if (_response[clientFd].sendResponse(clientFd) != true) {
                 return false;
+            }
         }
     }
     if (_response[clientFd].checkCgiStatus())
+    {
         releaseVectors(_response[clientFd].getCgiFdtoSend());
+       // releaseVectors(clientFd);
+    }
     else
         releaseVectors(clientFd);
     std::cout << "deleted in poll" << clientFd << "\n";

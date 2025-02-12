@@ -5,7 +5,15 @@
 /*To use the HttpResponse declare HttpResponse object and send it to receiverequest funciton which takes HttpParser object.
 Then call HttpParser member function generate which will return the response as string.*/
 
-HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0), m_defaulterrorpath("/www/error.html") {}
+HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0), m_defaulterrorpath("/www/error.html") {
+	m_statusCode = 200;
+	m_reasonPhrase = "OK";
+	m_mime = "text/plain";
+	m_epoll = 0;
+	cgiFdtoSend = 0;
+	m_reasonPhrase = "OK";
+	m_cgidone = false;
+}
 
 HttpResponse::HttpResponse(int code, std::string& mime) : m_statusCode(code), m_sent(false), m_mime(mime) {
 	auto it = HTTP_STATUS_MESSAGES.find(code);
@@ -26,20 +34,38 @@ HttpResponse::HttpResponse(const HttpResponse& other) {
 }
 
 HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
+//	std::cout << "hello from copy assignment\n";
 	if (this == &other)
 		return *this;
+//	std::cout << "hello from copy assignment\n";
 	m_statusCode = other.m_statusCode;
+//	std::cout << "status code\n";
+//	std::cout << "this reaason phrase is " << m_reasonPhrase << "\n";
+//	std::cout << "other reason phrase is " << other.m_reasonPhrase << "\n";
 	m_reasonPhrase = other.m_reasonPhrase;
+//	std::cout << "reason Phrase\n";
 	m_headers = other.m_headers;
+//	std::cout << "headers\n";
 	m_body = other.m_body;
+//	std::cout << "body\n";
 	m_mime = other.m_mime;
+//	std::cout << "mime\n";
 	m_sent = other.m_sent;
+//	std::cout << "sent\n";
 	cgi = other.cgi;
+//	std::cout << "cgi\n";
 	m_totalBytesSent = other.m_totalBytesSent;
+//	std::cout << "totalBytesSent\n";
+//	std::cout << "other error path is " << other.m_errorpath << "\n";
 	m_errorpath = other.m_errorpath;
+//	std::cout << "errorpath\n";
 	m_responsestr = other.m_responsestr;
+//	std::cout << "responsestr\n";
 	m_epoll = other.m_epoll;
+//	std::cout << "epoll\n";
 	cgiFdtoSend = other.cgiFdtoSend;
+//	std::cout << "bye from copy assignment\n";
+	m_cgidone = other.m_cgidone;
 	return *this;
 }
 
@@ -74,6 +100,8 @@ void HttpResponse::setErrorpath(std::string errorpath) {
 }
 
 void HttpResponse::setEpoll(int epoll) { m_epoll = epoll; }
+
+void HttpResponse::setCgiDone(bool cgidone) { m_cgidone = cgidone; }
 
 // GETTERS
 
@@ -110,6 +138,8 @@ int HttpResponse::getStatus() { return m_statusCode; }
 std::string HttpResponse::getErrorpath() const { return m_errorpath; }
 
 int HttpResponse::getEpoll() { return m_epoll; }
+
+bool HttpResponse::getCgiDone() { return m_cgidone; }
 
 // METHODS
 
@@ -182,22 +212,26 @@ bool HttpResponse::sendResponse(int serverSocket)
 	if (cgi)
 	{
 		if (!cgi->waitpidCheck(*this)) {
-			cgiFdtoSend = serverSocket;
-			std::cout << "\ncgi to send " << cgiFdtoSend << "\n";
+	//		close(cgiFdtoSend);
+			if (cgiFdtoSend == 0)
+				cgiFdtoSend = serverSocket;
 			return false;
 		}
-		else {
+		else if (!m_sent) {
 			generate();
 			serverSocket = cgiFdtoSend;
-			std::cout << "new servesocket\n" << serverSocket << "\n";
 		}
+		else
+			return true;
 	}
 	int bufferSize = m_bodySize - m_totalBytesSent;
 	if (bufferSize > MAX_SIZE_SEND)
 		bufferSize = MAX_SIZE_SEND;
+	std::cout << "status sending is " << m_statusCode << "\n";
 	ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, bufferSize, MSG_NOSIGNAL);
-	if (bytesSent == -1 || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
+	if (bytesSent == -1) // || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
 	{
+		std::cerr << "Error sending response\n";
 		m_totalBytesSent = 0;
 		setStatusCode(500);
 		errorPage();
@@ -209,7 +243,11 @@ bool HttpResponse::sendResponse(int serverSocket)
 	if (m_totalBytesSent < m_bodySize)
 		return false;
 	if (cgi)
+	{
 		close(cgiFdtoSend);
+		setCgiDone(true);
+	}
+	std::cout << "sent\n";
 	m_sent = true;
 	return true;
 }

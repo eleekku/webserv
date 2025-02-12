@@ -92,15 +92,11 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
 
     if (pid == 0)  // Child process
     {
-        std::cerr << "child running\n";
-      //  setpgid(0, 0);
         if (request.getMethod() == POST)
         {
-            std::cerr << "post method cgi\n";
             int pipeWrite[2];
             if (pipe(pipeWrite) == -1)
                 exit(1);
-
             fcntl(pipeWrite[1], F_SETFL, O_NONBLOCK);
             std::string body = request.getBody();
 
@@ -115,7 +111,7 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
         setenv("REQUEST_METHOD", request.getMethod() == GET ? "GET" : "POST", 1);
         setenv("QUERY_STRING", request.getQuery().c_str(), 1);
         
-  //      freopen("/dev/null", "w", stderr);  // Redirect errors to avoid printing on terminal
+        freopen("/dev/null", "w", stderr);  // Redirect errors to avoid printing on terminal
         dup2(fdPipe[1], STDOUT_FILENO);
         close(fdPipe[1]);
         close(fdPipe[0]);
@@ -145,10 +141,11 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
 
 bool CgiHandler::waitpidCheck(HttpResponse &response)
 {
-//    std::cout << "pid is " << pid << "\n";
+    if (response.getCgiDone())
+        return true;
     pidResult =  waitpid(pid, &status, WNOHANG);
-//    std::cout << "pid result is " << pidResult << "\n";
-//    std::cout << errno << "\n";
+//    std::cout << "pidResult is " << pidResult << "\n";
+//   std::cout << errno << "\n";
 //    std::cerr << "read fd is " << fdPipe[0] << "\n";
     if (pidResult == 0)
     {
@@ -170,23 +167,23 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     {
         int exitStatus = WEXITSTATUS(status);
         if (exitStatus == 0) {
-        std::cout << "script executed\n";
-        char buffer[1024];
+     //       std::cout << "script executed\n";
+            char buffer[1024];
   //      std::cerr << "fdPipe[0] is " << fdPipe[0] << "\n";
-        int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
-        if (bitesRead == -1) {
-            std::cerr << "Error reading from pipe\n";
-            response.setStatusCode(502);
-            response.errorPage();
-        }
+            int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
+            if (bitesRead == -1) {
+                std::cerr << "Error reading from pipe\n";
+                response.setStatusCode(502);
+                response.errorPage();
+            }
 //        std::cout << "bites read is " << bitesRead << "\n";
-        buffer[bitesRead] = '\0';
-        cgiOut += buffer;
-        response.setStatusCode(200);
-        response.setBody(cgiOut);
+            buffer[bitesRead] = '\0';
+            cgiOut += buffer;
+            response.setStatusCode(200);
+            response.setBody(cgiOut);
 //        std::cerr << "script executed\n";
 //        std::cout << cgiOut << "\n";
-        }
+            }
         else
         {
             std::cerr << "exit status is " << exitStatus << "\n";
@@ -201,6 +198,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         response.setStatusCode(502);
         response.errorPage();
     }
+    response.setCgiDone(true); 
     return true;
 }
 

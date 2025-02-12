@@ -32,6 +32,7 @@ class HttpResponse
 		void 		setMimeType(const std::string& mime);
 		void 		setErrorpath(std::string errorpath);
 		void		setEpoll(int epoll);
+		void		setCgiDone(bool cgidone);
 
 		std::string	getBody() const;
 		int			getStatus();
@@ -43,6 +44,7 @@ class HttpResponse
 		int			getchildid();
 		int 		getFdPipe();
 		int 		getEpoll();
+		bool		getCgiDone();
 
 		void		createCgi();
 		void		startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response);
@@ -59,6 +61,7 @@ class HttpResponse
 		int												m_epoll;
 		int												m_statusCode;
 		bool											m_sent;
+		bool											m_cgidone;
 		size_t											m_totalBytesSent;
 		size_t											m_bodySize;
 		std::map<std::string, std::string>				m_headers;

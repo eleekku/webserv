@@ -191,7 +191,6 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 //	std::cout << "locationstr is " << locationStr << std::endl;
 //	std::cout << "path is " << path << std::endl;
 	if (locationStr == "/cgi") { //calls the cgi executor
-		std::cerr << "its cgi! " << std::endl;
 		response.createCgi();
 		try {
 			response.startCgi(path, request, response);
