@@ -52,6 +52,7 @@ class Server
     void                check_inactive_connections(int epollfd);
     void                createNewParserObject(size_t index);
     void                releaseVectors(size_t index);
+    std::vector<int>    getClientActivity();
 
 };
 
