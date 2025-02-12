@@ -7,7 +7,7 @@
 static const int    MAX_EVENTS = 32;
 static const int    BUFFER_SIZE = 8192;
 static const int    MAX_REQUEST_SIZE = 24576;
-static const int    CONNECTION_TIMEOUT = 20;    // seconds
+static const int    CONNECTION_TIMEOUT = 500;    // mseconds
 static const int    CGI_TIMEOUT = 5;           // seconds
 static const int    MAX_CLIENTS = 1024;
 static const int    BACKLOG = 10;              // Listen backlog

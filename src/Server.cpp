@@ -9,7 +9,7 @@
 
 Server* g_serverInstance = nullptr;
 
-Server::Server()  
+Server::Server()
 {
     _response.resize(MAX_EVENTS);
 	_requests.resize(MAX_EVENTS);
@@ -155,12 +155,26 @@ void Server::runLoop()
     while (true)
     {
         std::cout << "Main loop..." << std::endl;
-        int nfds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
+        int nfds = epoll_wait(epollFd, events, MAX_EVENTS, CONNECTION_TIMEOUT);
         if (nfds == -1)
         {
             std::cerr << "\nrun = Error in epoll_wait" << "\n";
             continue;
-        }
+        } else if (nfds == 0)
+        {
+			for (size_t i = 0; i < _client_activity.size(); i++)
+			{
+				if (_is_used[_client_activity[i]])
+				{
+					if (_requests[_client_activity[i]].checkTimeout())
+					{
+						std::cout << "Timeout reached for client " << i << std::endl;
+						close(_client_activity[i]);
+						releaseVectors(_client_activity[i]);
+					}
+				}
+			}
+		}
         else
         {
             for (int i = 0; i < nfds; i++)
@@ -248,13 +262,18 @@ void    Server::createNewParserObject(size_t index)
 	{
 		_is_used[index] = true;
 		_requests[index] = HttpParser();
+		_client_activity.push_back(index);
 	}
 }
 
 void Server::releaseVectors(size_t index)
 {
 	if (index < _requests.size())
+	{
 		_is_used[index] = false;
+		auto new_end = std::remove(_client_activity.begin(), _client_activity.end(), index);
+		_client_activity.erase(new_end, _client_activity.end());
+	}
 }
 //this funtion will handle the response for eatch client if its not posible to send the response in ones,
 //the response  object will store for later continuos sending the response to that client until everything is sended.
@@ -308,7 +327,7 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
     }
     close(clientFd);
     _sending.erase(clientFd);
-    std::cout << "\nclosed conection to client \n" << clientFd << "\n"; 
+    std::cout << "\nclosed conection to client \n" << clientFd << "\n";
     return true;
 }
 
