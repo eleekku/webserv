@@ -559,10 +559,22 @@ bool	HttpParser::checkValidCharacters()
 	return true;
 }
 
+bool	HttpParser::checkTimeout()
+{
+	time_t now = time(nullptr);
+	if (difftime(now, _lastSeen) > CONNECTION_TIMEOUT)
+	{
+		_state = error;
+		_status = 408;
+		return true;
+	}
+	return false;
+}
 
 bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 {
 	try {
+		_lastSeen = time(nullptr);
 		while (true)
 		{
 			switch (_state)

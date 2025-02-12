@@ -29,6 +29,7 @@ class Server
     std::vector<int> 		    serveSocket;
     std::vector<HttpParser>     _requests;
     std::vector<bool>		    _is_used;
+    std::vector<int>			_client_activity;
     std::map<int, bool>         _sending;
     std::vector <HttpResponse> _response;
 
