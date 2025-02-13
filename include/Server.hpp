@@ -7,6 +7,7 @@
 #include <csignal>
 #include <fcntl.h>
 #include "ConfigFile.hpp"
+#include "Constants.hpp"
 #include "HttpParser.hpp"
 //#include "HandleRequest.hpp"
 //#include "HttpResponse.hpp"
@@ -25,7 +26,7 @@ class Server
     ConfigFile                  conf;
     int                         epollFd;
     struct epoll_event          event;
-    struct epoll_event          events[10];
+    struct epoll_event          events[MAX_EVENTS];
     std::vector<int> 		    serveSocket;
     std::vector<HttpParser>     _requests;
     std::vector<bool>		    _is_used;
