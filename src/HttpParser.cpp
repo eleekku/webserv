@@ -73,7 +73,7 @@ void	HttpParser::extractReqLine()
 	else if (_method == "DELETE")
 		_method_enum = DELETE;
 	else {
-		_status = 400;
+		_status = 501;
 		throw std::invalid_argument("Invalid method: " + _method);
 	}
 }
