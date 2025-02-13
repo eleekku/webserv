@@ -33,6 +33,7 @@ class HttpResponse
 		void 		setErrorpath(std::string errorpath);
 		void		setEpoll(int epoll);
 		void		setCgiDone(bool cgidone);
+		void		setCgiFdtoSend(int fd);
 
 		std::string	getBody() const;
 		int			getStatus();
@@ -53,6 +54,7 @@ class HttpResponse
 		void 		errorPage();
 		bool		checkCgiStatus();
 		int			getCgiFdtoSend();
+		void		terminateCgi();
 
 	private:
 

@@ -66,6 +66,7 @@ HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 	cgiFdtoSend = other.cgiFdtoSend;
 //	std::cout << "bye from copy assignment\n";
 	m_cgidone = other.m_cgidone;
+
 	return *this;
 }
 
@@ -102,6 +103,8 @@ void HttpResponse::setErrorpath(std::string errorpath) {
 void HttpResponse::setEpoll(int epoll) { m_epoll = epoll; }
 
 void HttpResponse::setCgiDone(bool cgidone) { m_cgidone = cgidone; }
+
+void HttpResponse::setCgiFdtoSend(int fd) { cgiFdtoSend = fd; }
 
 // GETTERS
 
@@ -159,6 +162,11 @@ bool HttpResponse::checkCgiStatus() {
 	return false;
 }
 
+void HttpResponse::terminateCgi() {
+	if (cgi)
+		cgi->terminateCgi();
+}
+
 void HttpResponse::generate() {
 
 	std::ostringstream response;
@@ -208,18 +216,25 @@ void HttpResponse::errorPage() {
 
 bool HttpResponse::sendResponse(int serverSocket)
 {
-	std::cout << "sendResponse\n";
 	if (cgi)
 	{
+		std::cout << "checking cgi status\n";
 		if (!cgi->waitpidCheck(*this)) {
+			std::cout << "cgi not done\n";
 	//		close(cgiFdtoSend);
 			if (cgiFdtoSend == 0)
+			{
+				std::cout << "cgiFdtoSend set" << cgiFdtoSend << "\n";
 				cgiFdtoSend = serverSocket;
+			}
 			return false;
 		}
 		else if (!m_sent) {
+			std::cout << "cgi done not sent\n";
+//			if (cgiFdtoSend != 0)
+				serverSocket = cgiFdtoSend;
 			generate();
-			serverSocket = cgiFdtoSend;
+	//		serverSocket = cgiFdtoSend;
 		}
 		else
 			return true;
@@ -227,7 +242,7 @@ bool HttpResponse::sendResponse(int serverSocket)
 	int bufferSize = m_bodySize - m_totalBytesSent;
 	if (bufferSize > MAX_SIZE_SEND)
 		bufferSize = MAX_SIZE_SEND;
-	std::cout << "status sending is " << m_statusCode << "\n";
+	std::cerr << "sending response to " << serverSocket << "\n";
 	ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, bufferSize, MSG_NOSIGNAL);
 	if (bytesSent == -1) // || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
 	{

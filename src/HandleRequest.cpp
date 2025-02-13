@@ -185,7 +185,6 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 	std::string error = confile.getErrorPage(serverIndex);
 	if (request.getTarget() == "/")
 		path += location.index;
-	std::cout << "path is " << path << std::endl;
 	if (!validateFile(path, response, location, GET))
 		return;
 //	std::cout << "locationstr is " << locationStr << std::endl;
@@ -256,7 +255,6 @@ void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, H
 	response.setErrorpath(confile.getErrorPage(serverIndex));
 	unsigned int status = request.getStatus();
 	response.setStatusCode(status);
-	std::cout << "status is " << status << std::endl;
 	if (status != 200 && status != 201 && status != 204)
 	{
 		response.setStatusCode(status);

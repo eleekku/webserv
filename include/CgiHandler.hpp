@@ -21,6 +21,7 @@ class CgiHandler
 	int pidResult;
 	int status;
 	int fdPipe[2];
+	int m_childid;
 	std::string cgiOut;
 
 	public:
@@ -33,6 +34,7 @@ class CgiHandler
 
 	void executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response);
 	bool waitpidCheck(HttpResponse &response);
+	void terminateCgi();
 	std::string getCgiOut() const;
 	int getchildid();
 	int getFdPipe();

@@ -46,14 +46,14 @@ class Server
     std::vector<int>    getServerSocket();
     bool                handleClientConnection(int serverIndex, int serverSocket, int i);
     int                 getEpollFd();
-    int                 getClientFd();
+
     void                closeServerFd();
     void                runLoop();
     void                cleaningServerFd();
-    void                check_inactive_connections(int epollfd);
     void                createNewParserObject(size_t index);
     void                releaseVectors(size_t index);
     std::vector<int>    getClientActivity();
+    std::vector<HttpResponse>& getResponses();
 
 };
 

@@ -17,6 +17,7 @@ CgiHandler& CgiHandler::operator=(const CgiHandler& src) {
     this->cgiOut = src.cgiOut;
     this->fdPipe[0] = src.fdPipe[0];
     this->fdPipe[1] = src.fdPipe[1];
+    this->m_childid = src.m_childid;
     return *this;
 }
 
@@ -70,7 +71,6 @@ std::string getPythonName(std::string& path)
 void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response)
 {
     struct epoll_event event;
-    std::cout << "\nCGI running\n";
     
     if (scriptPath.empty())
         throw std::runtime_error("Empty scriptPath\n");
@@ -86,6 +86,7 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
 
     pid = fork();
     childid = pid;
+    m_childid = pid;
 
     if (pid == -1)
         throw std::runtime_error("Fork failed\n");
@@ -168,7 +169,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         int exitStatus = WEXITSTATUS(status);
         if (exitStatus == 0) {
      //       std::cout << "script executed\n";
-            char buffer[1024];
+            char buffer[BUFFER_SIZE + 1];
   //      std::cerr << "fdPipe[0] is " << fdPipe[0] << "\n";
             int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
             if (bitesRead == -1) {
@@ -200,6 +201,17 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     }
     response.setCgiDone(true); 
     return true;
+}
+
+void CgiHandler::terminateCgi()
+{
+    if (childid > 0)
+    {
+        std::cerr << "Terminating CGI process: " << childid << "\n";
+        kill(m_childid, SIGINT);
+        close(fdPipe[0]);
+        close(fdPipe[1]);
+    }
 }
 
 std::string CgiHandler::getCgiOut() const { return cgiOut;}

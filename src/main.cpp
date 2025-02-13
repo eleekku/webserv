@@ -1,11 +1,16 @@
 #include "../include/ConfigFile.hpp"
 #include "../include/Server.hpp"
 #include "../include/CgiHandler.hpp"
+#include "../include/HttpResponse.hpp"
+
+Server* g_serverInstance = nullptr;
 
 void globalSignalHandler(int signum) 
 {
+    std::cerr << "\nSignal " << signum << " received. Shutting down server...\n";
     if (g_serverInstance != nullptr) 
     {
+        // Close all server sockets
         for (int socket : g_serverInstance->getServerSocket()) 
         {
             if (socket >= 0) 
@@ -13,13 +18,40 @@ void globalSignalHandler(int signum)
                 close(socket);
             }
         }
+        // Close epoll file descriptor
         if (g_serverInstance->getEpollFd() >= 0) 
         {
             close(g_serverInstance->getEpollFd());
         }
-    }
-    throw std::runtime_error("\nServer shut down.");
-    exit(signum);
+        // Terminate all CGI processes
+        std::vector <HttpResponse>& responses = g_serverInstance->getResponses();
+        for (auto& response : responses) 
+        {
+            std::cout << "response number " << response.getFdPipe() << "\n";
+            if (response.checkCgiStatus()) 
+            {
+                response.terminateCgi();
+            }
+        }
+        std::vector <int> _client_activity = g_serverInstance->getClientActivity();
+        std::vector<int> serverSocket = g_serverInstance->getServerSocket();
+        int size = g_serverInstance->getClientActivity().size();
+	    for (int i = 0; i < size; i++)
+	    {
+	        epoll_ctl(g_serverInstance->getEpollFd(), EPOLL_CTL_DEL, _client_activity[i], nullptr);
+			close(_client_activity[i]);
+			g_serverInstance->releaseVectors(_client_activity[i]);
+	    }
+	
+        close(g_serverInstance->getEpollFd());
+  //  std::cout << "closed epollFD: " << epollFd << "\n";
+        for (int fd : serverSocket)
+        {
+        close(fd);
+        }
+    } 
+    std::cerr << "throwing from signal\n";   
+   throw std::runtime_error("\nServer shut down.");
 }
 
 
@@ -71,8 +103,10 @@ int main(int ac, char **av)
     }
     catch(const std::exception& e)
     {
+        std::cerr << "here\n";
         std::cerr << e.what() << std::endl;
         return 1;
     }
+    std::cerr << "byeee\n";
     return 0;
 }

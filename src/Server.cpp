@@ -7,7 +7,7 @@
 //note : try catch to handle errors
 //       check max client body
 
-Server* g_serverInstance = nullptr;
+//Server* g_serverInstance = nullptr;
 
 Server::Server()
 {
@@ -154,12 +154,17 @@ std::vector<int> Server::getClientActivity()
 	return _client_activity;
 }
 
+std::vector<HttpResponse>& Server::getResponses() 
+{
+    return _response;
+}
+
 void Server::runLoop()
 {
     int socketS = 0;
     int client = 0;
-    try
-    {
+//    try
+//    {
 	    while (true)
 	    {
 	        std::cout << "Main loop..." << std::endl;
@@ -258,16 +263,17 @@ void Server::runLoop()
 	                socketS = 0;
 	            }
 	        }
-		}
-	} catch (std::exception &e) {
-      	int size = _client_activity.size();
-	    for (int i = 0; i < size; i++)
-	    {
-	        epoll_ctl(epollFd, EPOLL_CTL_DEL, _client_activity[i], nullptr);
-			close(_client_activity[i]);
-			releaseVectors(_client_activity[i]);
-	    }
-	}
+    	}
+//	} catch (std::exception &e) {
+//      	int size = _client_activity.size();
+//	    for (int i = 0; i < size; i++)
+//	    {
+
+//	        epoll_ctl(epollFd, EPOLL_CTL_DEL, _client_activity[i], nullptr);
+//			close(_client_activity[i]);
+//			releaseVectors(_client_activity[i]);
+//	    }
+//	}
     close(epollFd);
   //  std::cout << "closed epollFD: " << epollFd << "\n";
     for (int fd : serveSocket)
@@ -298,6 +304,7 @@ void Server::releaseVectors(size_t index)
 //the response  object will store for later continuos sending the response to that client until everything is sended.
 bool Server::handleClientConnection(int serverIndex, int clientFd, int eventIndex)
 {
+    (void)eventIndex;
     std::cout << "handleClientConnection cliendfd: " << clientFd << "\n";
     if (_sending.find(clientFd) == _sending.end())
     {
@@ -317,13 +324,24 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
                 std::cout << "fdPipe to send: " << response.getFdPipe() << "\n";
                 _response[response.getFdPipe()] = response;
                 _sending[response.getFdPipe()] = true;
-                releaseVectors(eventIndex);
+                releaseVectors(clientFd);
                 return false;
             }
             _response[clientFd] = response;
             _sending[clientFd] = true;
-            releaseVectors(eventIndex);
+            releaseVectors(clientFd);
             return false;
+        }
+        if (response.checkCgiStatus())
+        {
+            if(epoll_ctl(epollFd, EPOLL_CTL_DEL, response.getFdPipe(), nullptr) == -1)
+	        {
+	            std::cerr << "Fail epoll_ctl() in handleClientConnection\n";
+	            return false;
+	        }
+            releaseVectors(clientFd);
+            std::cerr << "closing pipe here " << response.getFdPipe() << "\n";
+            close(response.getFdPipe());
         }
     }
     else
