@@ -25,7 +25,6 @@ static const int    DEFAULT_PORT = 8080;
 static const char*  DEFAULT_HOST = "127.0.0.1";
 
 // File Paths
-static const char*  UPLOAD_DIR = "./www/uploads/";
 static const char*  CGI_DIR = "./cgi-bin/";
 static const char*  LOG_FILE = "./logs/server.log";
 
@@ -35,13 +34,6 @@ enum HttpMethod {
     GET = 1,
     POST = 2,
     UNKNOWN = 3
-};
-
-// Server States
-enum ServerState {
-    RUNNING = 0,
-    SHUTDOWN = 1,
-    ERROR = 2
 };
 
 // Parsing States
