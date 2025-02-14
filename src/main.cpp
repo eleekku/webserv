@@ -7,7 +7,8 @@ Server* g_serverInstance = nullptr;
 
 void globalSignalHandler(int signum) 
 {
-    std::cerr << "\nSignal " << signum << " received. Shutting down server...\n";
+    (void)signum;
+//    std::cerr << "\nSignal " << signum << " received. Shutting down server...\n";
     if (g_serverInstance != nullptr) 
     {
         // Close all server sockets
@@ -27,7 +28,7 @@ void globalSignalHandler(int signum)
         std::vector <HttpResponse>& responses = g_serverInstance->getResponses();
         for (auto& response : responses) 
         {
-            std::cout << "response number " << response.getFdPipe() << "\n";
+    //        std::cout << "response number " << response.getFdPipe() << "\n";
             if (response.checkCgiStatus()) 
             {
                 response.terminateCgi();
@@ -50,7 +51,7 @@ void globalSignalHandler(int signum)
         close(fd);
         }
     } 
-    std::cerr << "throwing from signal\n";   
+  //  std::cerr << "throwing from signal\n";   
    throw std::runtime_error("\nServer shut down.");
 }
 

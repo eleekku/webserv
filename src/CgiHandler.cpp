@@ -87,6 +87,7 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
     pid = fork();
     childid = pid;
     m_childid = pid;
+ //   std::cout << "childid is " << m_childid << "\n";
 
     if (pid == -1)
         throw std::runtime_error("Fork failed\n");
@@ -207,7 +208,7 @@ void CgiHandler::terminateCgi()
 {
     if (childid > 0)
     {
-        std::cerr << "Terminating CGI process: " << childid << "\n";
+  //      std::cerr << "Terminating CGI process: " << childid << "\n";
         kill(m_childid, SIGINT);
         close(fdPipe[0]);
         close(fdPipe[1]);

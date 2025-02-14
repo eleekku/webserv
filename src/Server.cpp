@@ -163,8 +163,8 @@ void Server::runLoop()
 {
     int socketS = 0;
     int client = 0;
-//    try
-//    {
+    try
+    {
 	    while (true)
 	    {
 	        std::cout << "Main loop..." << std::endl;
@@ -264,16 +264,16 @@ void Server::runLoop()
 	            }
 	        }
     	}
-//	} catch (std::exception &e) {
-//      	int size = _client_activity.size();
-//	    for (int i = 0; i < size; i++)
-//	    {
+	} catch (std::exception &e) {
+      	int size = _client_activity.size();
+	    for (int i = 0; i < size; i++)
+	    {
 
-//	        epoll_ctl(epollFd, EPOLL_CTL_DEL, _client_activity[i], nullptr);
-//			close(_client_activity[i]);
-//			releaseVectors(_client_activity[i]);
-//	    }
-//	}
+	        epoll_ctl(epollFd, EPOLL_CTL_DEL, _client_activity[i], nullptr);
+			close(_client_activity[i]);
+			releaseVectors(_client_activity[i]);
+	    }
+	}
     close(epollFd);
   //  std::cout << "closed epollFD: " << epollFd << "\n";
     for (int fd : serveSocket)
@@ -324,15 +324,15 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
                 std::cout << "fdPipe to send: " << response.getFdPipe() << "\n";
                 _response[response.getFdPipe()] = response;
                 _sending[response.getFdPipe()] = true;
-                releaseVectors(clientFd);
+                releaseVectors(eventIndex);
                 return false;
             }
             _response[clientFd] = response;
             _sending[clientFd] = true;
-            releaseVectors(clientFd);
+            releaseVectors(eventIndex);
             return false;
         }
-        if (response.checkCgiStatus())
+   /*     if (response.checkCgiStatus())
         {
             if(epoll_ctl(epollFd, EPOLL_CTL_DEL, response.getFdPipe(), nullptr) == -1)
 	        {
@@ -342,7 +342,7 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
             releaseVectors(clientFd);
             std::cerr << "closing pipe here " << response.getFdPipe() << "\n";
             close(response.getFdPipe());
-        }
+        }*/
     }
     else
     {
