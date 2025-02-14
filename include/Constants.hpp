@@ -27,6 +27,7 @@ static const char*  DEFAULT_HOST = "127.0.0.1";
 // File Paths
 static const char*  CGI_DIR = "./cgi-bin/";
 static const char*  LOG_FILE = "./logs/server.log";
+static const char*  DEFAULT_ERROR_PATH = "/www/error.html";
 
 // HTTP Methods
 enum HttpMethod {

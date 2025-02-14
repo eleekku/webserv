@@ -5,7 +5,7 @@
 /*To use the HttpResponse declare HttpResponse object and send it to receiverequest funciton which takes HttpParser object.
 Then call HttpParser member function generate which will return the response as string.*/
 
-HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0), m_defaulterrorpath("/www/error.html") {
+HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0) {
 	m_statusCode = 200;
 	m_reasonPhrase = "OK";
 	m_mime = "text/plain";
@@ -90,12 +90,13 @@ void HttpResponse::setMimeType(const std::string& mime) { m_mime = mime; }
 
 void HttpResponse::setErrorpath(std::string errorpath) {
 	if (errorpath.empty())
-		m_errorpath = m_defaulterrorpath;
-	if (!std::filesystem::exists(errorpath))
-		m_errorpath = m_defaulterrorpath;
+		m_errorpath = DEFAULT_ERROR_PATH;
+	std::string path = "." + errorpath;
+	if (!std::filesystem::exists(path))
+		m_errorpath = DEFAULT_ERROR_PATH;
 	struct stat filestat;
-	if (stat(errorpath.c_str(), &filestat) == -1)
-		m_errorpath = m_defaulterrorpath;
+	if (stat(path.c_str(), &filestat) == -1)
+		m_errorpath = DEFAULT_ERROR_PATH;
 	else
 		m_errorpath = errorpath;
 }
@@ -210,6 +211,7 @@ void HttpResponse::errorPage() {
     if (messagePos != std::string::npos) {
         bufferstr.replace(messagePos, 17, getReasonPhrase());
     }
+	std::cout << "error page bufferstr: " << bufferstr << std::endl;
 	setBody(bufferstr);
 	setMimeType(".html");
 }

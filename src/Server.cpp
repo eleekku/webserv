@@ -304,7 +304,6 @@ void Server::releaseVectors(size_t index)
 //the response  object will store for later continuos sending the response to that client until everything is sended.
 bool Server::handleClientConnection(int serverIndex, int clientFd, int eventIndex)
 {
-    (void)eventIndex;
     std::cout << "handleClientConnection cliendfd: " << clientFd << "\n";
     if (_sending.find(clientFd) == _sending.end())
     {

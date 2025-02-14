@@ -73,7 +73,6 @@ class HttpResponse
 		std::string 									m_errorpath;
 		std::string 									m_responsestr;
 		std::string										getCurrentDate() const;
-		std::string										m_defaulterrorpath;
 		static const std::map<int, std::string>			m_statusMap;
 		static const std::map<std::string, std::string>	m_mimeTypes;
 };
