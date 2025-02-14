@@ -40,6 +40,7 @@ class HttpParser
 		void				readRequest(int clientfd);
 		void				readBody(int clientfd);
 		std::stringstream	getVectorLine();
+		void				startBodyFunction(ConfigFile& conf, int serverIndex);
 		std::vector<char>	getBodyData();
 		void				extractReqLine();
 		void				parseQuery();
