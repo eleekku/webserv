@@ -2,7 +2,6 @@
 #include "HandleRequest.hpp"
 #include <algorithm>
 #include <cerrno>
-#include <cstddef>
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
@@ -73,7 +72,7 @@ void	HttpParser::extractReqLine()
 	else if (_method == "DELETE")
 		_method_enum = DELETE;
 	else {
-		_status = 400;
+		_status = 501;
 		throw std::invalid_argument("Invalid method: " + _method);
 	}
 }
@@ -245,6 +244,8 @@ void	HttpParser::extractOctetStream()
 
 void	HttpParser::extractBody()
 {
+	if (_headers.contains("Transfer-Encoding") &&_headers["Transfer-Encoding"] == "chunked")
+		extractChunkedBody();
 	if (_headers.contains("Content-Type"))
 	{
 		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
@@ -254,47 +255,37 @@ void	HttpParser::extractBody()
 		else
 			extractStringBody();
 	}
-	else if (_headers.contains("Transfer-Encoding") &&
-		_headers["Transfer-Encoding"] == "chunked")
-	{
-		std::cout << "WE ARE CHUNKEDDDDDDDDDDD\n";
-		// extractChunkedBody(request);
-	}
-	else if (_contentLength > 0)
-	{
-		std::vector<char> content(_contentLength);
-		// _ssrequest.read(content.data(), _contentLength);
-		// if (static_cast<size_t>(_ssrequest.gcount()) != _contentLength)
-		// {
-		// 	throw std::runtime_error("Failed to read complete body");
-		// }
-	}
 	_state = done;
 }
 
-// void	HttpParser::extractChunkedBody(std::vector<char>& request)
-// {
-// 	std::string	line;
-// 	int chunkSize;
+void	HttpParser::extractChunkedBody()
+{
+	std::vector<char>	content;
+	std::vector<char>	lineVec;
+	std::stringstream	chunkSizeStream;
 
-// 	while (true)
-// 	{
-// 		std::getline(request, line);
-// 		if (line.back() == '\r')
-// 			line.pop_back();
-// 		std::vector<char> ss;
-// 		ss << std::hex << line;
-// 		ss >> chunkSize;
-// 		if (chunkSize == 0)
-// 			break;
-// 		std::string chunk;
-// 		chunk.resize(chunkSize);
-// 		request.read(&chunk[0], chunkSize);
-// 		_body += chunk;
-// 		std::getline(request, line);
-// 	}
-// 	std::getline(request, line);
-// }
+	content.reserve(_contentLength);
+	while (true)
+	{
+		chunkSizeStream = getVectorLine();
+		size_t chunkSize;
+		chunkSizeStream >> std::hex >> chunkSize;
+		std::cout << "Chunk size: " << chunkSize << std::endl;
+		if (chunkSize == 0)
+			break;
+		size_t bytesRead = 0;
+		while (bytesRead < chunkSize)
+		{
+			lineVec.clear();
+			lineVec = getBodyData();
+			content.insert(content.end(), lineVec.begin(), lineVec.end());
+			bytesRead += lineVec.size();
+		}
+	}
+	_request.clear();
+	_request = std::move(content);
+	_pos = 0;
+}
 
 void	HttpParser::extractBoundary()
 {
@@ -441,6 +432,12 @@ void HttpParser::readBody(int clientfd)
 	}
 	if (_totalBytesRead == _contentLength)
 		_state = parsingBody;
+	if (_totalBytesRead > _contentLength)
+	{
+		_status = 400;
+		_state = error;
+		throw std::runtime_error("Content-Length mismatch");
+	}
 	if (_totalBytesRead > _maxBodySize)
 	{
 		_status = 413;
@@ -587,6 +584,31 @@ bool	HttpParser::checkTimeout()
 	return false;
 }
 
+void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
+{
+	std::cout << "Starting body..." << std::endl;
+	_request.clear();
+	_uploadFolder = getUploadPath(conf, serverIndex);
+	if (!std::filesystem::exists(_uploadFolder))
+	{
+		_status = 404;
+		_state = error;
+		throw std::runtime_error("Folder does not exist");
+	}
+	extractContentLength();
+	if (_contentLength == 0)
+		return;
+	_request.reserve(_contentLength);
+	std::copy(_tmp.begin(), _tmp.end(), std::back_inserter(_request));
+	_tmp.clear();
+	_pos = 0;
+	_totalBytesRead = _request.size();
+	if (_request.size() == _contentLength)
+		_state = parsingBody;
+	else
+		_state = readingBody;
+}
+
 bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 {
 	try {
@@ -627,33 +649,15 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 						_state = done;
 					break;
 				case startBody:
-					std::cout << "Starting body..." << std::endl;
-					_uploadFolder = getUploadPath(conf, serverIndex);
-					if (!std::filesystem::exists(_uploadFolder))
-					{
-						_status = 404;
-						_state = error;
-						throw std::runtime_error("Folder does not exist");
-					};
-					extractContentLength();
-					 if (_contentLength == 0)
-					 	break;
-					_request.clear();
-					_request.reserve(_contentLength);
-					std::copy(_tmp.begin(), _tmp.end(), std::back_inserter(_request));
-					_tmp.clear();
-					_pos = 0;
-					_totalBytesRead = _request.size();
-					if (_request.size() == _contentLength)
-						_state = parsingBody;
-					else
-						_state = readingBody;
+					startBodyFunction(conf, serverIndex);
 					break;
 				case readingBody:
 					readBody(clientfd);
 					break;
 				case parsingBody:
 					std::cout << "Parsing body..." << std::endl;
+					//for (auto it = _request.begin(); it != _request.end(); ++it)
+					//	std::cout << *it;
 					if (_request.size() > 0)
 						extractBody();
 					break;
@@ -676,11 +680,7 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 		if (_state == done || _state == error)
 		{
 			std::cout << _method << " " << _target << " " << _version << std::endl;
-			/*for (const auto& pair : _headers)
-			{
-				std::cout << pair.first << " : " << pair.second << std::endl;
-			}*/
-				return true;
+			return true;
 		}
 	} catch (std::exception &e) {
 		std::cerr << e.what() << std::endl;
