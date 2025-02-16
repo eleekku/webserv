@@ -80,9 +80,10 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
 
     fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
     pipetoclose = fdPipe[1];
-    event.events = EPOLLOUT;
+    //response.setClientActi(fdPipe[0]);
+    /*event.events = EPOLLOUT;
     event.data.fd = fdPipe[0];
-    epoll_ctl(response.getEpoll(), EPOLL_CTL_ADD, fdPipe[0], &event);
+    epoll_ctl(response.getEpoll(), EPOLL_CTL_ADD, fdPipe[0], &event);*/
 
     pid = fork();
     childid = pid;
@@ -168,10 +169,13 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     else if (WIFEXITED(status)) 
     {
         int exitStatus = WEXITSTATUS(status);
-        if (exitStatus == 0) {
+        if (exitStatus == 0) 
+        {
      //       std::cout << "script executed\n";
             char buffer[BUFFER_SIZE + 1];
   //      std::cerr << "fdPipe[0] is " << fdPipe[0] << "\n";
+        if (fcntl(fdPipe[0], F_GETFD) != -1)
+        {
             int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
             if (bitesRead == -1) {
                 std::cerr << "Error reading from pipe\n";
@@ -185,7 +189,8 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
             response.setBody(cgiOut);
 //        std::cerr << "script executed\n";
 //        std::cout << cgiOut << "\n";
-            }
+        }
+        }
         else
         {
             std::cerr << "exit status is " << exitStatus << "\n";

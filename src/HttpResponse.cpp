@@ -224,15 +224,24 @@ bool HttpResponse::sendResponse(int serverSocket)
 	//		close(cgiFdtoSend);
 			if (cgiFdtoSend == 0)
 			{
+				struct epoll_event event;
 				std::cout << "cgiFdtoSend set" << cgiFdtoSend << "\n";
 				cgiFdtoSend = serverSocket;
+				event.events = EPOLLOUT;
+				event.data.fd = getFdPipe();
+				epoll_ctl(m_epoll, EPOLL_CTL_ADD, getFdPipe(), &event);
 			}
 			return false;
 		}
 		else if (!m_sent) {
 			std::cout << "cgi done not sent\n";
-//			if (cgiFdtoSend != 0)
+			if (cgiFdtoSend != 0)
 				serverSocket = cgiFdtoSend;
+			else
+			{
+				if (getFdPipe() > 3)
+					close(getFdPipe());
+			}
 			generate();
 	//		serverSocket = cgiFdtoSend;
 		}
@@ -259,7 +268,8 @@ bool HttpResponse::sendResponse(int serverSocket)
 		return false;
 	if (cgi)
 	{
-		close(cgiFdtoSend);
+		if (cgiFdtoSend > 3)
+			close(cgiFdtoSend);
 		setCgiDone(true);
 	}
 	std::cout << "sent\n";

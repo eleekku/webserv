@@ -9,11 +9,12 @@
 
 //Server* g_serverInstance = nullptr;
 
-Server::Server()
+Server::Server() : _client_activity()
 {
     _response.resize(200);
 	_requests.resize(200);
 	_is_used.resize(200, false);
+   // _client_activity.resize(200);
 }
 
 Server::~Server() {}
@@ -78,6 +79,7 @@ void Server::closeServerFd()
     }
 }
 
+void Server::setClientActivity(int fd) { _client_activity.push_back(fd); }
 
 void Server::initialize(ConfigFile& config)
 {
@@ -236,16 +238,20 @@ void Server::runLoop()
 	                {
 	                    if (events[i].events & EPOLLIN)
 	                    {
-	                        createNewParserObject(client);
-	                        if (_requests[client].startParsing(client, conf, serverIndex) == true)
-	                        {
-	                            event.events = EPOLLOUT;
-	                            event.data.fd = client;
-	                            if (epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event) == -1)
-	                            {
-	                                std::cerr << "Fail epoll_ctl() in parsing\n";
-	                                continue;
-	                            }
+                            if (fcntl(client, F_GETFD) != -1)
+                            {
+                                createNewParserObject(client);
+                                if (_requests[client].startParsing(client, conf, serverIndex) == true)
+                                {
+                                    event.events = EPOLLOUT;
+                                    event.data.fd = client;
+
+                                        if (epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event) == -1)
+                                        {
+                                            std::cerr << "Fail epoll_ctl() in parsing\n";
+                                            continue;
+                                        }
+                                }
 	                        }
 	                    }
 	                    else if (events[i].events & EPOLLOUT)
@@ -312,6 +318,8 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
         response.setEpoll(epollFd);
         receiveRequest(_requests[clientFd], conf, serverIndex, response);
         response.generate();
+        if (response.checkCgiStatus())
+            _client_activity.push_back(response.getFdPipe());
         if (response.sendResponse(clientFd) != true)
         {
             if (response.checkCgiStatus())
@@ -365,7 +373,8 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
 	        std::cerr << "Fail epoll_ctl() in handleClientConnection\n";
 	        return false;
 	    }
-	    close(clientFd);
+        if (clientFd > 3)
+	        close(clientFd);
 	    _sending.erase(clientFd);
 	    std::cout << "\nclosed conection to client \n" << clientFd << "\n";
     } else {

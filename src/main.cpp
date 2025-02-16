@@ -14,13 +14,13 @@ void globalSignalHandler(int signum)
         // Close all server sockets
         for (int socket : g_serverInstance->getServerSocket()) 
         {
-            if (socket >= 0) 
+            if (socket >= 3) 
             {
                 close(socket);
             }
         }
         // Close epoll file descriptor
-        if (g_serverInstance->getEpollFd() >= 0) 
+        if (g_serverInstance->getEpollFd() >= 3) 
         {
             close(g_serverInstance->getEpollFd());
         }
@@ -35,24 +35,29 @@ void globalSignalHandler(int signum)
             }
         }
         std::vector <int> _client_activity = g_serverInstance->getClientActivity();
-        std::vector<int> serverSocket = g_serverInstance->getServerSocket();
+       // std::vector<int> serverSocket = g_serverInstance->getServerSocket();
         int size = g_serverInstance->getClientActivity().size();
 	    for (int i = 0; i < size; i++)
 	    {
-	        epoll_ctl(g_serverInstance->getEpollFd(), EPOLL_CTL_DEL, _client_activity[i], nullptr);
-			close(_client_activity[i]);
-			g_serverInstance->releaseVectors(_client_activity[i]);
+	        //epoll_ctl(g_serverInstance->getEpollFd(), EPOLL_CTL_DEL, _client_activity[i], nullptr);
+            if(_client_activity[i] > 3)
+            {
+			    close(_client_activity[i]);
+            }
+			//g_serverInstance->releaseVectors(_client_activity[i]);
 	    }
 	
-        close(g_serverInstance->getEpollFd());
+   //     close(g_serverInstance->getEpollFd());
   //  std::cout << "closed epollFD: " << epollFd << "\n";
-        for (int fd : serverSocket)
+  /*      for (int fd : serverSocket)
         {
         close(fd);
         }
-    } 
+    } */
   //  std::cerr << "throwing from signal\n";   
-   throw std::runtime_error("\nServer shut down.");
+  
+    }
+    throw std::runtime_error("\nServer shut down.");
 }
 
 
