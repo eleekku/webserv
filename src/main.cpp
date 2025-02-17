@@ -33,7 +33,6 @@ void globalSignalHandler(int signum)
             }
         }
         std::vector <int> _client_activity = g_serverInstance->getClientActivity();
-        close(14);
         int size = g_serverInstance->getClientActivity().size();
 	    for (int i = 0; i < size; i++)
 	    {
@@ -42,34 +41,8 @@ void globalSignalHandler(int signum)
 			    close(_client_activity[i]);
             }
 	    }
-        throw std::runtime_error("\nServer shut down.");
     }
-    throw std::runtime_error("\nServer shut down.");
 }
-
-
-/*void printServerConfig(  std::map<int, std::map<std::string, LocationConfig>> serverConfig) 
-{
-    for (const auto& server : serverConfig) 
-    {
-        const int& serverKey = server.first;
-        const auto& locations = server.second;
-
-        std::cout << "Server: " << serverKey << "\n";
-
-        for (const auto& location : locations) 
-        {
-            const std::string& locationKey = location.first;
-            const LocationConfig& config = location.second;
-
-            std::cout << "  Location: " << locationKey << "\n";
-            std::cout << "    Limit Except: " << config.limit_except << "\n";
-            std::cout << "    Root: " << config.root << "\n";
-            std::cout << "    Autoindex: " << (config.autoindex ? "true" : "false") << "\n";
-            std::cout << "    Index: " << config.index << "\n";
-        }
-    }
-}*/
 
 int main(int ac, char **av) 
 {

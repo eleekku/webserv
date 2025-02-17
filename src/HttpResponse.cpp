@@ -1,7 +1,6 @@
 #include "../include/HttpResponse.hpp"
 #include "../include/CgiHandler.hpp"
 #include "Constants.hpp"
-
 /*To use the HttpResponse declare HttpResponse object and send it to receiverequest funciton which takes HttpParser object.
 Then call HttpParser member function generate which will return the response as string.*/
 
@@ -215,18 +214,14 @@ void HttpResponse::errorPage() {
 	setMimeType(".html");
 }
 
-bool HttpResponse::sendResponse(int serverSocket)
+bool HttpResponse::sendResponse(int serverSocket, std::vector<int> &clientActivity)
 {
 	if (cgi)
 	{
-		std::cout << "checking cgi status\n";
 		if (!cgi->waitpidCheck(*this)) {
-			std::cout << "cgi not done\n";
-	//		close(cgiFdtoSend);
 			if (cgiFdtoSend == 0)
 			{
 				struct epoll_event event;
-				std::cout << "cgiFdtoSend set" << cgiFdtoSend << "\n";
 				cgiFdtoSend = serverSocket;
 				event.events = EPOLLOUT;
 				event.data.fd = getFdPipe();
@@ -235,16 +230,18 @@ bool HttpResponse::sendResponse(int serverSocket)
 			return false;
 		}
 		else if (!m_sent) {
-			std::cout << "cgi done not sent\n";
 			if (cgiFdtoSend != 0)
 				serverSocket = cgiFdtoSend;
 			else
 			{
 				if (getFdPipe() > 3)
+				{
 					close(getFdPipe());
+					auto new_end = std::remove(clientActivity.begin(), clientActivity.end(), getFdPipe());
+					clientActivity.erase(new_end, clientActivity.end());
+				}
 			}
 			generate();
-	//		serverSocket = cgiFdtoSend;
 		}
 		else
 			return true;
@@ -252,9 +249,8 @@ bool HttpResponse::sendResponse(int serverSocket)
 	int bufferSize = m_bodySize - m_totalBytesSent;
 	if (bufferSize > MAX_SIZE_SEND)
 		bufferSize = MAX_SIZE_SEND;
-	std::cerr << "sending response to " << serverSocket << "\n";
 	ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, bufferSize, MSG_NOSIGNAL);
-	if (bytesSent == -1) // || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
+	if (bytesSent == -1)
 	{
 		std::cerr << "Error sending response\n";
 		m_totalBytesSent = 0;
@@ -273,7 +269,6 @@ bool HttpResponse::sendResponse(int serverSocket)
 			close(cgiFdtoSend);
 		setCgiDone(true);
 	}
-	std::cout << "sent\n";
 	m_sent = true;
 	return true;
 }

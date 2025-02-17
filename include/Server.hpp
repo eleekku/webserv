@@ -9,11 +9,6 @@
 #include "ConfigFile.hpp"
 #include "Constants.hpp"
 #include "HttpParser.hpp"
-//#include "HandleRequest.hpp"
-//#include "HttpResponse.hpp"
-
-
-void printServerConfig(  std::map<std::string, std::map<std::string, LocationConfig>> serverConfig);
 
 class ConfigFile;
 class HttpParser;
@@ -40,21 +35,25 @@ class Server
     Server();
     ~Server();
 
-    void                        initialize(ConfigFile& conf);
-    int                         createServerSocket(int port, std::string ipServer);
+    //sever
+    void                        initialize(ConfigFile& conf);;
     void                        run();
-    std::vector<int>            getServerSocket();
     bool                        handleClientConnection(int serverIndex, int serverSocket, int i);
-    int                         getEpollFd();
-
-    void                        closeServerFd();
     void                        runLoop();
+    
+    //Utilities
+    int                         createServerSocket(int port, std::string ipServer);
+    void                        closeServerFd();
     void                        cleaningServerFd();
     void                        createNewParserObject(size_t index);
     void                        releaseVectors(size_t index);
-    std::vector<int>            getClientActivity();
-    std::vector<HttpResponse>&  getResponses();
     void                        setClientActivity(int fd);
+
+    //Getter
+    int                         getEpollFd();
+    std::vector<int>            getClientActivity();
+    std::vector<int>            getServerSocket();
+    std::vector<HttpResponse>&  getResponses();
 
 };
 

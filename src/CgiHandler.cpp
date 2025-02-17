@@ -32,8 +32,7 @@ void timeoutHandler(int signal)
 
 void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response, std::vector<int> &_clientActivity)
 {
-    struct epoll_event event;
-    
+    (void)response;
     if (scriptPath.empty())
         throw std::runtime_error("Empty scriptPath\n");
 
@@ -42,16 +41,12 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
     _clientActivity.push_back(fdPipe[0]);
     fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
     pipetoclose = fdPipe[1];
-    //response.setClientActi(fdPipe[0]);
-    /*event.events = EPOLLOUT;
-    event.data.fd = fdPipe[0];
-    epoll_ctl(response.getEpoll(), EPOLL_CTL_ADD, fdPipe[0], &event);*/
     pid = fork();
     childid = pid;
     m_childid = pid;
     if (pid == -1)
         throw std::runtime_error("Fork failed\n");
-    if (pid == 0)  // Child process
+    if (pid == 0)
     {
         if (request.getMethod() == POST)
         {
@@ -68,7 +63,6 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
             dup2(pipeWrite[0], STDIN_FILENO);
             close(pipeWrite[0]);
         }
-        // SET ENVIRONMENT VARIABLES
         setenv("REQUEST_METHOD", request.getMethod() == GET ? "GET" : "POST", 1);
         setenv("QUERY_STRING", request.getQuery().c_str(), 1);
         freopen("/dev/null", "w", stderr);  // Redirect errors to avoid printing on terminal
@@ -88,6 +82,8 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
         exit(1);
     }
     close(fdPipe[1]);
+    auto new_end = std::remove(_clientActivity.begin(), _clientActivity.end(), fdPipe[1]);
+	_clientActivity.erase(new_end, _clientActivity.end());
 }
 
 bool CgiHandler::waitpidCheck(HttpResponse &response)
@@ -102,7 +98,6 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
     }
     else if (WIFSIGNALED(status))
     {
-        std::cerr << "script terminated by signal " << "\n";
         response.setStatusCode(504);
         response.errorPage();
     }
@@ -128,14 +123,12 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         }
         else
         {
-            std::cerr << "script exited with status " << exitStatus << "\n";
             response.setStatusCode(502);
             response.errorPage();
         }
     } 
     else
     {
-        std::cerr << "error with waitpid\n";
         response.setStatusCode(502);
         response.errorPage();
     }

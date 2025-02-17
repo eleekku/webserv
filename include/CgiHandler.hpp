@@ -9,7 +9,6 @@
 #include <set>
 #include "Server.hpp"
 
-//class Server;
 class HttpResponse;
 
 class CgiHandler
