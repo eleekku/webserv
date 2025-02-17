@@ -33,37 +33,20 @@ HttpResponse::HttpResponse(const HttpResponse& other) {
 }
 
 HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
-//	std::cout << "hello from copy assignment\n";
 	if (this == &other)
 		return *this;
-//	std::cout << "hello from copy assignment\n";
 	m_statusCode = other.m_statusCode;
-//	std::cout << "status code\n";
-//	std::cout << "this reaason phrase is " << m_reasonPhrase << "\n";
-//	std::cout << "other reason phrase is " << other.m_reasonPhrase << "\n";
 	m_reasonPhrase = other.m_reasonPhrase;
-//	std::cout << "reason Phrase\n";
 	m_headers = other.m_headers;
-//	std::cout << "headers\n";
 	m_body = other.m_body;
-//	std::cout << "body\n";
 	m_mime = other.m_mime;
-//	std::cout << "mime\n";
 	m_sent = other.m_sent;
-//	std::cout << "sent\n";
 	cgi = other.cgi;
-//	std::cout << "cgi\n";
 	m_totalBytesSent = other.m_totalBytesSent;
-//	std::cout << "totalBytesSent\n";
-//	std::cout << "other error path is " << other.m_errorpath << "\n";
 	m_errorpath = other.m_errorpath;
-//	std::cout << "errorpath\n";
 	m_responsestr = other.m_responsestr;
-//	std::cout << "responsestr\n";
 	m_epoll = other.m_epoll;
-//	std::cout << "epoll\n";
 	cgiFdtoSend = other.cgiFdtoSend;
-//	std::cout << "bye from copy assignment\n";
 	m_cgidone = other.m_cgidone;
 
 	return *this;
