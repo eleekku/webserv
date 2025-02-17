@@ -211,7 +211,6 @@ void HttpResponse::errorPage() {
     if (messagePos != std::string::npos) {
         bufferstr.replace(messagePos, 17, getReasonPhrase());
     }
-	std::cout << "error page bufferstr: " << bufferstr << std::endl;
 	setBody(bufferstr);
 	setMimeType(".html");
 }
