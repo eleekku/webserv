@@ -112,7 +112,6 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         {
             int bitesRead = read(fdPipe[0], buffer, BUFFER_SIZE);
             if (bitesRead == -1) {
-                std::cerr << "Error reading from pipe\n";
                 response.setStatusCode(502);
                 response.errorPage();
             }

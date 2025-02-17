@@ -69,7 +69,6 @@ bool validateFile(std::string path, HttpResponse &response, LocationConfig &conf
 	if (!std::filesystem::exists(path)) {
 		response.setStatusCode(404);
 		response.errorPage();
-		std::cerr << "File not found" << std::endl;
 		return false;
 	}
 	// Check if the file is a symbolic link
