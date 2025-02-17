@@ -26,6 +26,8 @@ class HttpResponse
 		HttpResponse(const HttpResponse& other);
 		HttpResponse& operator=(const HttpResponse& other);
 
+		// SETTERS
+
 		void 		setHeader(const std::string& key, const std::string& value);
 		void 		setBody(const std::string& body);
 		void 		setStatusCode(int code);
@@ -34,6 +36,8 @@ class HttpResponse
 		void		setEpoll(int epoll);
 		void		setCgiDone(bool cgidone);
 		void		setCgiFdtoSend(int fd);
+
+		// GETTERS
 
 		std::string	getBody() const;
 		int			getStatus();

@@ -65,7 +65,6 @@ std::string condenceLocation(const std::string_view &input) {
 }
 
 bool validateFile(std::string path, HttpResponse &response, LocationConfig &config, int method) {
-	//if the file exists and all is ok
 	// Check if the file exists
 	if (!std::filesystem::exists(path)) {
 		response.setStatusCode(404);
@@ -111,7 +110,6 @@ void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, Htt
 		return;	
 	}
 	std::string path = formPath(request.getTarget(), locationConfig);
-//	std::cout << "path is " << path << std::endl;
 	if (response.getStatus() == 404 || response.getStatus() == 405) {
 		response.errorPage();
 		return;
@@ -187,8 +185,6 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 		path += location.index;
 	if (!validateFile(path, response, location, GET))
 		return;
-//	std::cout << "locationstr is " << locationStr << std::endl;
-//	std::cout << "path is " << path << std::endl;
 	if (locationStr == "/cgi") { //calls the cgi executor
 		response.createCgi();
 		try {
@@ -218,7 +214,6 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 		response.errorPage();
 		return;
 	}
-//	response.setStatusCode(200);
 	std::ostringstream buffer;
 	buffer << file.rdbuf();
 	response.setBody(buffer.str());
@@ -228,7 +223,7 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
 	LocationConfig location;
 	std::string locationStr = condenceLocation(request.getTarget());
-	if (locationStr != "/cgi") {
+	if (locationStr != "/cgi") { // other POSTS are handled in the parsing
 		response.setStatusCode(400);
 		response.errorPage();
 		return;
@@ -259,14 +254,12 @@ void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, H
 	{
 		response.setStatusCode(status);
 		response.errorPage();
-//		response.setBody("Bad Request");
 		return;
 	}
 	switch (request.getMethod()) {
 		case DELETE:
 			response.setStatusCode(status);
 			handleDelete(request, confile, serverIndex, response);
-		//	response.setBody("Not found");
 			return;
 		case GET:
 			locateAndReadFile(request, confile, serverIndex, response);
@@ -284,7 +277,6 @@ void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, H
 		default:
 			response.setStatusCode(405);
 			response.errorPage();
-		//	response.setBody("Not found");
 			return;
 	}
 }
