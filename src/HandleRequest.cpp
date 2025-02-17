@@ -65,7 +65,6 @@ std::string condenceLocation(const std::string_view &input) {
 }
 
 bool validateFile(std::string path, HttpResponse &response, LocationConfig &config, int method) {
-	//if the file exists and all is ok
 	// Check if the file exists
 	if (!std::filesystem::exists(path)) {
 		response.setStatusCode(404);
@@ -111,7 +110,6 @@ void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, Htt
 		return;	
 	}
 	std::string path = formPath(request.getTarget(), locationConfig);
-//	std::cout << "path is " << path << std::endl;
 	if (response.getStatus() == 404 || response.getStatus() == 405) {
 		response.errorPage();
 		return;
@@ -170,7 +168,7 @@ void listDirectory(HttpParser &request, std::string &path, LocationConfig &locat
 	}
 }
 
-void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex, HttpResponse &response, std::vector<int> &clientActivity) {
 	LocationConfig location;
 	std::string locationStr = condenceLocation(request.getTarget());
 	try {
@@ -185,15 +183,12 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 	std::string error = confile.getErrorPage(serverIndex);
 	if (request.getTarget() == "/")
 		path += location.index;
-	std::cout << "path is " << path << std::endl;
 	if (!validateFile(path, response, location, GET))
 		return;
-//	std::cout << "locationstr is " << locationStr << std::endl;
-//	std::cout << "path is " << path << std::endl;
 	if (locationStr == "/cgi") { //calls the cgi executor
 		response.createCgi();
 		try {
-			response.startCgi(path, request, response);
+			response.startCgi(path, request, response, clientActivity);
 			response.setStatusCode(102);
 			return;
 		}
@@ -219,17 +214,16 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 		response.errorPage();
 		return;
 	}
-//	response.setStatusCode(200);
 	std::ostringstream buffer;
 	buffer << file.rdbuf();
 	response.setBody(buffer.str());
 	return;
 }
 
-void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpResponse &response, std::vector<int> &clientActivity) {
 	LocationConfig location;
 	std::string locationStr = condenceLocation(request.getTarget());
-	if (locationStr != "/cgi") {
+	if (locationStr != "/cgi") { // other POSTS are handled in the parsing
 		response.setStatusCode(400);
 		response.errorPage();
 		return;
@@ -246,32 +240,29 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 	if (request.getTarget() == "/")
 		path += location.index;
 	response.createCgi();
-	response.startCgi(path, request, response);
+	response.startCgi(path, request, response, clientActivity);
 		response.setStatusCode(102);
 		return;
 }
 
-void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response) {
+void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, HttpResponse &response, std::vector<int> &clientActivity) {
 	response.setHeader("Server", confile.getServerName(serverIndex));
 	response.setErrorpath(confile.getErrorPage(serverIndex));
 	unsigned int status = request.getStatus();
 	response.setStatusCode(status);
-	std::cout << "status is " << status << std::endl;
 	if (status != 200 && status != 201 && status != 204)
 	{
 		response.setStatusCode(status);
 		response.errorPage();
-//		response.setBody("Bad Request");
 		return;
 	}
 	switch (request.getMethod()) {
 		case DELETE:
 			response.setStatusCode(status);
 			handleDelete(request, confile, serverIndex, response);
-		//	response.setBody("Not found");
 			return;
 		case GET:
-			locateAndReadFile(request, confile, serverIndex, response);
+			locateAndReadFile(request, confile, serverIndex, response, clientActivity);
 			return;
 		case POST:
 			response.setHeader("Server", confile.getServerName(serverIndex));
@@ -281,12 +272,11 @@ void receiveRequest(HttpParser& request, ConfigFile &confile, int serverIndex, H
 				response.setBody("Created");
 			}
 			else
-				handlePost(request, confile, serverIndex, response);
+				handlePost(request, confile, serverIndex, response, clientActivity);
 			return;
 		default:
 			response.setStatusCode(405);
 			response.errorPage();
-		//	response.setBody("Not found");
 			return;
 	}
 }

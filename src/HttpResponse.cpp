@@ -5,7 +5,7 @@
 /*To use the HttpResponse declare HttpResponse object and send it to receiverequest funciton which takes HttpParser object.
 Then call HttpParser member function generate which will return the response as string.*/
 
-HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0), m_defaulterrorpath("/www/error.html") {
+HttpResponse::HttpResponse() : m_sent(false), m_totalBytesSent(0) {
 	m_statusCode = 200;
 	m_reasonPhrase = "OK";
 	m_mime = "text/plain";
@@ -66,6 +66,7 @@ HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
 	cgiFdtoSend = other.cgiFdtoSend;
 //	std::cout << "bye from copy assignment\n";
 	m_cgidone = other.m_cgidone;
+
 	return *this;
 }
 
@@ -89,12 +90,13 @@ void HttpResponse::setMimeType(const std::string& mime) { m_mime = mime; }
 
 void HttpResponse::setErrorpath(std::string errorpath) {
 	if (errorpath.empty())
-		m_errorpath = m_defaulterrorpath;
-	if (!std::filesystem::exists(errorpath))
-		m_errorpath = m_defaulterrorpath;
+		m_errorpath = DEFAULT_ERROR_PATH;
+	std::string path = "." + errorpath;
+	if (!std::filesystem::exists(path))
+		m_errorpath = DEFAULT_ERROR_PATH;
 	struct stat filestat;
-	if (stat(errorpath.c_str(), &filestat) == -1)
-		m_errorpath = m_defaulterrorpath;
+	if (stat(path.c_str(), &filestat) == -1)
+		m_errorpath = DEFAULT_ERROR_PATH;
 	else
 		m_errorpath = errorpath;
 }
@@ -102,6 +104,8 @@ void HttpResponse::setErrorpath(std::string errorpath) {
 void HttpResponse::setEpoll(int epoll) { m_epoll = epoll; }
 
 void HttpResponse::setCgiDone(bool cgidone) { m_cgidone = cgidone; }
+
+void HttpResponse::setCgiFdtoSend(int fd) { cgiFdtoSend = fd; }
 
 // GETTERS
 
@@ -148,15 +152,20 @@ void HttpResponse::createCgi() {
 		cgi.emplace();
 }
 
-void HttpResponse::startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response) {
+void HttpResponse::startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response, std::vector<int> &_clientActivity) {
 	if (cgi)
-		cgi->executeCGI(scriptPath, request, response);
+		cgi->executeCGI(scriptPath, request, response, _clientActivity);
 }
 
 bool HttpResponse::checkCgiStatus() {
 	if (cgi)
 		return true;
 	return false;
+}
+
+void HttpResponse::terminateCgi() {
+	if (cgi)
+		cgi->terminateCgi();
 }
 
 void HttpResponse::generate() {
@@ -208,18 +217,34 @@ void HttpResponse::errorPage() {
 
 bool HttpResponse::sendResponse(int serverSocket)
 {
-	std::cout << "sendResponse\n";
 	if (cgi)
 	{
+		std::cout << "checking cgi status\n";
 		if (!cgi->waitpidCheck(*this)) {
+			std::cout << "cgi not done\n";
 	//		close(cgiFdtoSend);
 			if (cgiFdtoSend == 0)
+			{
+				struct epoll_event event;
+				std::cout << "cgiFdtoSend set" << cgiFdtoSend << "\n";
 				cgiFdtoSend = serverSocket;
+				event.events = EPOLLOUT;
+				event.data.fd = getFdPipe();
+				epoll_ctl(m_epoll, EPOLL_CTL_ADD, getFdPipe(), &event);
+			}
 			return false;
 		}
 		else if (!m_sent) {
+			std::cout << "cgi done not sent\n";
+			if (cgiFdtoSend != 0)
+				serverSocket = cgiFdtoSend;
+			else
+			{
+				if (getFdPipe() > 3)
+					close(getFdPipe());
+			}
 			generate();
-			serverSocket = cgiFdtoSend;
+	//		serverSocket = cgiFdtoSend;
 		}
 		else
 			return true;
@@ -227,7 +252,7 @@ bool HttpResponse::sendResponse(int serverSocket)
 	int bufferSize = m_bodySize - m_totalBytesSent;
 	if (bufferSize > MAX_SIZE_SEND)
 		bufferSize = MAX_SIZE_SEND;
-	std::cout << "status sending is " << m_statusCode << "\n";
+	std::cerr << "sending response to " << serverSocket << "\n";
 	ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, bufferSize, MSG_NOSIGNAL);
 	if (bytesSent == -1) // || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
 	{
@@ -244,7 +269,8 @@ bool HttpResponse::sendResponse(int serverSocket)
 		return false;
 	if (cgi)
 	{
-		close(cgiFdtoSend);
+		if (cgiFdtoSend > 3)
+			close(cgiFdtoSend);
 		setCgiDone(true);
 	}
 	std::cout << "sent\n";

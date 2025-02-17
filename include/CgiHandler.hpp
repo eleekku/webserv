@@ -17,23 +17,28 @@ class CgiHandler
 
 	private :
 
-	int pid;
-	int pidResult;
-	int status;
-	int fdPipe[2];
-	std::string cgiOut;
+	int			pid;
+	int			pidResult;
+	int			status;
+	int			fdPipe[2];
+	int			m_childid;
+	std::string	cgiOut;
 
 	public:
 
 	CgiHandler();
 	~CgiHandler();
 
-	CgiHandler(const CgiHandler&); // = default;
-    CgiHandler& operator=(const CgiHandler&); // = default;
+	CgiHandler(const CgiHandler&);
+    CgiHandler& operator=(const CgiHandler&);
 
-	void executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response);
+	void executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response, std::vector<int> &_clientActivity);
 	bool waitpidCheck(HttpResponse &response);
-	std::string getCgiOut() const;
-	int getchildid();
-	int getFdPipe();
+	void terminateCgi();
+
+	// GETTERS
+
+	std::string	getCgiOut() const;
+	int			getchildid();
+	int			getFdPipe();
 };

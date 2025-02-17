@@ -26,6 +26,8 @@ class HttpResponse
 		HttpResponse(const HttpResponse& other);
 		HttpResponse& operator=(const HttpResponse& other);
 
+		// SETTERS
+
 		void 		setHeader(const std::string& key, const std::string& value);
 		void 		setBody(const std::string& body);
 		void 		setStatusCode(int code);
@@ -33,6 +35,9 @@ class HttpResponse
 		void 		setErrorpath(std::string errorpath);
 		void		setEpoll(int epoll);
 		void		setCgiDone(bool cgidone);
+		void		setCgiFdtoSend(int fd);
+
+		// GETTERS
 
 		std::string	getBody() const;
 		int			getStatus();
@@ -47,12 +52,14 @@ class HttpResponse
 		bool		getCgiDone();
 
 		void		createCgi();
-		void		startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response);
+		void		startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response, std::vector<int> 	&_clientActivity);
 		void		generate();
 		bool		sendResponse(int serverSocket);
 		void 		errorPage();
 		bool		checkCgiStatus();
 		int			getCgiFdtoSend();
+		void		terminateCgi();
+		//void setClientActi(int fd);
 
 	private:
 
@@ -71,7 +78,6 @@ class HttpResponse
 		std::string 									m_errorpath;
 		std::string 									m_responsestr;
 		std::string										getCurrentDate() const;
-		std::string										m_defaulterrorpath;
 		static const std::map<int, std::string>			m_statusMap;
 		static const std::map<std::string, std::string>	m_mimeTypes;
 };
