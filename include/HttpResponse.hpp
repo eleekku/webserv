@@ -26,6 +26,7 @@ class HttpResponse
 		HttpResponse(const HttpResponse& other);
 		HttpResponse& operator=(const HttpResponse& other);
 
+		//std::vector<int> &_clientActivity;
 		void 		setHeader(const std::string& key, const std::string& value);
 		void 		setBody(const std::string& body);
 		void 		setStatusCode(int code);
@@ -48,7 +49,7 @@ class HttpResponse
 		bool		getCgiDone();
 
 		void		createCgi();
-		void		startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response);
+		void		startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response, std::vector<int> 	&_clientActivity);
 		void		generate();
 		bool		sendResponse(int serverSocket);
 		void 		errorPage();
@@ -59,6 +60,7 @@ class HttpResponse
 
 	private:
 
+		//std::vector<int> 								&_clientActivity;
 		int 											cgiFdtoSend;
 		std::optional<CgiHandler> 						cgi;
 		int												m_epoll;

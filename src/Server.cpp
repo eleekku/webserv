@@ -314,12 +314,13 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
     std::cout << "handleClientConnection cliendfd: " << clientFd << "\n";
     if (_sending.find(clientFd) == _sending.end())
     {
+        std::vector<int>& ref_client = _client_activity;
         HttpResponse response;
         response.setEpoll(epollFd);
-        receiveRequest(_requests[clientFd], conf, serverIndex, response);
+        receiveRequest(_requests[clientFd], conf, serverIndex, response, ref_client);
+        //if (response.checkCgiStatus())
+        //    _client_activity.push_back(response.getFdPipe());
         response.generate();
-        if (response.checkCgiStatus())
-            _client_activity.push_back(response.getFdPipe());
         if (response.sendResponse(clientFd) != true)
         {
             if (response.checkCgiStatus())

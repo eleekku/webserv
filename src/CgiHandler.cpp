@@ -68,7 +68,7 @@ std::string getPythonName(std::string& path)
     return path.substr(pos + 1);
 }
 
-void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response)
+void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response, std::vector<int> &_clientActivity)
 {
     struct epoll_event event;
     
@@ -77,7 +77,8 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
 
     if (pipe(fdPipe) == -1)
         throw std::runtime_error("Pipe creation failed\n");
-
+    _clientActivity.push_back(fdPipe[0]);
+    _clientActivity.push_back()
     fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
     pipetoclose = fdPipe[1];
     //response.setClientActi(fdPipe[0]);
@@ -172,7 +173,7 @@ bool CgiHandler::waitpidCheck(HttpResponse &response)
         if (exitStatus == 0) 
         {
      //       std::cout << "script executed\n";
-            char buffer[BUFFER_SIZE + 1];
+        char buffer[BUFFER_SIZE + 1] = {0};
   //      std::cerr << "fdPipe[0] is " << fdPipe[0] << "\n";
         if (fcntl(fdPipe[0], F_GETFD) != -1)
         {
