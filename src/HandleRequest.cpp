@@ -187,7 +187,7 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 	if (locationStr == "/cgi") { //calls the cgi executor
 		response.createCgi();
 		try {
-			response.startCgi(path, request, response, clientActivity);
+			response.startCgi(path, request, clientActivity);
 			response.setStatusCode(102);
 			return;
 		}
@@ -238,7 +238,7 @@ void handlePost(HttpParser &request, ConfigFile &confile, int serverIndex, HttpR
 	if (request.getTarget() == "/")
 		path += location.index;
 	response.createCgi();
-	response.startCgi(path, request, response, clientActivity);
+	response.startCgi(path, request, clientActivity);
 		response.setStatusCode(102);
 		return;
 }

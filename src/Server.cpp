@@ -24,12 +24,12 @@ int setNonBlocking(int fd)
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1)
     {
-        std::cout <<"error fcntl setNonBlocking\n";
+        std::cerr <<"error fcntl setNonBlocking\n";
         return(-1);
     }
     flags |= O_NONBLOCK;
     if (fcntl(fd, F_SETFL, flags) == -1) {
-        std::cout << "error fcntl setNonBlocking O_NONBLOCK\n";
+        std::cerr << "error fcntl setNonBlocking O_NONBLOCK\n";
         return(-1);
     }
     return 0;

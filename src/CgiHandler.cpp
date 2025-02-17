@@ -30,10 +30,8 @@ void timeoutHandler(int signal)
         kill(childid, SIGINT);
 }
 
-void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpResponse &response, std::vector<int> &_clientActivity)
+void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, std::vector<int> &_clientActivity)
 {
-    struct epoll_event event;
-    
     if (scriptPath.empty())
         throw std::runtime_error("Empty scriptPath\n");
 
@@ -43,13 +41,9 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
     _clientActivity.push_back(fdPipe[1]);
     fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
     pipetoclose = fdPipe[1];
-    //response.setClientActi(fdPipe[0]);
-    /*event.events = EPOLLOUT;
-    event.data.fd = fdPipe[0];
-    epoll_ctl(response.getEpoll(), EPOLL_CTL_ADD, fdPipe[0], &event);*/
     pid = fork();
-    childid = pid;
     m_childid = pid;
+    childid = pid;
     if (pid == -1)
         throw std::runtime_error("Fork failed\n");
     if (pid == 0)  // Child process
@@ -72,8 +66,9 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
         // SET ENVIRONMENT VARIABLES
         setenv("REQUEST_METHOD", request.getMethod() == GET ? "GET" : "POST", 1);
         setenv("QUERY_STRING", request.getQuery().c_str(), 1);
-        freopen("/dev/null", "w", stderr);  // Redirect errors to avoid printing on terminal
-        dup2(fdPipe[1], STDOUT_FILENO);
+        freopen("/dev/null", "w", stderr); // Redirect errors to avoid printing on terminal
+        if (dup2(fdPipe[1], STDOUT_FILENO) == -1)
+            exit(1);
         close(fdPipe[1]);
         close(fdPipe[0]);
         struct sigaction sa; // Set signal handler for timeout
@@ -81,7 +76,7 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
         sigemptyset(&sa.sa_mask);
         sa.sa_flags = SA_RESTART;  // Prevent `epoll_wait` from failing with EINTR
         if (sigaction(SIGALRM, &sa, NULL) == -1)
-            std::cerr << "Error setting signal handler\n";
+            exit(1);
         int executeTimeOut = 8;
         alarm(executeTimeOut);
         char *argv[] = {const_cast<char *>(scriptPath.c_str()), nullptr};

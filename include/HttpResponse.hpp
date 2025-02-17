@@ -52,7 +52,7 @@ class HttpResponse
 		bool		getCgiDone();
 
 		void		createCgi();
-		void		startCgi(std::string scriptPath, HttpParser &request, HttpResponse &response, std::vector<int> 	&_clientActivity);
+		void		startCgi(std::string scriptPath, HttpParser &request, std::vector<int> 	&_clientActivity);
 		void		generate();
 		bool		sendResponse(int serverSocket);
 		void 		errorPage();
