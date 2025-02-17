@@ -427,8 +427,8 @@ void HttpParser::readBody(int clientfd)
 	if (bytesRead == -1)
 	{
 		_state = error;
-		perror("Error reading from client socket");
-		throw std::runtime_error("Error reading from client socket");
+	//	perror("Error reading from client socket");
+	//	throw std::runtime_error("Error reading from client socket");
 	}
 	if (_totalBytesRead == _contentLength)
 		_state = parsingBody;
@@ -656,8 +656,6 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					break;
 				case parsingBody:
 					std::cout << "Parsing body..." << std::endl;
-					//for (auto it = _request.begin(); it != _request.end(); ++it)
-					//	std::cout << *it;
 					if (_request.size() > 0)
 						extractBody();
 					break;
@@ -676,14 +674,5 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 		_state = error;
 		std::cerr << e.what() << std::endl;
 	}
-	try {
-		if (_state == done || _state == error)
-		{
-			std::cout << _method << " " << _target << " " << _version << std::endl;
-			return true;
-		}
-	} catch (std::exception &e) {
-		std::cerr << e.what() << std::endl;
-	}
-	return false;
+	return true;
 }
