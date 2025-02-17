@@ -1,18 +1,22 @@
 #include "HttpParser.hpp"
+#include "Constants.hpp"
 #include "HandleRequest.hpp"
 #include <algorithm>
 #include <cerrno>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <filesystem>
 #include <sys/socket.h>
 #include <unistd.h>
 
 HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0),
-	_method_enum(UNKNOWN), _status(200), _maxBodySize(0), _contentLength(0), _keepAlive(false)
+	_method_enum(UNKNOWN), _status(200), _maxBodySize(0), _contentLength(0), _keepAlive(false), _chunked(false)
 {
 	_request.reserve(BUFFER_SIZE);
+	_filename.clear();
+	_chunkSize = 0;
 }
 
 // Getters
@@ -51,6 +55,21 @@ std::vector<char>	HttpParser::getBodyData()
 			break;
 	}
 	return body;
+}
+
+std::vector<char>	HttpParser::getChunkLine()
+{
+	std::vector<char>	line;
+
+	line.reserve(_chunkSize);
+	size_t	i = 0;
+	while (i++ < _chunkSize)
+	{
+		line.push_back(_request[_pos]);
+		_pos++;
+	}
+	_pos += 2;
+	return line;
 }
 
 void	HttpParser::extractReqLine()
@@ -182,6 +201,8 @@ void	HttpParser::extractHeaders(bool body)
 
 void	HttpParser::extractContentLength()
 {
+	if (_chunked)
+		return ;
 	if (_headers.contains("Content-Length"))
 	{
 		std::stringstream ss(_headers["Content-Length"]);
@@ -244,8 +265,6 @@ void	HttpParser::extractOctetStream()
 
 void	HttpParser::extractBody()
 {
-	if (_headers.contains("Transfer-Encoding") &&_headers["Transfer-Encoding"] == "chunked")
-		extractChunkedBody();
 	if (_headers.contains("Content-Type"))
 	{
 		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
@@ -381,10 +400,18 @@ void	HttpParser::extractMultipartFormData()
 				std::cout << "Creating file\n";
 				std::ofstream outFile(_uploadFolder + filename, std::ios::binary);
 				if (!outFile)
+				{
+					_status = 500;
+					_state = error;
 					throw std::runtime_error("Failed to open file for writing: " + filename);
+				}
 				outFile.write(content.data(), content.size());
 				outFile.close();
 				_status = 201;
+			} else {
+				_status = 400;
+				_state = error;
+				throw std::runtime_error("No filename in multipart/form-data");
 			}
 		if (lineStr == _boundary + "--")
 			break;
@@ -584,10 +611,115 @@ bool	HttpParser::checkTimeout()
 	return false;
 }
 
+void	HttpParser::startChunkedBody()
+{
+	_totalBytesRead = _tmp.size();
+	_request = std::move(_tmp);
+	if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
+	{
+		_filename = extractFilename();
+		if (_filename.empty())
+		{
+			_status = 400;
+			_state = error;
+			throw std::runtime_error("No filename in multipart/form-data");
+		}
+	} else {
+		_filename = "upload";
+	}
+	std::ofstream outFile(_uploadFolder + _filename, std::ios::binary);
+	outFile.close();
+	parseChunkedBody();
+}
+
+void	HttpParser::parseChunkedBody()
+{
+	std::ofstream 		outFile;
+	std::stringstream	chunkSizeStream;
+	std::vector<char>	content;
+
+	outFile.open(_uploadFolder + _filename, std::ios::app);
+	if (!outFile)
+	{
+		_status = 500;
+		_state = error;
+		throw std::runtime_error("Failed to open file for writing: " + _filename);
+	}
+	while (true)
+	{
+		std::cout << "Parsing chunked body..." << std::endl;
+		content.clear();
+		if (_chunkSize == 0)
+		{
+			chunkSizeStream = getVectorLine();
+			chunkSizeStream >> std::hex >> _chunkSize;
+		}
+		std::cout << "Chunk size: " << _chunkSize << std::endl;
+		if ((_request.size() - _pos) < _chunkSize + 2)
+		{
+			std::cout << "Triggered..." << std::endl;
+			_state = readingChunkedBody;
+			outFile.close();
+			return ;
+		}
+		if (_chunkSize == 0)
+		{
+			std::cout << "Finished reading body" << std::endl;
+			_state = done;
+			outFile.close();
+			return ;
+		}
+		std::cout << "Getting chunk line... " << std::endl;
+		content = getChunkLine();
+		outFile.write(content.data(), content.size());
+		_chunkSize = 0;
+	}
+	outFile.close();
+}
+
+void	HttpParser::readChunkedBody(int clientfd)
+{
+	int bytesRead = 0;
+	char buffer[BUFFER_SIZE] = {0};
+
+	std::cout << "Reading chunked body..." << std::endl;
+	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
+	if (bytesRead > 0)
+	{
+		_totalBytesRead += bytesRead;
+		_request.insert(_request.end(), buffer, buffer + bytesRead);
+		std::cout << "Bytes read : " << _totalBytesRead << std::endl;
+	}
+	if (bytesRead == 0)
+	{
+		_state = parsingChunkedBody;
+		return ;
+	}
+	if (bytesRead == -1)
+	{
+		_state = error;
+		perror("Error reading from client socket");
+		throw std::runtime_error("Error reading from client socket");
+	}
+	if (_totalBytesRead > _maxBodySize)
+	{
+		_status = 413;
+		_state = error;
+		throw std::runtime_error("Request entity too large");
+	}
+	if ((_request.size() - _pos) < _chunkSize + 2)
+	{
+		_state = readingChunkedBody;
+		return ;
+	}
+	_state = parsingChunkedBody;
+}
+
 void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 {
 	std::cout << "Starting body..." << std::endl;
 	_request.clear();
+	_pos = 0;
 	_uploadFolder = getUploadPath(conf, serverIndex);
 	if (!std::filesystem::exists(_uploadFolder))
 	{
@@ -595,15 +727,19 @@ void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 		_state = error;
 		throw std::runtime_error("Folder does not exist");
 	}
+	if (_headers.contains("Transfer-Encoding") &&_headers["Transfer-Encoding"] == "chunked")
+	{
+		_chunked = true;
+		startChunkedBody();
+		return ;
+	}
 	extractContentLength();
 	if (_contentLength == 0)
 		return;
 	_request.reserve(_contentLength);
-	std::copy(_tmp.begin(), _tmp.end(), std::back_inserter(_request));
-	_tmp.clear();
-	_pos = 0;
+	_request = std::move(_tmp);
 	_totalBytesRead = _request.size();
-	if (_request.size() == _contentLength)
+	if (_request.size() >= _contentLength)
 		_state = parsingBody;
 	else
 		_state = readingBody;
@@ -650,6 +786,16 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					break;
 				case startBody:
 					startBodyFunction(conf, serverIndex);
+					if (_state == done)
+						_status = 201;
+					break;
+				case readingChunkedBody:
+					readChunkedBody(clientfd);
+					break;
+				case parsingChunkedBody:
+					parseChunkedBody();
+					if (_state == done)
+						_status = 201;
 					break;
 				case readingBody:
 					readBody(clientfd);
@@ -669,7 +815,7 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					break;
 			}
 			if (_state == done || _state == error || _state == readingRequest
-				|| _state == readingBody)
+				|| _state == readingBody || _state == readingChunkedBody)
 				break;
 		}
 	} catch (std::exception &e) {
