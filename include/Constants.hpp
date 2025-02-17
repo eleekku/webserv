@@ -13,6 +13,7 @@ static const int    MAX_CLIENTS = 1024;
 static const int    BACKLOG = 10;              // Listen backlog
 
 // Size Limits
+static const int MAX_SIZE_SEND = 20000000;
 static const size_t MAX_HEADER_SIZE = 8000;
 static const size_t MAX_URI_LENGTH = 4096;
 static const size_t MAX_METHOD_LENGTH = 6;
