@@ -192,7 +192,6 @@ void	HttpParser::extractHeaders(bool body)
 		if (body)
 		{
 			_bodyHeaders.emplace(key, value);
-			std::cout << key << ": " << _bodyHeaders[key] << std::endl;
 		}
 		else
 			_headers.emplace(key, value);
@@ -321,7 +320,6 @@ void	HttpParser::extractChunkedBody()
 		chunkSizeStream = getVectorLine();
 		size_t chunkSize;
 		chunkSizeStream >> std::hex >> chunkSize;
-		std::cout << "Chunk size: " << chunkSize << std::endl;
 		if (chunkSize == 0)
 			break;
 		size_t bytesRead = 0;
@@ -372,7 +370,6 @@ std::string	HttpParser::extractFilename()
 			filename = disposition.substr(start, end - start);
 			if (filename == "")
 			{
-				std::cout << "Empty filename" << std::endl;
 				throw std::runtime_error("Empty filename in multipart/form-data");
 				_state = done;
 				_status = 400;
@@ -398,7 +395,6 @@ void	HttpParser::extractMultipartFormData()
 		throw std::runtime_error("No boundary found in multipart/form-data");
 	while (true)
 	{
-		std::cout << "Looping ..." << std::endl;
 		line = getVectorLine();
 		lineStr = line.str();
 		if (lineStr.back() == '\r')
@@ -406,7 +402,6 @@ void	HttpParser::extractMultipartFormData()
 		if ( lineStr == _boundary)
 		{
 			content.clear();
-			std::cout << "Extracting body headers\n";
 			extractHeaders(true);
 			filename = extractFilename();
 			while (true)
@@ -429,7 +424,6 @@ void	HttpParser::extractMultipartFormData()
 			content.pop_back();
 			if (!filename.empty())
 			{
-				std::cout << "Creating file\n";
 				std::ofstream outFile(_uploadFolder + filename, std::ios::binary);
 				if (!outFile)
 				{
@@ -473,13 +467,11 @@ void HttpParser::readBody(int clientfd)
 	int bytesRead = 0;
 	char buffer[BUFFER_SIZE] = {0};
 
-	std::cout << "Reading body..." << std::endl;
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
 	if (bytesRead > 0)
 	{
 		_totalBytesRead += bytesRead;
 		_request.insert(_request.end(), buffer, buffer + bytesRead);
-		std::cout << "Bytes read : " << _totalBytesRead << " / " << _contentLength << std::endl;
 	}
 	if (bytesRead == 0)
 		_state = parsingBody;
@@ -533,25 +525,20 @@ void	HttpParser::readRequest(int clientfd)
 	char		buffer[BUFFER_SIZE] = {0};
 	std::string	str("\r\n\r\n");
 
-	std::cout << "Reading request..." << std::endl;
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
 	if (bytesRead == 0)
 	{
-		std::cout << "Finished reading..." << std::endl;
 		_state = checkingRequest;
 		return ;
 	}
 	else if (bytesRead == -1)
 	{
-		std::cout << "Finished reading..." << std::endl;
 		_state = error;
-		perror("Error reading from client socket");
 		throw std::runtime_error("Error reading from client socket");
 	}
 	else
 	{
 		_totalBytesRead += bytesRead;
-		std::cout << "Bytes read : " << _totalBytesRead << std::endl;
 		_request.insert(_request.end(), buffer, buffer + bytesRead);
 		if (_request.size() >= 4)
 		{
@@ -559,7 +546,6 @@ void	HttpParser::readRequest(int clientfd)
 			auto it = std::search(_request.begin(), _request.end(), str.begin(), str.end());
 			if (it != _request.end())
 			{
-				std::cout << "Finished reading..." << std::endl;
 				std::copy(it + 4, _request.end(), std::back_inserter(_tmp));
 				_state = checkingRequest;
 				return ;
@@ -679,29 +665,24 @@ void	HttpParser::parseChunkedBody()
 	}
 	while (true)
 	{
-		std::cout << "Parsing chunked body..." << std::endl;
 		content.clear();
 		if (_chunkSize == 0)
 		{
 			chunkSizeStream = getVectorLine();
 			chunkSizeStream >> std::hex >> _chunkSize;
 		}
-		std::cout << "Chunk size: " << _chunkSize << std::endl;
 		if ((_request.size() - _pos) < _chunkSize + 2)
 		{
-			std::cout << "Triggered..." << std::endl;
 			_state = readingChunkedBody;
 			outFile.close();
 			return ;
 		}
 		if (_chunkSize == 0)
 		{
-			std::cout << "Finished reading body" << std::endl;
 			_state = done;
 			outFile.close();
 			return ;
 		}
-		std::cout << "Getting chunk line... " << std::endl;
 		content = getChunkLine();
 		outFile.write(content.data(), content.size());
 		_chunkSize = 0;
@@ -714,13 +695,11 @@ void	HttpParser::readChunkedBody(int clientfd)
 	int bytesRead = 0;
 	char buffer[BUFFER_SIZE] = {0};
 
-	std::cout << "Reading chunked body..." << std::endl;
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
 	if (bytesRead > 0)
 	{
 		_totalBytesRead += bytesRead;
 		_request.insert(_request.end(), buffer, buffer + bytesRead);
-		std::cout << "Bytes read : " << _totalBytesRead << std::endl;
 	}
 	if (bytesRead == 0)
 	{
@@ -730,7 +709,6 @@ void	HttpParser::readChunkedBody(int clientfd)
 	if (bytesRead == -1)
 	{
 		_state = error;
-		perror("Error reading from client socket");
 		throw std::runtime_error("Error reading from client socket");
 	}
 	if (_totalBytesRead > _maxBodySize)
@@ -749,7 +727,6 @@ void	HttpParser::readChunkedBody(int clientfd)
 
 void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 {
-	std::cout << "Starting body..." << std::endl;
 	_request.clear();
 	_pos = 0;
 	_uploadFolder = getUploadPath(conf, serverIndex);
@@ -786,7 +763,6 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 			switch (_state)
 			{
 				case start:
-					std::cout << "Starting parsing..." << std::endl;
 					_maxBodySize = conf.getMax_body(serverIndex);
 					_state = readingRequest;
 					readRequest(clientfd);
@@ -795,11 +771,9 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					readRequest(clientfd);
 					break;
 				case checkingRequest:
-					std::cout << "Checking request..." << std::endl;
 					checkReadRequest();
 					break;
 				case parsingRequest:
-					std::cout << "Parsing request..." << std::endl;
 					extractReqLine();
 					checkLimitMethods(conf, serverIndex);
 					parseQuery();
@@ -833,12 +807,10 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 					readBody(clientfd);
 					break;
 				case parsingBody:
-					std::cout << "Parsing body..." << std::endl;
 					if (_request.size() > 0)
 						extractBody();
 					break;
 				case done:
-					std::cout << "Parsing done..." << std::endl;
 					_request.clear();
 					break;
 				case error:
@@ -855,7 +827,6 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 	try {
 		if (_state == done || _state == error)
 		{
-			std::cout << _method << " " << _target << " " << _version << std::endl;
 			return true;
 		}
 	} catch (std::exception &e) {

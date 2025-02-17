@@ -10,6 +10,15 @@ void globalSignalHandler(int signum)
     (void)signum;
     if (g_serverInstance != nullptr) 
     {
+                // Terminate all CGI processes
+        std::vector <HttpResponse>& responses = g_serverInstance->getResponses();
+        for (auto& response : responses) 
+        {
+            if (response.checkCgiStatus()) 
+            {
+                response.terminateCgi();
+            }
+        }
         // Close all server sockets
         for (int socket : g_serverInstance->getServerSocket()) 
         {
@@ -23,15 +32,18 @@ void globalSignalHandler(int signum)
         {
             close(g_serverInstance->getEpollFd());
         }
+        /*
         // Terminate all CGI processes
         std::vector <HttpResponse>& responses = g_serverInstance->getResponses();
         for (auto& response : responses) 
         {
+            std::cout << "response is " << response.getFdPipe() << "\n";
             if (response.checkCgiStatus()) 
             {
+                std::cerr << "has cgi pipe is " << response.getFdPipe() << "\n";
                 response.terminateCgi();
             }
-        }
+        }*/
         std::vector <int> _client_activity = g_serverInstance->getClientActivity();
         int size = g_serverInstance->getClientActivity().size();
 	    for (int i = 0; i < size; i++)
@@ -88,6 +100,7 @@ int main(int ac, char **av)
     catch(const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
+        std::cout << "Server shut down\n"; 
         return 1;
     }
     std::cout << "Server shut down successfully\n";
