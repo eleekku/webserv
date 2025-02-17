@@ -8,6 +8,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <filesystem>
+#include <string>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -243,7 +244,21 @@ void	HttpParser::extractOctetStream()
 {
 	std::vector<char>	content;
 	std::vector<char>	lineVec;
+	std::string			fileExtension;
 
+	fileExtension.clear();
+	if (_validMimeType)
+	{
+		std::string	contentType = _headers["Content-Type"];
+  		for (const auto& mime : MIME_TYPES)
+    	{
+     		if (contentType.find(mime.second) != std::string::npos)
+		    {
+				fileExtension = mime.first;
+				break ;
+		    }
+		}
+	}
 	content.reserve(_contentLength);
 	while (true)
 	{
@@ -255,7 +270,7 @@ void	HttpParser::extractOctetStream()
 			break;
 		}
 	}
-	std::ofstream outFile(_uploadFolder + "/upload", std::ios::binary);
+	std::ofstream outFile(_uploadFolder + "/upload" + fileExtension, std::ios::binary);
 	if (!outFile)
 		throw std::runtime_error("Failed to open file for writing: upload");
 	outFile.write(content.data(), content.size());
@@ -265,14 +280,31 @@ void	HttpParser::extractOctetStream()
 
 void	HttpParser::extractBody()
 {
-	if (_headers.contains("Content-Type"))
-	{
-		if (_headers["Content-Type"].find("multipart/form-data") != std::string::npos)
-			extractMultipartFormData();
-		else if (_headers["Content-Type"].find("application/octet-stream") != std::string::npos)
-		 	extractOctetStream();
-		else
-			extractStringBody();
+	std::string contentType = _headers["Content-Type"];
+
+	if (contentType.find("application/x-www-form-urlencoded") != std::string::npos)
+		extractStringBody();
+	else if (contentType.find("multipart/form-data") != std::string::npos)
+		extractMultipartFormData();
+	else if (contentType.find("application/octet-stream") != std::string::npos)
+		extractOctetStream();
+	else {
+		_validMimeType = false;
+	    for (const auto& mime : MIME_TYPES)
+	    {
+	        if (contentType.find(mime.second) != std::string::npos)
+	        {
+	            _validMimeType = true;
+	            extractOctetStream();
+	            break;
+	        }
+	    }
+        if (!_validMimeType)
+        {
+            _status = 415;
+            _state = error;
+            throw std::runtime_error("Unsupported Media Type");
+        }
 	}
 	_state = done;
 }
