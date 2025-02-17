@@ -38,6 +38,7 @@ class HttpParser
 		bool				_chunked;
 		std::string			_filename;
 		size_t				_chunkSize;
+		bool				_validMimeType;
 
 		// Parsing
 		void				readRequest(int clientfd);
