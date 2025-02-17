@@ -820,5 +820,14 @@ bool	HttpParser::startParsing(int clientfd, ConfigFile& conf, int serverIndex)
 		_state = error;
 		std::cerr << e.what() << std::endl;
 	}
-	return true;
+	try {
+		if (_state == done || _state == error)
+		{
+			std::cout << _method << " " << _target << " " << _version << std::endl;
+			return true;
+		}
+	} catch (std::exception &e) {
+		std::cerr << e.what() << std::endl;
+	}
+	return false;
 }
