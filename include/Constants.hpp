@@ -80,7 +80,6 @@ static const std::map<int, std::string> HTTP_STATUS_MESSAGES = {
 // MIME Types
 static const std::map<std::string, std::string> MIME_TYPES = {
     {".html", "text/html"},
-    {".htm", "text/html"},
     {".css", "text/css"},
     {".js", "application/javascript"},
     {".json", "application/json"},
