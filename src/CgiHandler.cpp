@@ -40,6 +40,7 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, HttpRes
     if (pipe(fdPipe) == -1)
         throw std::runtime_error("Pipe creation failed\n");
     _clientActivity.push_back(fdPipe[0]);
+    _clientActivity.push_back(fdPipe[1]);
     fcntl(fdPipe[0], F_SETFL, O_NONBLOCK);
     pipetoclose = fdPipe[1];
     //response.setClientActi(fdPipe[0]);
