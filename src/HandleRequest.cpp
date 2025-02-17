@@ -120,7 +120,6 @@ void handleDelete(HttpParser& request, ConfigFile &confile, int serverIndex, Htt
     std::error_code ec;
     if (std::filesystem::remove(path, ec)) {
         response.setStatusCode(204);
-        std::cout << "File deleted" << std::endl;
 		return;
     } else {
         if (ec) {
@@ -205,7 +204,6 @@ void locateAndReadFile(HttpParser &request, ConfigFile &confile, int serverIndex
 	if (S_ISDIR(fileStat.st_mode)) {
 		if (path.back() != '/')
 			path += "/";
-		std::cout << "path is " << path << std::endl;
 		return (listDirectory(request, path, location, response));
 	}
 	std::ifstream file(path, std::ios::binary);

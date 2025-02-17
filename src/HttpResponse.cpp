@@ -34,37 +34,20 @@ HttpResponse::HttpResponse(const HttpResponse& other) {
 }
 
 HttpResponse& HttpResponse::operator=(const HttpResponse& other) {
-//	std::cout << "hello from copy assignment\n";
 	if (this == &other)
 		return *this;
-//	std::cout << "hello from copy assignment\n";
 	m_statusCode = other.m_statusCode;
-//	std::cout << "status code\n";
-//	std::cout << "this reaason phrase is " << m_reasonPhrase << "\n";
-//	std::cout << "other reason phrase is " << other.m_reasonPhrase << "\n";
 	m_reasonPhrase = other.m_reasonPhrase;
-//	std::cout << "reason Phrase\n";
 	m_headers = other.m_headers;
-//	std::cout << "headers\n";
 	m_body = other.m_body;
-//	std::cout << "body\n";
 	m_mime = other.m_mime;
-//	std::cout << "mime\n";
 	m_sent = other.m_sent;
-//	std::cout << "sent\n";
 	cgi = other.cgi;
-//	std::cout << "cgi\n";
 	m_totalBytesSent = other.m_totalBytesSent;
-//	std::cout << "totalBytesSent\n";
-//	std::cout << "other error path is " << other.m_errorpath << "\n";
 	m_errorpath = other.m_errorpath;
-//	std::cout << "errorpath\n";
 	m_responsestr = other.m_responsestr;
-//	std::cout << "responsestr\n";
 	m_epoll = other.m_epoll;
-//	std::cout << "epoll\n";
 	cgiFdtoSend = other.cgiFdtoSend;
-//	std::cout << "bye from copy assignment\n";
 	m_cgidone = other.m_cgidone;
 
 	return *this;
@@ -219,14 +202,10 @@ bool HttpResponse::sendResponse(int serverSocket)
 {
 	if (cgi)
 	{
-		std::cout << "checking cgi status\n";
 		if (!cgi->waitpidCheck(*this)) {
-			std::cout << "cgi not done\n";
-	//		close(cgiFdtoSend);
 			if (cgiFdtoSend == 0)
 			{
 				struct epoll_event event;
-				std::cout << "cgiFdtoSend set" << cgiFdtoSend << "\n";
 				cgiFdtoSend = serverSocket;
 				event.events = EPOLLOUT;
 				event.data.fd = getFdPipe();
@@ -235,7 +214,6 @@ bool HttpResponse::sendResponse(int serverSocket)
 			return false;
 		}
 		else if (!m_sent) {
-			std::cout << "cgi done not sent\n";
 			if (cgiFdtoSend != 0)
 				serverSocket = cgiFdtoSend;
 			else
@@ -244,7 +222,6 @@ bool HttpResponse::sendResponse(int serverSocket)
 					close(getFdPipe());
 			}
 			generate();
-	//		serverSocket = cgiFdtoSend;
 		}
 		else
 			return true;
@@ -252,7 +229,6 @@ bool HttpResponse::sendResponse(int serverSocket)
 	int bufferSize = m_bodySize - m_totalBytesSent;
 	if (bufferSize > MAX_SIZE_SEND)
 		bufferSize = MAX_SIZE_SEND;
-	std::cerr << "sending response to " << serverSocket << "\n";
 	ssize_t bytesSent = send(serverSocket, m_responsestr.c_str() + m_totalBytesSent, bufferSize, MSG_NOSIGNAL);
 	if (bytesSent == -1) // || bytesSent == 0) //if this happen we need to created a new response (this mean a new body size)
 	{
@@ -273,7 +249,6 @@ bool HttpResponse::sendResponse(int serverSocket)
 			close(cgiFdtoSend);
 		setCgiDone(true);
 	}
-	std::cout << "sent\n";
 	m_sent = true;
 	return true;
 }
