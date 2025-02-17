@@ -47,6 +47,8 @@ enum ParsingState {
 	parsingBody = 6,
 	done = 7,
 	checkingRequest = 8,
+	readingChunkedBody = 9,
+	parsingChunkedBody = 10,
 	error = 0
 };
 

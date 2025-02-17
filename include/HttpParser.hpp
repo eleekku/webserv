@@ -35,16 +35,23 @@ class HttpParser
 		time_t				_lastSeen;
 		bool				_keepAlive;
 		std::string			_uploadFolder;
+		bool				_chunked;
+		std::string			_filename;
+		size_t				_chunkSize;
 
 		// Parsing
 		void				readRequest(int clientfd);
 		void				readBody(int clientfd);
+		void				readChunkedBody(int clientfd);
+		void				startChunkedBody();
 		std::stringstream	getVectorLine();
+		std::vector<char> 	getChunkLine();
 		void				startBodyFunction(ConfigFile& conf, int serverIndex);
 		std::vector<char>	getBodyData();
 		void				extractReqLine();
 		void				parseQuery();
 		void				extractHeaders(bool body);
+		void				parseChunkedBody();
 
 		// Body processing
 		void		extractChunkedBody();
