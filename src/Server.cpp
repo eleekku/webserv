@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 
-Server::Server() : _client_activity()
+Server::Server() : epollFd(0), _client_activity()
 {
     _response.resize(200);
 	_requests.resize(200);
@@ -323,6 +323,10 @@ void Server::cleaningServerFd()
 {
 
     for (int fd : serveSocket)
-        close(fd);
-    close(epollFd);
+    {
+        if(fd > 2)
+            close(fd);
+    }
+    if (epollFd > 2)
+        close(epollFd);
 }
