@@ -58,7 +58,6 @@ class HttpResponse
 		bool		checkCgiStatus();
 		int			getCgiFdtoSend();
 		void		terminateCgi();
-		//void setClientActi(int fd);
 
 	private:
 
