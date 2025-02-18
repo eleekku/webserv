@@ -140,10 +140,8 @@ void Server::runLoop()
 	    {
 	        int nfds = epoll_wait(epollFd, events, MAX_EVENTS, CONNECTION_TIMEOUT);
 	        if (nfds == -1)
-	        {
-	            std::cerr << "\nrun = Error in epoll_wait" << "\n";
 	            throw std::runtime_error("Error in epoll_wait");
-	        } else if (nfds == 0)
+	        else if (nfds == 0)
 	        {
 				for (size_t i = 0; i < _client_activity.size(); i++)
 				{
