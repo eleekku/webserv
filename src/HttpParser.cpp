@@ -477,9 +477,9 @@ void HttpParser::readBody(int clientfd)
 		_state = parsingBody;
 	if (bytesRead == -1)
 	{
+		_status = 500;
 		_state = error;
-	//	perror("Error reading from client socket");
-	//	throw std::runtime_error("Error reading from client socket");
+		throw std::runtime_error("Error reading from client socket");
 	}
 	if (_totalBytesRead == _contentLength)
 		_state = parsingBody;
@@ -533,6 +533,7 @@ void	HttpParser::readRequest(int clientfd)
 	}
 	else if (bytesRead == -1)
 	{
+		_status = 500;
 		_state = error;
 		throw std::runtime_error("Error reading from client socket");
 	}
@@ -542,7 +543,6 @@ void	HttpParser::readRequest(int clientfd)
 		_request.insert(_request.end(), buffer, buffer + bytesRead);
 		if (_request.size() >= 4)
 		{
-			// Possible optimization starting from previous end - 4
 			auto it = std::search(_request.begin(), _request.end(), str.begin(), str.end());
 			if (it != _request.end())
 			{
