@@ -242,6 +242,16 @@ bool HttpResponse::sendResponse(int serverSocket, std::vector<int> &clientActivi
 		generate();
 		return false;
 	}
+	else if (bytesSent == 0)
+	{
+		if (cgi)
+		{
+			if (cgiFdtoSend > 3)
+				close(cgiFdtoSend)
+			setCgiDone(true);
+		}
+		return (true);
+	}
 	else
 		m_totalBytesSent += bytesSent;
 	if (m_totalBytesSent < m_bodySize)
