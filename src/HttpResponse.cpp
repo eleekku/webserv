@@ -247,7 +247,7 @@ bool HttpResponse::sendResponse(int serverSocket, std::vector<int> &clientActivi
 		if (cgi)
 		{
 			if (cgiFdtoSend > 3)
-				close(cgiFdtoSend)
+				close(cgiFdtoSend);
 			setCgiDone(true);
 		}
 		return (true);
