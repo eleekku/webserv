@@ -6,7 +6,7 @@
 
 Server::Server() : epollFd(0), _client_activity()
 {
-    _response.resize(500);
+    //_response.resize(500);
 	_requests.resize(500);
 	_is_used.resize(500, false);
 }
@@ -127,7 +127,7 @@ std::vector<int> Server::getClientActivity()
 	return _client_activity;
 }
 
-std::vector<HttpResponse>& Server::getResponses() 
+std::map <int, HttpResponse>& Server::getResponses() 
 {
     return _response;
 }
@@ -305,6 +305,7 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
         if (clientFd > 3)
 	        close(clientFd);
 	    _sending.erase(clientFd);
+        _response.erase(clientFd);
     } else {
         event.events = EPOLLIN;
         event.data.fd = clientFd;    

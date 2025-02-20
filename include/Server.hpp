@@ -27,7 +27,7 @@ class Server
     std::vector<bool>		    _is_used;
     std::vector<int>			_client_activity;
     std::map<int, bool>         _sending;
-    std::vector <HttpResponse> _response;
+    std::map <int, HttpResponse> _response;
 
 
     public:
@@ -53,7 +53,7 @@ class Server
     int                         getEpollFd();
     std::vector<int>            getClientActivity();
     std::vector<int>            getServerSocket();
-    std::vector<HttpResponse>&  getResponses();
+    std::map <int, HttpResponse>&  getResponses();
 
 };
 

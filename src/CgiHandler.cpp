@@ -76,7 +76,7 @@ void CgiHandler::executeCGI(std::string scriptPath, HttpParser &request, std::ve
         sa.sa_flags = SA_RESTART;  // Prevent `epoll_wait` from failing with EINTR
         if (sigaction(SIGALRM, &sa, NULL) == -1)
             exit(1);
-        int executeTimeOut = 3;
+        int executeTimeOut = 1;
         alarm(executeTimeOut);
         char *argv[] = {const_cast<char *>(scriptPath.c_str()), nullptr};
         execvp(scriptPath.c_str(), argv);
