@@ -6,9 +6,9 @@
 
 Server::Server() : epollFd(0), _client_activity()
 {
-    _response.resize(1000);
-	_requests.resize(1000);
-	_is_used.resize(1000, false);
+    _response.resize(500);
+	_requests.resize(500);
+	_is_used.resize(500, false);
 }
 
 Server::~Server() {}
