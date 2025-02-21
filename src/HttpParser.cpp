@@ -265,6 +265,8 @@ void	HttpParser::extractOctetStream()
 	{
 		lineVec.clear();
 		lineVec = getBodyData();
+		if (lineVec.empty())
+			break;
 		content.insert(content.end(), lineVec.begin(), lineVec.end());
 		if (content.size() >= _contentLength)
 		{
@@ -752,7 +754,8 @@ void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 		_state = error;
 		throw std::runtime_error("Folder does not exist");
 	}
-	if (_uploadFolder == "cgi-bin/")
+	std::string location = _target.substr(0, _target.find('/', 1));
+	if (location == "/cgi")
 		_cgi = true;
 	if (_headers.contains("Transfer-Encoding"))
 	{
