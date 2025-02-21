@@ -464,9 +464,11 @@ void	HttpParser::checkReadRequest()
 
 void HttpParser::readBody(int clientfd)
 {
-	int bytesRead = 0;
-	char buffer[BUFFER_SIZE] = {0};
+	int			bytesRead = 0;
+	char		buffer[BUFFER_SIZE] = {0};
+	std::string	str("\r\n\r\n");
 
+	std::cout << "Reading body\n";
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
 	if (bytesRead > 0)
 	{
@@ -494,6 +496,17 @@ void HttpParser::readBody(int clientfd)
 		_status = 413;
 		_state = error;
 		throw std::runtime_error("Request entity too large");
+	}
+	if (_request.size() >= 4)
+	{
+		auto it = std::search(_request.begin(), _request.end(), str.begin(), str.end());
+		if (it != _request.end())
+		{
+			std::cout << "Found end of headers\n";
+			_status = 400;
+			_state = error;
+			return ;
+		}
 	}
 }
 
@@ -620,7 +633,7 @@ void	HttpParser::isKeepAlive()
 bool	HttpParser::checkTimeout()
 {
 	time_t now = time(nullptr);
-	if (difftime(now, _lastSeen) > CONNECTION_TIMEOUT)
+	if (difftime(now, _lastSeen) * 1000 > CONNECTION_TIMEOUT)
 	{
 		_state = error;
 		_status = 408;
@@ -708,6 +721,7 @@ void	HttpParser::readChunkedBody(int clientfd)
 	}
 	if (bytesRead == -1)
 	{
+		_status = 500;
 		_state = error;
 		throw std::runtime_error("Error reading from client socket");
 	}

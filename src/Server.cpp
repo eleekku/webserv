@@ -127,7 +127,7 @@ std::vector<int> Server::getClientActivity()
 	return _client_activity;
 }
 
-std::vector<HttpResponse>& Server::getResponses() 
+std::vector<HttpResponse>& Server::getResponses()
 {
     return _response;
 }
@@ -143,13 +143,15 @@ void Server::runLoop()
 	            throw std::runtime_error("Error in epoll_wait");
 	        else if (nfds == 0)
 	        {
-				for (size_t i = 0; i < _client_activity.size(); i++)
+				size_t sizeClient = _client_activity.size();
+				for (size_t i = 0; i < sizeClient; i++)
 				{
 					if (_is_used[_client_activity[i]])
 					{
 						if (_requests[_client_activity[i]].checkTimeout())
 						{
-							std::cout << "Timeout reached for client " << i << std::endl;
+							char buffer[] = "HTTP/1.1 408 Request Timeout\r\n\r\n";
+							send(_client_activity[i], buffer, strlen(buffer), 0);
 							epoll_ctl(epollFd, EPOLL_CTL_DEL, _client_activity[i], nullptr);
 							close(_client_activity[i]);
 							releaseVectors(_client_activity[i]);
@@ -219,7 +221,7 @@ void Server::runLoop()
                         else if (events[i].events & EPOLLOUT)
                             handleClientConnection(serverIndex, client, i);
                         else if (events[i].events & EPOLLHUP)
-                            handleClientConnection(serverIndex, client, i);                   
+                            handleClientConnection(serverIndex, client, i);
 	                }
 	                client = 0;
 	                socketS = 0;
@@ -307,7 +309,7 @@ bool Server::handleClientConnection(int serverIndex, int clientFd, int eventInde
 	    _sending.erase(clientFd);
     } else {
         event.events = EPOLLIN;
-        event.data.fd = clientFd;    
+        event.data.fd = clientFd;
         epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &event);
     	_requests[clientFd] = HttpParser();
     }
