@@ -81,7 +81,6 @@ int main(int ac, char **av)
         ConfigFile serverFile(av[1]);
         serverFile.openConfigFile();
         serverFile.finalCheck();
-        std::cout << "Welcome to Server Red Oscura\n";
         Server  server;
         signal(SIGINT, globalSignalHandler);
         server.initialize(serverFile);

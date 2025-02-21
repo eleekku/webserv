@@ -68,7 +68,7 @@ static bool isValPort(const std::string& port)
 }
 static bool isValBZ(const std::string& bodySize)
 {
-    std::regex maxBodySize ("^(10|[1-9](?:[.,][0-9])?)M$");
+    std::regex maxBodySize ("^(10M|[1-9](?:\\.[0-9]+)?M|[1-9][0-9]{0,3}K|[1-9][0-9]*)$");
     return std::regex_match(bodySize, maxBodySize);
 }
 
@@ -254,9 +254,11 @@ void ConfigFile::finalCheck()
         for (unsigned long  j = i; j < indexServer; j++)
         {
             if (ip_server[i] == ip_server[j + 1] && port[i] == port[j + 1])
-                throw std::runtime_error("\n ip or port are same en diferents servers\n");
+                throw std::runtime_error("\nThe IP address or port number should not be the same across different servers\n");
         }
     }
+    for (unsigned long i = 0; i < max_body.size(); i++)
+        getMax_body(i);
 }
 
 bool ConfigFile::parseServerParams(std::ifstream& file, unsigned long indexSer) 
@@ -413,7 +415,7 @@ void ConfigFile::setLocations(int indexServer) //set a duoble map with the locat
 }
 
 bool isValidMaxBody(const std::string& arg) {
-    std::regex pattern(R"(^\d+[MK]$)");
+    std::regex pattern(R"(^\d+(?:[MK])?$)");
     return std::regex_match(arg, pattern);
 }
 //getters
@@ -423,35 +425,27 @@ long ConfigFile::getMax_body(int i)
 {
     size_t end = 0;
     long body = 0;
-    std::string number = "";
-    if (!isValidMaxBody(max_body[i]))
-    {
+    std::string number = max_body[i];
+
+    if (!isValidMaxBody(number))
         throw std::runtime_error("\ninvalid MAX_BODY");
+    if (number.size() > 9)
+        throw std::runtime_error("\nMAXBODY out of range (1B - 10M)");
+
+    if ((end = number.find("M")) != std::string::npos) {
+        number = number.substr(0, end);
+        body = std::stol(number) * 1000000;
+    } 
+    else if ((end = number.find("K")) != std::string::npos) {
+        number = number.substr(0, end);
+        body = std::stol(number) * 1000;
+    } 
+    else {
+        body = std::stol(number);
     }
-    if ((end = max_body[i].find("M")) != std::string::npos)
-    {
-        number = max_body[i].substr(0, end);
-        if (!(body = std::stoi(number)))
-        {
-            throw std::runtime_error("\nMAXBODY too big");
-        }
-        if (body > 10)
-            throw std::runtime_error("\nMAXBODY too big");
-        return(std::stoi(number) * 1000000);
-    }
-    if ((end = max_body[i].find("K")) != std::string::npos)
-    {
-        number = max_body[i].substr(0, end);
-        if (!(body = std::stoi(number)))
-        {
-            throw std::runtime_error("\nMAXBODY too big");
-        }
-        if (body > 10000)
-        {
-            throw std::runtime_error("\nMAXBODY too big");
-        }
-        return(std::stoi(number) * 1000);
-    }
+    if (body < 1 || body > 10000000)
+        throw std::runtime_error("\nMAXBODY out of range (1B - 10M)");
+
     return body;
 }
 int ConfigFile::serverAmount() {  return port.size(); }
