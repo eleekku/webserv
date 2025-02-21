@@ -209,12 +209,16 @@ bool HttpResponse::sendResponse(int serverSocket, std::vector<int> &clientActivi
 				event.events = EPOLLOUT;
 				event.data.fd = getFdPipe();
 				epoll_ctl(m_epoll, EPOLL_CTL_ADD, getFdPipe(), &event);
+				auto new_end = std::remove(clientActivity.begin(), clientActivity.end(), serverSocket);
+				clientActivity.erase(new_end, clientActivity.end());
 			}
 			return false;
 		}
 		else if (!m_sent) {
 			if (cgiFdtoSend != 0)
+			{
 				serverSocket = cgiFdtoSend;
+			}
 			else
 			{
 				if (getFdPipe() > 3)

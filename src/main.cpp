@@ -11,8 +11,8 @@ void globalSignalHandler(int signum)
     if (g_serverInstance != nullptr) 
     {
         // Terminate all CGI processes
-        std::vector <HttpResponse>& responses = g_serverInstance->getResponses();
-        for (auto& response : responses) 
+        std::map<int, HttpResponse>& responses = g_serverInstance->getResponses();
+        for (auto& [key, response] : responses)
         {
             if (response.checkCgiStatus()) 
             {
@@ -81,7 +81,6 @@ int main(int ac, char **av)
         ConfigFile serverFile(av[1]);
         serverFile.openConfigFile();
         serverFile.finalCheck();
-        std::cout << "Welcome to Server Red Oscura\n";
         Server  server;
         signal(SIGINT, globalSignalHandler);
         server.initialize(serverFile);
