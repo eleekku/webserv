@@ -87,6 +87,7 @@ void Server::initialize(ConfigFile& config)
         serveSocket.push_back(serverFd);
     }
     g_serverInstance = this;
+    std::cout << "Bienvenido a server red oscura" << std::endl;
     for (int i = 0; i < sizeIP; i++)
     {
         std::cout << "Server [" << i + 1 << "] initialized on " << ips[i] << ":" << portServer[i] << std::endl;
