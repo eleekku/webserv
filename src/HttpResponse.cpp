@@ -71,13 +71,13 @@ void HttpResponse::setStatusCode(int code) {
 void HttpResponse::setMimeType(const std::string& mime) { m_mime = mime; }
 
 void HttpResponse::setErrorpath(std::string errorpath) {
+	struct stat filestat;
+	std::string path = "." + errorpath;
 	if (errorpath.empty())
 		m_errorpath = DEFAULT_ERROR_PATH;
-	std::string path = "." + errorpath;
-	if (!std::filesystem::exists(path))
+	else if (!std::filesystem::exists(path))
 		m_errorpath = DEFAULT_ERROR_PATH;
-	struct stat filestat;
-	if (stat(path.c_str(), &filestat) == -1)
+	else if (stat(path.c_str(), &filestat) == -1)
 		m_errorpath = DEFAULT_ERROR_PATH;
 	else
 		m_errorpath = errorpath;
