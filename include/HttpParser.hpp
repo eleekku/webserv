@@ -39,6 +39,7 @@ class HttpParser
 		std::string			_filename;
 		size_t				_chunkSize;
 		bool				_validMimeType;
+		bool				_cgi;
 
 		// Parsing
 		void				readRequest(int clientfd);
@@ -72,6 +73,7 @@ class HttpParser
 		void	checkLimitMethods(ConfigFile& conf, int serverIndex);
 		bool	checkValidCharacters();
 		void	isKeepAlive();
+		void	checkContentLength();
 
 	public:
 		// Constructor

@@ -18,6 +18,7 @@ HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0),
 	_request.reserve(BUFFER_SIZE);
 	_filename.clear();
 	_chunkSize = 0;
+	_cgi = false;
 }
 
 // Getters
@@ -281,7 +282,9 @@ void	HttpParser::extractBody()
 {
 	std::string contentType = _headers["Content-Type"];
 
-	if (contentType.find("application/x-www-form-urlencoded") != std::string::npos)
+	if (_cgi)
+		extractStringBody();
+	else if (contentType.find("application/x-www-form-urlencoded") != std::string::npos)
 		extractStringBody();
 	else if (contentType.find("multipart/form-data") != std::string::npos)
 		extractMultipartFormData();
@@ -462,13 +465,21 @@ void	HttpParser::checkReadRequest()
 	_state = parsingRequest;
 }
 
+void	HttpParser::checkContentLength()
+{
+	if (_totalBytesRead > _contentLength)
+	{
+		_status = 400;
+		_state = error;
+		throw std::runtime_error("Content-Length mismatch");
+	}
+}
+
 void HttpParser::readBody(int clientfd)
 {
 	int			bytesRead = 0;
 	char		buffer[BUFFER_SIZE] = {0};
-	std::string	str("\r\n\r\n");
 
-	std::cout << "Reading body\n";
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
 	if (bytesRead > 0)
 	{
@@ -485,29 +496,13 @@ void HttpParser::readBody(int clientfd)
 	}
 	if (_totalBytesRead == _contentLength)
 		_state = parsingBody;
-	if (_totalBytesRead > _contentLength)
-	{
-		_status = 400;
-		_state = error;
-		throw std::runtime_error("Content-Length mismatch");
-	}
 	if (_totalBytesRead > _maxBodySize)
 	{
 		_status = 413;
 		_state = error;
 		throw std::runtime_error("Request entity too large");
 	}
-	if (_request.size() >= 4)
-	{
-		auto it = std::search(_request.begin(), _request.end(), str.begin(), str.end());
-		if (it != _request.end())
-		{
-			std::cout << "Found end of headers\n";
-			_status = 400;
-			_state = error;
-			return ;
-		}
-	}
+	checkContentLength();
 }
 
 std::string	HttpParser::getUploadPath(ConfigFile& conf, int serverIndex)
@@ -744,17 +739,28 @@ void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 	_request.clear();
 	_pos = 0;
 	_uploadFolder = getUploadPath(conf, serverIndex);
+	if (!_headers.contains("Content-Type"))
+	{
+		_status = 400;
+		_state = error;
+		throw std::runtime_error("No Content-Type header");
+	}
 	if (!std::filesystem::exists(_uploadFolder))
 	{
 		_status = 404;
 		_state = error;
 		throw std::runtime_error("Folder does not exist");
 	}
-	if (_headers.contains("Transfer-Encoding") &&_headers["Transfer-Encoding"] == "chunked")
+	if (_uploadFolder == "cgi-bin/")
+		_cgi = true;
+	if (_headers.contains("Transfer-Encoding"))
 	{
-		_chunked = true;
-		startChunkedBody();
-		return ;
+		if (_headers["Transfer-Encoding"] == "chunked")
+		{
+			_chunked = true;
+			startChunkedBody();
+			return ;
+		}
 	}
 	extractContentLength();
 	if (_contentLength == 0)
@@ -762,6 +768,7 @@ void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 	_request.reserve(_contentLength);
 	_request = std::move(_tmp);
 	_totalBytesRead = _request.size();
+	checkContentLength();
 	if (_request.size() >= _contentLength)
 		_state = parsingBody;
 	else
