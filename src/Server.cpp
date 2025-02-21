@@ -218,7 +218,7 @@ void Server::runLoop()
 						_requests[_client_activity[i]].changeStatus(408);
 						event.events = EPOLLOUT;
                         event.data.fd = _client_activity[i];
-                        if (epoll_ctl(epollFd, EPOLL_CTL_MOD, client, &event) == -1)
+                        if (epoll_ctl(epollFd, EPOLL_CTL_MOD, _client_activity[i], &event) == -1)
                         {
                             std::cerr << "Fail epoll_ctl() in parsing\n";
                             continue;
