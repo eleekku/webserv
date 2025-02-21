@@ -31,6 +31,7 @@ std::string	HttpParser::getQuery() { return _query;}
 std::string HttpParser::getBody() { return _body;}
 size_t		HttpParser::getContentLength() { return _contentLength;}
 bool		HttpParser::getKeepAlive() { return _keepAlive;}
+void		HttpParser::changeStatus(int status) { _status = status;}
 
 std::stringstream HttpParser::getVectorLine()
 {

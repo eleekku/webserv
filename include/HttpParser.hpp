@@ -90,6 +90,7 @@ class HttpParser
 		size_t		getContentLength();
 		bool		checkTimeout();
 		bool		getKeepAlive();
+		void		changeStatus(int status);
 
 		bool	startParsing(int clientfd, ConfigFile& conf, int serverIndex);
 };
