@@ -772,6 +772,12 @@ void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 	_request.reserve(_contentLength);
 	_request = std::move(_tmp);
 	_totalBytesRead = _request.size();
+	if (_totalBytesRead > _maxBodySize)
+		{
+			_status = 413;
+			_state = error;
+			throw std::runtime_error("Request entity too large");
+		}
 	checkContentLength();
 	if (_request.size() >= _contentLength)
 		_state = parsingBody;
