@@ -72,6 +72,7 @@ class HttpParser
 		void	checkLimitMethods(ConfigFile& conf, int serverIndex);
 		bool	checkValidCharacters();
 		void	isKeepAlive();
+		void	checkContentLength();
 
 	public:
 		// Constructor

@@ -462,11 +462,32 @@ void	HttpParser::checkReadRequest()
 	_state = parsingRequest;
 }
 
+void	HttpParser::checkContentLength()
+{
+	std::string str("\r\n\r\n");
+
+	if (_totalBytesRead > _contentLength)
+	{
+		_status = 400;
+		_state = error;
+		throw std::runtime_error("Content-Length mismatch");
+	}
+	if (_request.size() >= 4)
+	{
+		auto it = std::search(_request.begin(), _request.end(), str.begin(), str.end());
+		if (it != _request.end())
+		{
+			_status = 400;
+			_state = error;
+			throw std::runtime_error("Body size too small");
+		}
+	}
+}
+
 void HttpParser::readBody(int clientfd)
 {
 	int			bytesRead = 0;
 	char		buffer[BUFFER_SIZE] = {0};
-	std::string	str("\r\n\r\n");
 
 	std::cout << "Reading body\n";
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
@@ -485,29 +506,13 @@ void HttpParser::readBody(int clientfd)
 	}
 	if (_totalBytesRead == _contentLength)
 		_state = parsingBody;
-	if (_totalBytesRead > _contentLength)
-	{
-		_status = 400;
-		_state = error;
-		throw std::runtime_error("Content-Length mismatch");
-	}
 	if (_totalBytesRead > _maxBodySize)
 	{
 		_status = 413;
 		_state = error;
 		throw std::runtime_error("Request entity too large");
 	}
-	if (_request.size() >= 4)
-	{
-		auto it = std::search(_request.begin(), _request.end(), str.begin(), str.end());
-		if (it != _request.end())
-		{
-			std::cout << "Found end of headers\n";
-			_status = 400;
-			_state = error;
-			return ;
-		}
-	}
+	checkContentLength();
 }
 
 std::string	HttpParser::getUploadPath(ConfigFile& conf, int serverIndex)
@@ -750,11 +755,20 @@ void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 		_state = error;
 		throw std::runtime_error("Folder does not exist");
 	}
-	if (_headers.contains("Transfer-Encoding") &&_headers["Transfer-Encoding"] == "chunked")
+	if (_headers.contains("Transfer-Encoding"))
 	{
-		_chunked = true;
-		startChunkedBody();
-		return ;
+		if (_headers.contains("Content-Length"))
+		{
+			_status = 400;
+			_state = error;
+			throw std::runtime_error("Both Transfer-Encoding and Content-Length present");
+		}
+		if (_headers["Transfer-Encoding"] == "chunked")
+		{
+			_chunked = true;
+			startChunkedBody();
+			return ;
+		}
 	}
 	extractContentLength();
 	if (_contentLength == 0)
@@ -762,6 +776,7 @@ void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 	_request.reserve(_contentLength);
 	_request = std::move(_tmp);
 	_totalBytesRead = _request.size();
+	checkContentLength();
 	if (_request.size() >= _contentLength)
 		_state = parsingBody;
 	else
