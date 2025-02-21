@@ -18,6 +18,7 @@ HttpParser::HttpParser() : _state(start), _pos(0), _totalBytesRead(0),
 	_request.reserve(BUFFER_SIZE);
 	_filename.clear();
 	_chunkSize = 0;
+	_cgi = false;
 }
 
 // Getters
@@ -281,7 +282,9 @@ void	HttpParser::extractBody()
 {
 	std::string contentType = _headers["Content-Type"];
 
-	if (contentType.find("application/x-www-form-urlencoded") != std::string::npos)
+	if (_cgi)
+		extractStringBody();
+	else if (contentType.find("application/x-www-form-urlencoded") != std::string::npos)
 		extractStringBody();
 	else if (contentType.find("multipart/form-data") != std::string::npos)
 		extractMultipartFormData();
@@ -464,23 +467,11 @@ void	HttpParser::checkReadRequest()
 
 void	HttpParser::checkContentLength()
 {
-	std::string str("\r\n\r\n");
-
 	if (_totalBytesRead > _contentLength)
 	{
 		_status = 400;
 		_state = error;
 		throw std::runtime_error("Content-Length mismatch");
-	}
-	if (_request.size() >= 4)
-	{
-		auto it = std::search(_request.begin(), _request.end(), str.begin(), str.end());
-		if (it != _request.end())
-		{
-			_status = 400;
-			_state = error;
-			throw std::runtime_error("Body size too small");
-		}
 	}
 }
 
@@ -489,7 +480,6 @@ void HttpParser::readBody(int clientfd)
 	int			bytesRead = 0;
 	char		buffer[BUFFER_SIZE] = {0};
 
-	std::cout << "Reading body\n";
 	bytesRead = recv(clientfd, buffer, BUFFER_SIZE, 0);
 	if (bytesRead > 0)
 	{
@@ -749,20 +739,22 @@ void	HttpParser::startBodyFunction(ConfigFile& conf, int serverIndex)
 	_request.clear();
 	_pos = 0;
 	_uploadFolder = getUploadPath(conf, serverIndex);
+	if (!_headers.contains("Content-Type"))
+	{
+		_status = 400;
+		_state = error;
+		throw std::runtime_error("No Content-Type header");
+	}
 	if (!std::filesystem::exists(_uploadFolder))
 	{
 		_status = 404;
 		_state = error;
 		throw std::runtime_error("Folder does not exist");
 	}
+	if (_uploadFolder == "cgi-bin/")
+		_cgi = true;
 	if (_headers.contains("Transfer-Encoding"))
 	{
-		if (_headers.contains("Content-Length"))
-		{
-			_status = 400;
-			_state = error;
-			throw std::runtime_error("Both Transfer-Encoding and Content-Length present");
-		}
 		if (_headers["Transfer-Encoding"] == "chunked")
 		{
 			_chunked = true;
